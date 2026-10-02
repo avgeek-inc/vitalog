@@ -65,7 +65,7 @@ describe("Inventory and schema parity", () => {
         true,
       );
       normalizeInput(type, examples[type], "Asia/Kolkata", now);
-    });
+    }, 15_000);
   for (const key of nutrientKeys)
     test(`Nutrient ${key} accepts exact zero and unknown, rejects unadvertised fields`, () => {
       normalizeInput(

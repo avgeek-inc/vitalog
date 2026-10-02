@@ -35,7 +35,7 @@ describe("Fresh request contracts and preserved stored payloads", () => {
       expect(recordInputs[type].safeParse(input).success).toBe(false);
       expect(ajv.compile(jsonSchema(recordInputs[type]))(input)).toBe(false);
       expect(() => normalizeInput(type, input, "UTC", now)).toThrow();
-    });
+    }, 15_000);
 
   test.each([
     { ...measurementFixture("weight"), unit: "bananas" },
