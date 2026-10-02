@@ -2,8 +2,9 @@ FROM node:24.16.0-bookworm-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
-COPY tsconfig.json tsconfig.build.json ./
+COPY tsconfig.json tsconfig.build.json tsconfig.web.json vite.config.ts ./
 COPY src ./src
+COPY web ./web
 COPY scripts ./scripts
 COPY drizzle ./drizzle
 RUN npm run build && npm prune --omit=dev

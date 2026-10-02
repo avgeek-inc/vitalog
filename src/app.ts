@@ -16,7 +16,7 @@ import { MAX_RESPONSE_BYTES } from "./domain/catalog.js";
 import { ApiKeys } from "./auth/keys.js";
 import { RootAuthentication } from "./auth/root.js";
 import { keyCreation, keyId, keyListQuery } from "./auth/contracts.js";
-import { keyPage, keyPageCsp } from "./auth/page.js";
+import { keyPage } from "./auth/page.js";
 
 const deadlineMessage =
   "Request exceeded its deadline; mutations may be retried with the same idempotency key";
@@ -134,7 +134,9 @@ export function application(
             (source.protocol === "http:" &&
               ["localhost", "127.0.0.1", "[::1]"].includes(source.hostname)));
         if (
-          path === "/auth/api-keys"
+          path === "/auth/api-keys" ||
+          path === "/api-keys" ||
+          path.startsWith("/api-key-ui/assets/")
             ? !sameOrigin
             : !config.allowedOrigins.includes(origin)
         )
@@ -196,11 +198,7 @@ export function application(
     }
   });
   app.get("/healthz", (c) => c.json({ status: "ok" }));
-  app.get("/api-keys", (c) => {
-    c.header("Content-Security-Policy", keyPageCsp);
-    c.header("Referrer-Policy", "no-referrer");
-    return c.html(keyPage);
-  });
+  app.route("/", keyPage());
   app.post("/auth/api-keys", async (c) => {
     if ([...new URL(c.req.url).searchParams].length)
       throw new DomainError(

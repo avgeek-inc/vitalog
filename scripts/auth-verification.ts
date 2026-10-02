@@ -209,7 +209,7 @@ try {
   );
   await start();
   await check(
-    "Public generation page has no-store, CSP, framing protection and no configured secrets",
+    "React generation page and bundled assets have no-store, same-origin access, CSP and no configured secrets",
     async () => {
       const response = await fetch(baseUrl + "/api-keys");
       assert.equal(response.status, 200);
@@ -217,7 +217,7 @@ try {
       assert.equal(response.headers.get("cache-control"), "no-store");
       assert.match(
         response.headers.get("content-security-policy")!,
-        /script-src 'sha256-/,
+        /script-src 'self'/,
       );
       assert.match(
         response.headers.get("content-security-policy")!,
@@ -226,6 +226,40 @@ try {
       const html = await response.text();
       for (const secret of [primary, rootPassword, rootEmail])
         assert(!html.includes(secret));
+      assert(!/<script(?![^>]*\bsrc=)[^>]*>/i.test(html));
+      const assets = [
+        ...html.matchAll(/(?:src|href)="(\/api-key-ui\/assets\/[^"\s]+)"/g),
+      ];
+      assert(assets.some(([, path]) => path!.endsWith(".js")));
+      assert(assets.some(([, path]) => path!.endsWith(".css")));
+      for (const [, path] of assets) {
+        const asset = await fetch(baseUrl + path, {
+          headers: { Origin: baseUrl },
+        });
+        assert.equal(asset.status, 200);
+        assert.equal(asset.headers.get("cache-control"), "no-store");
+        assert.match(
+          asset.headers.get("content-type")!,
+          path!.endsWith(".css") ? /text\/css/ : /javascript/,
+        );
+        const content = await asset.text();
+        for (const secret of [primary, rootPassword, rootEmail])
+          assert(!content.includes(secret));
+        const crossOrigin = await fetch(baseUrl + path, {
+          headers: { Origin: "https://untrusted.example" },
+        });
+        assert.equal(crossOrigin.status, 403);
+        await crossOrigin.text();
+      }
+      for (const path of [
+        "/api-key-ui/assets/package.json",
+        "/api-key-ui/assets/index.html",
+        "/api-key-ui/assets/%2e%2e%2f%2e%2e%2fpackage.json",
+      ]) {
+        const missing = await fetch(baseUrl + path);
+        assert.equal(missing.status, 404);
+        await missing.text();
+      }
     },
   );
   await check(

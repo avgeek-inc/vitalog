@@ -10,6 +10,8 @@ Configure `ROOT_EMAIL` and `ROOT_PASSWORD` through your deployment's secret mana
 
 Open `https://vitalog.praveent.com/api-keys` after deploying this change, or the same path on your development instance. Enter the root email and password and an optional key name. The form sends a JSON POST and returns one token. Copy it immediately; it cannot be retrieved later. The password is cleared after submission, and neither credentials nor tokens are stored in browser storage. The page has no third-party assets, cannot be framed and uses a restrictive CSP and `Cache-Control: no-store`.
 
+The page uses React 19 and HeroUI v3's accessible form, input, card and button components, with Tailwind CSS v4 and the locally bundled Inter font used in Towbar. Vite bundles everything at build time. Hono serves the HTML at `/api-keys` and the compiled assets under `/api-key-ui/assets/` from the same Docker image. No additional server or CDN is needed. The CSP permits same-origin scripts, styles, fonts and API requests; inline scripts/styles, native form submissions and framing remain blocked. The production build contains no root credentials or environment secrets.
+
 Direct generation uses `POST /auth/api-keys` with `Content-Type: application/json`. This route authenticates using the JSON credentials and requires no Bearer header:
 
 ```json
@@ -48,4 +50,4 @@ These are bearer API keys. ChatGPT's authenticated MCP connection requires OAuth
 
 ## Verification
 
-`npm run test:auth` creates and removes a disposable PostgreSQL database. It verifies a populated-database forward migration, one-time issuance and hash-only storage, both transports, administration boundaries, exact expiry, revocation, restart/rotation durability, login limits, origin protection, configuration fallback and log privacy. Reports are written to ignored `.test-artifacts/auth.json` and uploaded by CI. No production database is used.
+Run `npm run build:web` before the standalone `npm run test:auth` command, or run `npm run verify` first. The auth check creates and removes a disposable PostgreSQL database. It verifies the compiled page and its same-origin assets, a populated-database forward migration, one-time issuance and hash-only storage, both transports, administration boundaries, exact expiry, revocation, restart/rotation durability, login limits, origin protection, configuration fallback and log privacy. Reports are written to ignored `.test-artifacts/auth.json` and uploaded by CI. No production database is used.

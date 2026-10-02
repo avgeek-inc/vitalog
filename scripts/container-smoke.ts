@@ -119,7 +119,21 @@ try {
   const page = await fetch(url + "/api-keys");
   assert.equal(page.status, 200);
   assert.equal(page.headers.get("cache-control"), "no-store");
-  await page.text();
+  const pageHtml = await page.text();
+  const pageAssets = [
+    ...pageHtml.matchAll(/(?:src|href)="(\/api-key-ui\/assets\/[^"\s]+)"/g),
+  ];
+  assert(pageAssets.some(([, path]) => path!.endsWith(".js")));
+  assert(pageAssets.some(([, path]) => path!.endsWith(".css")));
+  for (const [, path] of pageAssets) {
+    const asset = await fetch(url + path, { headers: { Origin: url } });
+    assert.equal(asset.status, 200);
+    assert.match(
+      asset.headers.get("content-type")!,
+      path!.endsWith(".css") ? /text\/css/ : /javascript/,
+    );
+    await asset.text();
+  }
   const issued = await fetch(url + "/auth/api-keys", {
     method: "POST",
     headers: { "Content-Type": "application/json", Origin: url },

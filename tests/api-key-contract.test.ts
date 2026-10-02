@@ -8,7 +8,7 @@ import {
   keyListQuery,
   keyOperations,
 } from "../src/auth/contracts.js";
-import { keyPage, keyPageCsp } from "../src/auth/page.js";
+import { keyPageCsp } from "../src/auth/page.js";
 import { openapi } from "../src/openapi.js";
 import type { Data } from "../src/domain/types.js";
 import { application } from "../src/app.js";
@@ -183,12 +183,11 @@ describe("Key generation contracts", () => {
       { apiKey: [] },
     ]);
   });
-  test("The browser form avoids credential URL submissions and third-party resources", () => {
-    expect(keyPage).toContain('method="post"');
-    expect(keyPage).toContain('autocomplete="current-password"');
-    expect(keyPage).toContain('role="alert"');
-    expect(keyPage).not.toContain("localStorage");
-    expect(keyPage).not.toContain("sessionStorage");
+  test("The page policy blocks native form submissions, framing and third-party resources", () => {
+    expect(keyPageCsp).toContain("default-src 'none'");
+    expect(keyPageCsp).toContain("script-src 'self'");
+    expect(keyPageCsp).toContain("style-src 'self'");
+    expect(keyPageCsp).toContain("font-src 'self'");
     expect(keyPageCsp).toContain("form-action 'none'");
     expect(keyPageCsp).toContain("frame-ancestors 'none'");
     expect(keyPageCsp).not.toContain("unsafe-inline");

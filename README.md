@@ -36,6 +36,8 @@ npm run dev
 
 The development and migration commands load `.env` if present. `DATABASE_URL` must address PostgreSQL. `DEFAULT_TIMEZONE` defaults to `Asia/Kolkata`; `PORT` defaults to `3000`. A production process uses `npm run build` followed by `npm start` with environment variables supplied by the deployment. Apply migrations before starting it. The Docker entrypoint performs both steps.
 
+The API-key page uses React 19, HeroUI v3 and Tailwind CSS v4, following Towbar's component setup. Vite builds its JavaScript, CSS and Inter font into `dist/web`; Hono serves them from the same origin. `npm run dev` builds the page before starting the API. Run `npm run dev:web` in another terminal to rebuild it as you edit. `npm run build` and the Docker build include both API and UI assets.
+
 Generate new database migrations with `npm run db:generate`. Apply them with `npm run db:migrate`. The migration runner serializes concurrent migration attempts with a PostgreSQL advisory lock. Keep deployed migration files immutable and add forward migrations for later changes. Never use `drizzle-kit push` as a production upgrade procedure.
 
 ## Authentication
