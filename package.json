@@ -23,7 +23,9 @@
     "test:security": "tsx scripts/security-verification.ts",
     "test:summaries": "tsx scripts/summary-verification.ts",
     "test:container": "tsx scripts/container-smoke.ts",
-    "verify": "npm run typecheck && npm run test && npm run docs:check && npm run format:check",
+    "test:towbar": "tsx scripts/container-smoke.ts --towbar",
+    "towbar:check": "tsx scripts/validate-towbar.ts",
+    "verify": "npm run typecheck && npm run test && npm run docs:check && npm run towbar:check && npm run format:check",
     "operator:export": "node --env-file-if-exists=.env --import tsx scripts/export.ts",
     "operator:erase": "node --env-file-if-exists=.env --import tsx scripts/erase.ts"
   },

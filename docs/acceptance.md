@@ -4,6 +4,8 @@ This maps the 76 acceptance requirements in the supplied revision-5 [specificati
 
 `I01`–`I23` below refer to the integration groups in their recorded order, implemented in [scripts/integration.ts](../scripts/integration.ts). `U` refers to [registry/schema tests](../tests/registry.test.ts) and `S` to [summary tests](../tests/summary.test.ts). `C` refers to [the Compose smoke test](../scripts/container-smoke.ts). These references identify software behavior and preserved data semantics; they do not represent medical testing.
 
+The [Towbar deployment guide](towbar-deployment.md) and [runtime profile report](towbar-report.json) cover the production manifests, private database connectivity, bounded resources and authenticated database readiness on Praveen Apps. Local profile checks use disposable Docker containers; infrastructure sync, TLS issuance and production deployment are separate operations.
+
 Additional regression evidence covers the contracts that independent review found missing:
 
 | Evidence | Executable contract                                                                                                                                                                                                                                                        |

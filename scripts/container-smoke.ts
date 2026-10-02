@@ -1,13 +1,72 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
+import { resolve } from "node:path";
+import { parse, stringify } from "yaml";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { object } from "../src/domain/types.js";
 
-const project = `vitalog-smoke-${process.pid}`;
+const towbar = process.argv.includes("--towbar");
+type RuntimeManifest = {
+  image?: string;
+  container: {
+    networkAlias: string;
+    command?: string[];
+    resources: { cpus: number; memory: string };
+  };
+  domains?: { primary: string };
+  health?: { command: string[] };
+};
+let service: RuntimeManifest | undefined;
+let datastore: RuntimeManifest | undefined;
+let override: string | undefined;
+if (towbar) {
+  await import("./validate-towbar.js");
+  service = parse(
+    await readFile(".towbar/services/vitalog.service.yml", "utf8"),
+  ) as RuntimeManifest;
+  datastore = parse(
+    await readFile(".towbar/datastores/vitalog-postgres.datastore.yml", "utf8"),
+  ) as RuntimeManifest;
+  await mkdir(".test-artifacts", { recursive: true });
+  override = resolve(`.test-artifacts/towbar-compose-${process.pid}.yaml`);
+  await writeFile(
+    override,
+    stringify({
+      services: {
+        api: {
+          build: { context: resolve(".") },
+          mem_limit: service.container.resources.memory,
+          cpus: service.container.resources.cpus,
+          networks: { default: { aliases: [service.container.networkAlias] } },
+          environment: {
+            DATABASE_URL: `postgresql://vitalog:\${POSTGRES_PASSWORD}@${datastore.container.networkAlias}:5432/vitalog`,
+          },
+          healthcheck: {
+            test: ["CMD", ...service.health!.command],
+            interval: "5s",
+            timeout: "6s",
+            retries: 10,
+            start_period: "10s",
+          },
+        },
+        postgres: {
+          image: datastore.image,
+          mem_limit: datastore.container.resources.memory,
+          cpus: datastore.container.resources.cpus,
+          command: datastore.container.command,
+          networks: {
+            default: { aliases: [datastore.container.networkAlias] },
+          },
+        },
+      },
+    }),
+  );
+}
+const project = `vitalog-${towbar ? "towbar" : "smoke"}-${process.pid}`;
 const key = randomBytes(32).toString("base64url");
 const reservation = createServer();
 await new Promise<void>((resolve, reject) => {
@@ -25,7 +84,9 @@ const env = {
   AUTH_KEY: key,
   POSTGRES_PASSWORD: randomBytes(32).toString("hex"),
   PORT: String(publishedPort),
-  ALLOWED_HOSTS: `127.0.0.1:${publishedPort}`,
+  ALLOWED_HOSTS: [service?.domains?.primary, `127.0.0.1:${publishedPort}`]
+    .filter(Boolean)
+    .join(","),
   ALLOWED_ORIGINS: "",
   TRUST_PROXY: "false",
   VITALOG_IMAGE: `${project}:local`,
@@ -44,6 +105,7 @@ const compose = (args: string[]) =>
     project,
     "--file",
     "compose.yaml",
+    ...(override ? ["--file", override] : []),
     ...args,
   ]);
 let client: Client | undefined;
@@ -68,6 +130,69 @@ try {
   assert.equal(count(), "0");
   assert.equal(compose(["exec", "--no-TTY", "api", "id", "-u"]), "1000");
   const containerId = compose(["ps", "--quiet", "api"]);
+  const profileChecks: string[] = [];
+  if (service && datastore) {
+    for (const [name, manifest] of [
+      ["api", service],
+      ["postgres", datastore],
+    ] as const) {
+      const settings = JSON.parse(
+        docker([
+          "inspect",
+          "--format",
+          "{{json .HostConfig}}",
+          compose(["ps", "--quiet", name]),
+        ]),
+      );
+      const match = /^(\d+)([mg])$/.exec(manifest.container.resources.memory);
+      assert(match);
+      assert.equal(
+        settings.Memory,
+        Number(match[1]) * (match[2] === "g" ? 1024 ** 3 : 1024 ** 2),
+      );
+      assert.equal(
+        settings.NanoCpus,
+        manifest.container.resources.cpus * 1_000_000_000,
+      );
+    }
+    assert.equal(
+      compose([
+        "exec",
+        "--no-TTY",
+        "postgres",
+        "psql",
+        "-U",
+        "vitalog",
+        "-d",
+        "vitalog",
+        "-Atc",
+        "show shared_buffers",
+      ]),
+      "64MB",
+    );
+    assert.equal(
+      compose([
+        "exec",
+        "--no-TTY",
+        "postgres",
+        "psql",
+        "-U",
+        "vitalog",
+        "-d",
+        "vitalog",
+        "-Atc",
+        "show max_connections",
+      ]),
+      "30",
+    );
+    compose(["exec", "--no-TTY", "api", ...service.health!.command]);
+    profileChecks.push(
+      "manifest runtime CPU/memory limits",
+      "tuned PostgreSQL settings",
+      "authenticated readiness uses the configured public Host header",
+      "private PostgreSQL network alias",
+    );
+  }
   assert.equal(
     docker([
       "inspect",
@@ -134,10 +259,28 @@ try {
   const logs = compose(["logs", "--no-color", "api"]);
   assert(!logs.includes(key));
   assert(!logs.includes("energy_kcal"));
+  if (service) {
+    compose(["stop", "postgres"]);
+    assert.throws(
+      () => compose(["exec", "--no-TTY", "api", ...service.health!.command]),
+      (error: unknown) => object(error).status === 1,
+    );
+    compose(["start", "postgres"]);
+    compose(["up", "--detach", "--wait", "--wait-timeout", "90"]);
+    compose(["exec", "--no-TTY", "api", ...service.health!.command]);
+    assert.equal(count(), "1");
+    profileChecks.push(
+      "readiness fails while PostgreSQL is unavailable",
+      "readiness recovers after PostgreSQL restarts without data loss",
+    );
+  }
   const report = {
     tested_at: new Date().toISOString(),
+    mode: towbar
+      ? "local_compose_with_towbar_manifest_runtime_settings"
+      : "docker_compose",
     image: env.VITALOG_IMAGE,
-    postgres_image: "postgres:17.11-bookworm",
+    postgres_image: datastore?.image ?? "postgres:17.11-bookworm",
     checks: [
       "fresh Compose service/database startup and automatic migrations",
       "empty database",
@@ -151,18 +294,20 @@ try {
       "fresh MCP client retrieval",
       "cross-interface durable retry",
       "operational log privacy",
+      ...profileChecks,
     ],
     status: "passed",
   };
   await mkdir(".test-artifacts", { recursive: true });
   await writeFile(
-    ".test-artifacts/container.json",
+    towbar ? ".test-artifacts/towbar.json" : ".test-artifacts/container.json",
     JSON.stringify(report, null, 2) + "\n",
   );
   process.stdout.write(
-    `PASS ${report.checks.length} Compose/container checks\n`,
+    `PASS ${report.checks.length} ${towbar ? "Towbar profile" : "Compose/container"} checks\n`,
   );
 } finally {
   await client?.close();
   compose(["down", "--volumes", "--remove-orphans"]);
+  if (override) await rm(override, { force: true });
 }
