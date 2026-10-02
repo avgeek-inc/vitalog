@@ -1,0 +1,28 @@
+$kind: http-request
+id: 243c12b1-03fd-5aa3-8709-7791528a4c1f
+description: Save one supplied hydration observation. Actual recorded events
+  only. Use health_get_catalog for exact fields and units; do not infer missing
+  values.
+method: POST
+url: "{{baseUrl}}/v1/hydration"
+headers:
+  Accept: application/json
+  Content-Type: application/json
+  Idempotency-Key: "{{idempotencyKey}}"
+body:
+  type: json
+  content: |-
+    {
+      "occurred_on": "2026-09-10",
+      "timezone": "Asia/Kolkata",
+      "provenance": {
+        "source_type": "manual",
+        "value_kind": "reported"
+      },
+      "data": {
+        "entry_kind": "intake",
+        "volume_ml": 250,
+        "drink_type": "water"
+      }
+    }
+order: 9000

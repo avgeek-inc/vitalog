@@ -1,0 +1,9 @@
+$kind: http-request
+id: dba4d40c-ac5d-504f-85f5-4523bf966b45
+description: Read a local day with qualified daily-total precedence, known
+  subtotals and completeness. Studies remain overlapping interval observations.
+method: GET
+url: "{{baseUrl}}/v1/days/{{date}}"
+headers:
+  Accept: application/json
+order: 2000

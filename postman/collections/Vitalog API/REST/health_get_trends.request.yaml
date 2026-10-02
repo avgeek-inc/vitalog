@@ -1,0 +1,10 @@
+$kind: http-request
+id: 980f47ac-253d-5616-87f0-128ba5fd1485
+description: Read up to 20 catalog metrics over at most 366 days, partitioned by
+  supplied context. Use health_get_catalog for identifiers. No predictions.
+method: GET
+url: "{{baseUrl}}/v1/trends?metrics=measurement%3Aweight&start_date=2026-09-01&\
+  end_date=2026-09-30"
+headers:
+  Accept: application/json
+order: 3000

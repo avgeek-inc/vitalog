@@ -1,0 +1,9 @@
+$kind: http-request
+id: 0784c2ae-ab1c-553e-8be6-6538b678584c
+description: Page through recorded observations using allowlisted dates, types
+  and source filters; no arbitrary predicates.
+method: GET
+url: "{{baseUrl}}/v1/records"
+headers:
+  Accept: application/json
+order: 4000

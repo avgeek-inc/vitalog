@@ -1,0 +1,139 @@
+{
+  "measurement": {
+    "occurred_on": "2026-09-10",
+    "timezone": "Asia/Kolkata",
+    "provenance": {
+      "source_type": "manual",
+      "value_kind": "reported"
+    },
+    "data": {
+      "kind": "scalar",
+      "metric_key": "weight",
+      "value": "1.25",
+      "unit": "kg"
+    }
+  },
+  "nutrition": {
+    "occurred_on": "2026-09-10",
+    "timezone": "Asia/Kolkata",
+    "provenance": {
+      "source_type": "manual",
+      "value_kind": "reported"
+    },
+    "data": {
+      "entry_kind": "intake",
+      "label": "Lunch",
+      "nutrients": {
+        "energy_kcal": 430,
+        "protein_g": 26,
+        "carbohydrate_g": 45,
+        "fat_g": 16,
+        "fiber_g": null
+      }
+    }
+  },
+  "hydration": {
+    "occurred_on": "2026-09-10",
+    "timezone": "Asia/Kolkata",
+    "provenance": {
+      "source_type": "manual",
+      "value_kind": "reported"
+    },
+    "data": {
+      "entry_kind": "intake",
+      "volume_ml": 250,
+      "drink_type": "water"
+    }
+  },
+  "activity": {
+    "occurred_on": "2026-09-10",
+    "timezone": "Asia/Kolkata",
+    "provenance": {
+      "source_type": "manual",
+      "value_kind": "reported"
+    },
+    "data": {
+      "entry_kind": "workout",
+      "activity_type": "treadmill_incline_walk",
+      "elapsed_seconds": 900,
+      "average_speed_mps": 1.2,
+      "treadmill_incline_percent": 5,
+      "energy_kcal": 80,
+      "energy_basis": "unknown"
+    }
+  },
+  "sleep": {
+    "occurred_on": "2026-09-10",
+    "timezone": "Asia/Kolkata",
+    "provenance": {
+      "source_type": "manual",
+      "value_kind": "reported"
+    },
+    "data": {
+      "entry_kind": "session",
+      "session_type": "main",
+      "sleep_seconds": 24000
+    }
+  },
+  "checkin": {
+    "occurred_on": "2026-09-10",
+    "timezone": "Asia/Kolkata",
+    "provenance": {
+      "source_type": "manual",
+      "value_kind": "reported"
+    },
+    "data": {
+      "ratings": {
+        "energy": {
+          "value": 7,
+          "scale": "reported_energy",
+          "lower": 0,
+          "upper": 10,
+          "meaning": "Higher means more energy"
+        }
+      }
+    }
+  },
+  "intake": {
+    "occurred_on": "2026-09-10",
+    "timezone": "Asia/Kolkata",
+    "provenance": {
+      "source_type": "manual",
+      "value_kind": "reported"
+    },
+    "data": {
+      "product_name": "Supplied supplement",
+      "category": "supplement",
+      "status": "taken",
+      "administered_quantity": {
+        "kind": "quantity",
+        "value": 1,
+        "unit": "tablet"
+      }
+    }
+  },
+  "lab_result": {
+    "occurred_on": "2026-09-10",
+    "timezone": "Asia/Kolkata",
+    "provenance": {
+      "source_type": "manual",
+      "value_kind": "reported"
+    },
+    "data": {
+      "analyte_kind": "builtin",
+      "analyte_key": "hemoglobin",
+      "result": {
+        "kind": "quantity",
+        "value": "1.250",
+        "unit": "source_unit",
+        "original_unit": "printed unit",
+        "original_value": "1.250"
+      },
+      "source_status": "final",
+      "collected_on": "2026-09-10",
+      "specimen": {
+        "type": "unknown"
+      }
+    }
+  }
+}

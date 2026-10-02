@@ -1,0 +1,50 @@
+$kind: http-request
+id: f19b3f36-cc53-5dfe-8e59-581aea4d1844
+description: Stateless MCP with the same private Bearer header. Initialize
+  before discovery and calls.
+method: POST
+url: "{{baseUrl}}/mcp"
+headers:
+  Accept: application/json, text/event-stream
+  Content-Type: application/json
+  MCP-Protocol-Version: 2025-11-25
+body:
+  type: json
+  content: |-
+    {
+      "jsonrpc": "2.0",
+      "id": 16,
+      "method": "tools/call",
+      "params": {
+        "name": "health_log_lab_results",
+        "arguments": {
+          "idempotency_key": "{{idempotencyKey}}",
+          "records": [
+            {
+              "occurred_on": "2026-09-10",
+              "timezone": "Asia/Kolkata",
+              "provenance": {
+                "source_type": "manual",
+                "value_kind": "reported"
+              },
+              "data": {
+                "analyte_kind": "builtin",
+                "analyte_key": "hemoglobin",
+                "result": {
+                  "kind": "quantity",
+                  "value": "1.250",
+                  "unit": "source_unit",
+                  "original_unit": "printed unit",
+                  "original_value": "1.250"
+                },
+                "source_status": "final",
+                "collected_on": "2026-09-10",
+                "specimen": {
+                  "type": "unknown"
+                }
+              }
+            }
+          ]
+        }
+      }
+    }

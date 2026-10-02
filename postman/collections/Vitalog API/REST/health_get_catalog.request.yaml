@@ -1,0 +1,10 @@
+$kind: http-request
+id: 423138b4-3f9d-5277-8339-a0d6386e51b0
+description: Discover exact supported keys, panel memberships, nested fields,
+  units and complete schemas. Returns code definitions independently of health
+  data.
+method: GET
+url: "{{baseUrl}}/v1/catalog"
+headers:
+  Accept: application/json
+order: 6000

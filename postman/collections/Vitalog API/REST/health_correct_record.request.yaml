@@ -1,0 +1,39 @@
+$kind: http-request
+id: 404075e1-caba-59e1-8c03-dfa975036ad0
+description: Correct one record using a complete replacement and expected
+  version. Preserve history and supplied provenance; a voided record stays
+  voided.
+method: POST
+url: "{{baseUrl}}/v1/records/{{recordId}}/corrections"
+headers:
+  Accept: application/json
+  Content-Type: application/json
+  Idempotency-Key: "{{idempotencyKey}}"
+body:
+  type: json
+  content: |-
+    {
+      "expected_version": 1,
+      "reason": "Correct supplied observation",
+      "replacement": {
+        "record_type": "nutrition",
+        "occurred_on": "2026-09-10",
+        "timezone": "Asia/Kolkata",
+        "provenance": {
+          "source_type": "manual",
+          "value_kind": "reported"
+        },
+        "data": {
+          "entry_kind": "intake",
+          "label": "Lunch",
+          "nutrients": {
+            "energy_kcal": 430,
+            "protein_g": 26,
+            "carbohydrate_g": 45,
+            "fat_g": 16,
+            "fiber_g": null
+          }
+        }
+      }
+    }
+order: 15000
