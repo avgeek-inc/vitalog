@@ -1,10 +1,12 @@
 import { DomainError, fail, pointerEscape } from "../errors.js";
 import {
   CATALOG_VERSION,
+  fieldConditionSemantics,
   inventory,
   label,
   labDefinitions,
   measurementDefinitions,
+  measurementByKey,
   nutrientDefinitions,
   recordTypes,
   resultSchemaForLab,
@@ -12,12 +14,27 @@ import {
 } from "../registry/definitions.js";
 import { catalogInput, operations, restBody } from "../registry/operations.js";
 import { jsonSchema } from "../registry/primitives.js";
-import { recordSchemas } from "../registry/records.js";
+import { recordInputSchemas as recordSchemas } from "../registry/records.js";
 import { validationRules } from "./validation.js";
 import { Cursors } from "./cursor.js";
 import { object, type Data } from "./types.js";
+import { canonical } from "./canonical.js";
 
 export const MAX_RESPONSE_BYTES = 8 * 1024 * 1024;
+const MCP_REQUEST_BYTE_LIMIT = 1024 * 1024;
+const CATALOG_ENVELOPE_RESERVE = MCP_REQUEST_BYTE_LIMIT + 2048;
+export function catalogResponseBytes(value: Data): number {
+  return Buffer.byteLength(
+    JSON.stringify({
+      jsonrpc: "2.0",
+      id: 0,
+      result: {
+        content: [{ type: "text", text: JSON.stringify(value) }],
+        structuredContent: value,
+      },
+    }),
+  );
+}
 export function boundedResponse<T>(value: T): T {
   if (Buffer.byteLength(JSON.stringify(value)) > MAX_RESPONSE_BYTES)
     throw new DomainError(
@@ -39,6 +56,12 @@ function resolveRef(schema: Data, root: Data): Data {
   return resolveRef(object(target), root);
 }
 const alternatives = (node: Data) => (node.anyOf ?? node.oneOf ?? []) as Data[];
+const writableSchemaCache = new Map<RecordType, Data>();
+function writableSchema(type: RecordType): Data {
+  if (!writableSchemaCache.has(type))
+    writableSchemaCache.set(type, jsonSchema(recordSchemas[type]) as Data);
+  return writableSchemaCache.get(type)!;
+}
 function selfContained(node: Data, root: Data): Data {
   const definitions: Data = {};
   function scan(value: unknown) {
@@ -62,6 +85,45 @@ function selfContained(node: Data, root: Data): Data {
     ...node,
     ...(Object.keys(definitions).length ? { $defs: definitions } : {}),
   };
+}
+const normalizedSchemaCache = new WeakMap<object, WeakMap<object, unknown>>();
+function normalizedSchema(value: unknown, root: Data): unknown {
+  if (Array.isArray(value))
+    return value.map((item) => normalizedSchema(item, root));
+  if (!value || typeof value !== "object") return value;
+  let cache = normalizedSchemaCache.get(root);
+  if (!cache) {
+    cache = new WeakMap();
+    normalizedSchemaCache.set(root, cache);
+  }
+  if (cache.has(value)) return cache.get(value);
+  const node = resolveRef(object(value), root);
+  const normalized = Object.fromEntries(
+    Object.entries(node)
+      .filter(([key]) => key !== "$defs")
+      .map(([key, item]) => [key, normalizedSchema(item, root)]),
+  );
+  cache.set(value, normalized);
+  return normalized;
+}
+function distinctAlternatives(nodes: Data[], root: Data): Data {
+  const entries = new Map<string, Data>();
+  function add(raw: Data) {
+    const node = resolveRef(raw, root);
+    if (
+      Array.isArray(node.anyOf) &&
+      Object.keys(node).every((key) =>
+        ["anyOf", "$schema", "$defs"].includes(key),
+      )
+    ) {
+      (node.anyOf as Data[]).forEach(add);
+      return;
+    }
+    entries.set(canonical(normalizedSchema(node, root)), node);
+  }
+  nodes.forEach(add);
+  const branches = [...entries.values()];
+  return branches.length === 1 ? branches[0]! : { anyOf: branches };
 }
 function schemaAt(schema: Data, path: string): Data {
   let nodes = [schema];
@@ -87,94 +149,222 @@ function schemaAt(schema: Data, path: string): Data {
       throw new DomainError("NOT_FOUND", "Unknown writable field path");
     nodes = next;
   }
-  const entries = nodes.map((node) => resolveRef(node, schema));
   return {
-    ...selfContained(
-      entries.length === 1 ? entries[0]! : { anyOf: entries },
-      schema,
-    ),
+    ...selfContained(distinctAlternatives(nodes, schema), schema),
     $schema: "https://json-schema.org/draft/2020-12/schema",
   };
 }
+type VariantCondition =
+  | { field_path: string; equals: string | number | boolean | null }
+  | { field_path: string; one_of: string[] }
+  | { field_path: string; map_key_is: string }
+  | { field_path: string; map_key_in: string[] }
+  | { field_path: string; not_equals: "absent" }
+  | { field_path: string; missing: true }
+  | { field_path: string; requires_enclosing_unit: true };
+function conditionLabel(condition: VariantCondition): string {
+  if ("equals" in condition)
+    return `${condition.field_path}=${String(condition.equals)}`;
+  if ("map_key_is" in condition)
+    return `${condition.field_path} key=${condition.map_key_is}`;
+  if ("map_key_in" in condition)
+    return `${condition.field_path} key in ${condition.map_key_in.length} declared choices`;
+  if ("one_of" in condition)
+    return `${condition.field_path} in ${condition.one_of.length} declared choices`;
+  if ("not_equals" in condition)
+    return `${condition.field_path} differs from ${condition.not_equals}`;
+  if ("missing" in condition) return `${condition.field_path} is not supplied`;
+  return `${condition.field_path} has a quantity without its own unit`;
+}
+function compressedConditions(conditions: Data[]): Data[] {
+  const groups = new Map<string, Data>();
+  for (const condition of conditions) {
+    const rules = condition.all_of as VariantCondition[];
+    const selector = rules.find(
+      (rule) => "map_key_is" in rule || "one_of" in rule,
+    );
+    if (!selector) {
+      groups.set(canonical(condition), condition);
+      continue;
+    }
+    const rest = rules.filter((rule) => rule !== selector);
+    const base = { ...condition, all_of: rest };
+    const groupKey = canonical({
+      ...base,
+      selector_path: selector.field_path,
+      selector_kind: "map_key_is" in selector ? "map_key_in" : "one_of",
+    });
+    const keys =
+      "map_key_is" in selector
+        ? [selector.map_key_is]
+        : "one_of" in selector
+          ? selector.one_of
+          : [];
+    const group = groups.get(groupKey);
+    if (group) {
+      const existing = (group.all_of as VariantCondition[]).at(-1)!;
+      if ("map_key_in" in existing)
+        existing.map_key_in = [...new Set([...existing.map_key_in, ...keys])];
+      else if ("one_of" in existing)
+        existing.one_of = [...new Set([...existing.one_of, ...keys])];
+    } else
+      groups.set(groupKey, {
+        ...base,
+        all_of: [
+          ...rest,
+          "map_key_is" in selector
+            ? { field_path: selector.field_path, map_key_in: [...keys] }
+            : { field_path: selector.field_path, one_of: [...keys] },
+        ],
+      });
+  }
+  return [...groups.values()];
+}
 export function fieldIndex(type: RecordType): Data[] {
-  const schema = jsonSchema(recordSchemas[type]) as Data;
+  if (fieldIndexCache.has(type)) return fieldIndexCache.get(type)!;
+  const schema = writableSchema(type);
   const fields = new Map<string, Data>();
+  const schemaSets = new Map<
+    string,
+    {
+      signatures: Set<string>;
+      bodies: Data[];
+    }
+  >();
+  const conditionSets = new Map<
+    string,
+    { applicable: Set<string>; required: Set<string> }
+  >();
+  function addCondition(
+    entry: Data,
+    name: "applicable_conditions" | "required_conditions",
+    condition: Data,
+  ) {
+    const signatures = conditionSets.get(String(entry.field_path))![
+      name === "applicable_conditions" ? "applicable" : "required"
+    ];
+    const signature = canonical(condition);
+    if (!signatures.has(signature)) {
+      signatures.add(signature);
+      (entry[name] as Data[]).push(condition);
+    }
+  }
   function visit(
     raw: Data,
     path: string,
     required: boolean,
-    variants: string[],
+    variants: VariantCondition[],
   ) {
     const node = resolveRef(raw, schema);
-    const existing = fields.get(path);
-    if (path && existing) {
-      existing.applicable_variants = [
-        ...new Set([
-          ...(existing.applicable_variants as string[]),
-          ...variants,
-        ]),
-      ];
-      const previousSchema = object(existing.field_schema);
-      const { $defs: previousDefinitions, ...previousBody } = previousSchema;
-      const nextSchema = selfContained(node, schema);
-      const { $defs: nextDefinitions, ...nextBody } = nextSchema;
-      if (JSON.stringify(previousBody) !== JSON.stringify(nextBody))
-        existing.field_schema = {
-          anyOf: [previousBody, nextBody],
-          ...(previousDefinitions || nextDefinitions
-            ? {
-                $defs: {
-                  ...object(previousDefinitions),
-                  ...object(nextDefinitions),
-                },
-              }
-            : {}),
-        };
-      if (required) (existing.required_conditions as string[][]).push(variants);
-    }
-    if (path && !fields.has(path))
-      fields.set(path, {
+    const parent = path.split("/").slice(0, -1).join("/");
+    let entry = fields.get(path);
+    const nullable =
+      node.type === "null" ||
+      alternatives(node).some((item) => item.type === "null");
+    if (path && !entry) {
+      schemaSets.set(path, {
+        signatures: new Set([canonical(normalizedSchema(node, schema))]),
+        bodies: [node],
+      });
+      conditionSets.set(path, { applicable: new Set(), required: new Set() });
+      entry = {
         key: path.split("/").at(-1),
         label: label(path.split("/").at(-1)!),
         record_type: type,
         field_path: path,
-        parent_path: path.split("/").slice(0, -1).join("/"),
+        parent_path: parent,
         required,
-        nullable:
-          node.type === "null" ||
-          alternatives(node).some((item) => item.type === "null"),
-        applicable_variants: variants,
-        field_schema: selfContained(node, schema),
+        required_when_parent_present: required,
+        nullable,
+        applicable_variants: [],
+        applicable_conditions: [],
+        field_schema: {},
         path_template_convention:
           "{index} is an array index; {key} is one of map_keys. Writes and overrides require actual indexed JSON Pointers.",
-        required_conditions: required ? [variants] : [],
+        required_conditions: [],
         introduced_in: "1.0.0",
         deprecated: false,
-      });
-    const branches = alternatives(node);
-    for (const branch of branches) {
+      };
+      fields.set(path, entry);
+    } else if (path && entry) {
+      const schemas = schemaSets.get(path)!;
+      const signature = canonical(normalizedSchema(node, schema));
+      if (!schemas.signatures.has(signature)) {
+        schemas.signatures.add(signature);
+        schemas.bodies.push(node);
+      }
+      entry.nullable = !!entry.nullable || nullable;
+      if (required) {
+        entry.required = true;
+        entry.required_when_parent_present = true;
+      }
+    }
+    if (entry) {
+      addCondition(entry, "applicable_conditions", { all_of: variants });
+      if (required)
+        addCondition(entry, "required_conditions", {
+          all_of: variants,
+          parent_path: parent,
+        });
+    }
+    for (const branch of alternatives(node)) {
       const resolved = resolveRef(branch, schema);
-      const tag = Object.entries(object(resolved.properties)).find(
-        ([, value]) => object(value).const !== undefined,
-      );
-      visit(
-        branch,
-        path,
-        required,
-        tag ? [...variants, `${tag[0]}=${object(tag[1]).const}`] : variants,
-      );
+      const tags: VariantCondition[] = Object.entries(
+        object(resolved.properties),
+      ).flatMap<VariantCondition>(([field, value]) => {
+        if (
+          !((resolved.required as string[] | undefined) ?? []).includes(field)
+        )
+          return [];
+        const definition = object(value);
+        const field_path = `${path}/${pointerEscape(field)}`;
+        if (definition.const !== undefined)
+          return [
+            {
+              field_path,
+              equals: definition.const as string | number | boolean | null,
+            },
+          ];
+        if (
+          [
+            "kind",
+            "entry_kind",
+            "analyte_kind",
+            "metric_key",
+            "study_type",
+            "analyte_key",
+          ].includes(field) &&
+          Array.isArray(definition.enum)
+        )
+          return [{ field_path, one_of: definition.enum as string[] }];
+        return [];
+      });
+      visit(branch, path, required, [...variants, ...tags]);
     }
     if (node.type === "array")
       visit(object(node.items), `${path}/{index}`, true, variants);
     const properties = object(node.properties);
     const keys = Object.keys(properties);
-    if (
+    if (path === "/components") {
+      const template = `${path}/{key}`;
+      for (const [key, value] of Object.entries(properties)) {
+        visit(object(value), template, false, [
+          ...variants,
+          { field_path: template, map_key_is: key },
+        ]);
+        fields.get(template)!.map_keys = [
+          ...new Set([
+            ...((fields.get(template)!.map_keys as string[] | undefined) ?? []),
+            key,
+          ]),
+        ];
+      }
+    } else if (
       keys.length > 100 &&
       !path.endsWith("/nutrients") &&
       !path.endsWith("/nutrient_contributions")
     ) {
-      const representative = properties[keys[0]!]!;
-      visit(object(representative), `${path}/{key}`, false, variants);
+      visit(object(properties[keys[0]!]!), `${path}/{key}`, false, variants);
       fields.get(`${path}/{key}`)!.map_keys = keys;
     } else
       for (const [key, value] of Object.entries(properties))
@@ -186,9 +376,325 @@ export function fieldIndex(type: RecordType): Data[] {
         );
   }
   visit(schema, "", true, []);
-  return [...fields.values()];
+  const index = [...fields.values()];
+  const contextRequirements = new Set(
+    measurementDefinitions.flatMap((definition) =>
+      definition.required_context_paths.flatMap((path) =>
+        path
+          .split("/")
+          .slice(1)
+          .map(
+            (_, position, parts) =>
+              `/${parts.slice(0, position + 1).join("/")}`,
+          ),
+      ),
+    ),
+  );
+  for (const field of index) {
+    const path = String(field.field_path);
+    field.required_conditions = (field.required_conditions as Data[]).map(
+      (condition) => {
+        const all_of = [...(condition.all_of as VariantCondition[])];
+        const scalar = all_of.some(
+          (rule) =>
+            "equals" in rule &&
+            rule.field_path === "/kind" &&
+            rule.equals === "scalar",
+        );
+        const component = path.startsWith("/components/{key}/");
+        const valuePath = component
+          ? "/components/{key}/value"
+          : type === "lab_result"
+            ? "/result"
+            : "/value";
+        const outerUnit = component ? "/components/{key}/unit" : "/unit";
+        if (
+          (type === "lab_result" ||
+            (type === "measurement" && (scalar || component))) &&
+          path.endsWith("/unit")
+        ) {
+          if (path === outerUnit)
+            all_of.push({
+              field_path: valuePath,
+              requires_enclosing_unit: true,
+            });
+          else if (path.startsWith(valuePath + "/"))
+            all_of.push(
+              { field_path: outerUnit, missing: true },
+              {
+                field_path: `${path.slice(0, -5)}/kind`,
+                one_of: ["quantity", "interval"],
+              },
+            );
+        }
+        const contextPath = component
+          ? path.slice("/components/{key}/context".length)
+          : path;
+        if (
+          type === "measurement" &&
+          ((scalar && contextRequirements.has(contextPath)) ||
+            (component &&
+              (path === "/components/{key}/context" ||
+                (path.startsWith("/components/{key}/context/") &&
+                  contextRequirements.has(contextPath)))))
+        )
+          all_of.push({
+            field_path: `${valuePath}/kind`,
+            not_equals: "absent",
+          });
+        return { ...condition, all_of };
+      },
+    );
+    field.field_schema = selfContained(
+      distinctAlternatives(
+        schemaSets.get(String(field.field_path))!.bodies,
+        schema,
+      ),
+      schema,
+    );
+    field.applicable_conditions = compressedConditions(
+      field.applicable_conditions as Data[],
+    );
+    field.required_conditions = compressedConditions(
+      field.required_conditions as Data[],
+    );
+    field.applicable_variants = [
+      ...new Set(
+        (field.applicable_conditions as Data[]).flatMap((condition) =>
+          (condition.all_of as VariantCondition[]).map(conditionLabel),
+        ),
+      ),
+    ];
+  }
+  fieldIndexCache.set(type, index);
+  return index;
 }
+const fieldIndexCache = new Map<RecordType, Data[]>();
 const schemaCache = new Map<RecordType, Data>();
+const measurementDescriptorCache = new Map<string, Data>();
+function compactFieldIndex(type: RecordType): Data {
+  const definitions: Data = {};
+  const references = new Map<string, string>();
+  const referenceConditions = (value: unknown): Data[] =>
+    (value as Data[]).map(({ all_of, ...metadata }) => {
+      const signature = canonical(all_of);
+      let reference = references.get(signature);
+      if (!reference) {
+        const name = `condition_${references.size}`;
+        definitions[name] = all_of;
+        reference = `#/condition_definitions/${name}`;
+        references.set(signature, reference);
+      }
+      return { condition_ref: reference, ...metadata };
+    });
+  return {
+    field_index: fieldIndex(type).map((field) => ({
+      ...field,
+      applicable_conditions: referenceConditions(field.applicable_conditions),
+      required_conditions: referenceConditions(field.required_conditions),
+    })),
+    condition_definitions: definitions,
+    condition_semantics: fieldConditionSemantics,
+    condition_reference_convention:
+      "condition_ref is a local JSON Pointer into this entry's condition_definitions. Field lookups expand these conditions inline.",
+  };
+}
+export function measurementDescriptor(key: string): Data {
+  if (measurementDescriptorCache.has(key))
+    return measurementDescriptorCache.get(key)!;
+  const definition = measurementByKey.get(key);
+  if (!definition)
+    throw new DomainError("NOT_FOUND", "Unknown measurement key");
+  const root = writableSchema("measurement");
+  function matchingBranches(raw: Data): Data[] {
+    const node = resolveRef(raw, root);
+    const properties = object(node.properties);
+    const discriminator = object(properties.kind).const;
+    const identity = object(
+      properties[
+        definition!.kind === "study_summary" ? "study_type" : "metric_key"
+      ],
+    );
+    if (
+      discriminator === definition!.kind &&
+      (definition!.kind === "blood_pressure" ||
+        identity.const === key ||
+        (Array.isArray(identity.enum) && identity.enum.includes(key)))
+    )
+      return [node];
+    return alternatives(node).flatMap(matchingBranches);
+  }
+  const matches = matchingBranches(root);
+  if (!matches.length)
+    throw new Error(`Missing registered measurement schema: ${key}`);
+  const branches = matches.map<Data>((branch) => {
+    const properties = { ...object(branch.properties) };
+    if (definition.kind === "study_summary") {
+      properties.study_type = { type: "string", const: key };
+      const components = resolveRef(object(properties.components), root);
+      properties.components = {
+        ...components,
+        properties: Object.fromEntries(
+          Object.entries(object(components.properties)).filter(([component]) =>
+            definition.component_keys.includes(component),
+          ),
+        ),
+      };
+      if (key !== "cgm_summary") delete properties.cgm;
+      if (key !== "ambulatory_bp_summary") delete properties.ambulatory_bp;
+    } else if (definition.kind === "scalar")
+      properties.metric_key = { type: "string", const: key };
+    return { ...branch, properties };
+  });
+  const writable = {
+    ...selfContained(
+      branches.length === 1 ? branches[0]! : { anyOf: branches },
+      root,
+    ),
+    $schema: "https://json-schema.org/draft/2020-12/schema",
+  };
+  const valuePaths = definition.value_field_paths;
+  const contextFields = [
+    ...new Set(
+      branches.flatMap((branch) => Object.keys(object(branch.properties))),
+    ),
+  ].filter(
+    (field) =>
+      !["kind", "metric_key", "study_type"].includes(field) &&
+      !valuePaths.includes(`/${field}`),
+  );
+  const descriptor = {
+    ...definition,
+    field_schema:
+      definition.kind === "scalar" ? schemaAt(writable, "/value") : writable,
+    writable_data_schema: writable,
+    unit_policy:
+      definition.kind === "study_summary"
+        ? "Each component uses its registered result/unit policy; study-specific quantities retain their supplied units."
+        : "Numeric quantities and intervals require one recognized supplied unit, on the result or its containing field. Original units remain source metadata; no conversion is performed.",
+    context_fields: contextFields,
+    context_field_definitions: contextFields.map((field) => ({
+      field_path: `/${field}`,
+      parent_path: "",
+      field_schema: schemaAt(writable, `/${field}`),
+      required: branches.every((branch) =>
+        ((branch.required as string[] | undefined) ?? []).includes(field),
+      ),
+      required_conditions: definition.required_context_conditions.filter(
+        (condition) =>
+          condition.field_path === `/${field}` ||
+          condition.field_path.startsWith(`/${field}/`),
+      ),
+    })),
+    field_bindings: valuePaths.map((field_path) => ({
+      record_type: "measurement",
+      field_path,
+      field_schema: schemaAt(writable, field_path),
+    })),
+  };
+  measurementDescriptorCache.set(key, descriptor);
+  return descriptor;
+}
+function concreteFieldDescriptor(
+  type: RecordType,
+  path: string,
+  schema: Data,
+): Data {
+  const parts = path.split("/").slice(1);
+  const descriptor = fieldIndex(type).find((item) => {
+    const template = String(item.field_path).split("/").slice(1);
+    return (
+      template.length === parts.length &&
+      template.every(
+        (part, index) =>
+          part === parts[index] ||
+          part === "{key}" ||
+          (part === "{index}" && /^(?:0|[1-9]\d*)$/.test(parts[index]!)),
+      )
+    );
+  });
+  if (!descriptor)
+    throw new Error(`Missing registered field descriptor: ${type}${path}`);
+  const applicable = concreteConditions(
+    descriptor.applicable_conditions,
+    String(descriptor.field_path),
+    path,
+  );
+  const required = concreteConditions(
+    descriptor.required_conditions,
+    String(descriptor.field_path),
+    path,
+  );
+  return {
+    ...descriptor,
+    key: parts.at(-1)!.replaceAll("~1", "/").replaceAll("~0", "~"),
+    label: label(parts.at(-1)!),
+    field_path: path,
+    parent_path: path.split("/").slice(0, -1).join("/"),
+    path_template: descriptor.field_path,
+    applicable_conditions: applicable,
+    applicable_variants: [
+      ...new Set(
+        applicable.flatMap((condition) =>
+          (condition.all_of as VariantCondition[]).map(conditionLabel),
+        ),
+      ),
+    ],
+    required: required.length > 0,
+    required_when_parent_present: required.length > 0,
+    required_conditions: required,
+    field_schema: schema,
+    condition_semantics: fieldConditionSemantics,
+  };
+}
+function concreteConditions(
+  value: unknown,
+  template: string,
+  path: string,
+): Data[] {
+  const templateParts = template.split("/");
+  const parts = path.split("/");
+  function concretize(pointer: string): string {
+    return pointer
+      .split("/")
+      .map((part, index) =>
+        (part === "{index}" || part === "{key}") &&
+        templateParts[index] === part
+          ? parts[index]
+          : part,
+      )
+      .join("/");
+  }
+  return (value as Data[])
+    .filter((condition) =>
+      (condition.all_of as Data[]).every((rule) => {
+        if (
+          typeof rule.map_key_is !== "string" &&
+          !Array.isArray(rule.map_key_in)
+        )
+          return true;
+        const position = String(rule.field_path)
+          .split("/")
+          .lastIndexOf("{key}");
+        return (
+          position === -1 ||
+          (typeof rule.map_key_is === "string"
+            ? parts[position] === rule.map_key_is
+            : (rule.map_key_in as string[]).includes(parts[position]!))
+        );
+      }),
+    )
+    .map((condition) => ({
+      ...condition,
+      all_of: (condition.all_of as Data[]).map((rule) => ({
+        ...rule,
+        field_path: concretize(String(rule.field_path)),
+      })),
+      ...(condition.parent_path !== undefined
+        ? { parent_path: concretize(String(condition.parent_path)) }
+        : {}),
+    }));
+}
 const analyteDescriptors = labDefinitions.map((entry) => ({
   ...entry,
   field_path: "/result",
@@ -203,8 +709,8 @@ export function recordDescriptor(type: RecordType, full = false): Data {
       description: `Strict mutable ${type} fields with typed nested variants.`,
       record_type: type,
       record_schema_version: 2,
-      writable_data_schema: jsonSchema(recordSchemas[type]),
-      correction_data_schema: jsonSchema(recordSchemas[type]),
+      writable_data_schema: writableSchema(type),
+      correction_data_schema: writableSchema(type),
       logging_contracts: [
         {
           tool_name: operation.name,
@@ -217,7 +723,7 @@ export function recordDescriptor(type: RecordType, full = false): Data {
           idempotency_header: { name: "Idempotency-Key", required: true },
         },
       ],
-      field_index: fieldIndex(type),
+      ...compactFieldIndex(type),
       validation_rules: validationRules,
       introduced_in: "1.0.0",
       deprecated: false,
@@ -342,7 +848,9 @@ export function catalog(raw: Data, cursors: Cursors): Data {
       entries = analyteDescriptors;
       break;
     case "measurements":
-      entries = measurementDefinitions;
+      entries = measurementDefinitions.map((entry) =>
+        measurementDescriptor(entry.key),
+      );
       break;
     case "lab_panels":
       entries = inventory.lab_panels.map((panel) => ({
@@ -393,18 +901,18 @@ export function catalog(raw: Data, cursors: Cursors): Data {
       );
     if (input.field_path) {
       const type = input.key as RecordType;
+      const fieldSchema = schemaAt(writableSchema(type), input.field_path);
       entries = [
         {
           key: input.key,
           record_type: type,
           field_path: input.field_path,
-          field_schema: schemaAt(
-            jsonSchema(recordSchemas[type]) as Data,
+          field_schema: fieldSchema,
+          descriptor: concreteFieldDescriptor(
+            type,
             input.field_path,
+            fieldSchema,
           ),
-          descriptor: fieldIndex(type).find(
-            (item) => item.field_path === input.field_path,
-          ) ?? { path_template_convention: "Use actual indexed paths" },
         },
       ];
     }
@@ -435,12 +943,19 @@ export function catalog(raw: Data, cursors: Cursors): Data {
   if (!Number.isSafeInteger(offset) || offset < 0)
     fail("/cursor", "Invalid page position");
   const items: Data[] = [];
-  const bytes = (entry: unknown) => Buffer.byteLength(JSON.stringify(entry));
-  let size = 2048;
+  const bytes = (entry: unknown) => {
+    const serialized = JSON.stringify(entry);
+    return (
+      Buffer.byteLength(serialized) +
+      Buffer.byteLength(JSON.stringify(serialized))
+    );
+  };
+  // Both transports page against the MCP text-plus-structured encoding, including a possible request-sized JSON-RPC id.
+  let size = CATALOG_ENVELOPE_RESERVE;
   while (offset < entries.length && items.length < filters.limit) {
     const entry = entries[offset]!;
     const entryBytes = bytes(entry);
-    if (entryBytes + 2048 > MAX_RESPONSE_BYTES)
+    if (entryBytes + CATALOG_ENVELOPE_RESERVE > MAX_RESPONSE_BYTES)
       throw new DomainError(
         "LIMIT_EXCEEDED",
         "Complete catalog entry exceeds the response bound; request a field path",

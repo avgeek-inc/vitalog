@@ -9,12 +9,12 @@ import {
 } from "./definitions.js";
 import {
   commonEnvelope,
-  dataUnion,
-  labResult,
+  labResultInput,
   recordInputs,
   recordSchemas,
 } from "./records.js";
 import * as p from "./primitives.js";
+import { catalogOutputSchema } from "./catalog-output.js";
 
 export const idempotencyKey = p
   .text(128)
@@ -129,13 +129,16 @@ const timeContext = z.strictObject({
   original_ended_at: p.instant.nullable(),
   supplied_timezone: p.text(100).nullable(),
 });
-const storedRecord = z.discriminatedUnion("schema_version", [
-  z.strictObject({
-    ...storedEnvelope,
-    schema_version: z.literal(2),
-    data: dataUnion,
-    time_context: timeContext,
-  }),
+const storedRecord = z.union([
+  ...recordTypes.map((type) =>
+    z.strictObject({
+      ...storedEnvelope,
+      record_type: z.literal(type),
+      schema_version: z.literal(2),
+      data: recordSchemas[type],
+      time_context: timeContext,
+    }),
+  ),
   z.strictObject({
     ...storedEnvelope,
     schema_version: z.literal(1),
@@ -183,18 +186,23 @@ const recordOutput = z.strictObject({
   history_next_version: p.count.nullable().optional(),
 });
 const sourceIds = z.array(z.uuid()).max(1000);
+const computedDecimalText = p.text(10000).regex(/^-?(?:0|[1-9]\d*)(?:\.\d+)?$/);
+const computedSigned = p.signed.or(computedDecimalText);
+const computedNonnegative = p.nonnegative.or(
+  p.text(10000).regex(/^(?:0|[1-9]\d*)(?:\.\d+)?$/),
+);
 const numericRepresentation = {
-  exact_value: p.signed.nullable(),
+  exact_value: computedSigned.nullable(),
   exact_decimal: p.text(10000).nullable(),
 };
 const summaryResult = z.strictObject({
   kind: z.enum(["exact", "bound", "interval", "unquantified"]),
-  value: p.nonnegative.optional(),
+  value: computedNonnegative.optional(),
   exact_decimal: p.text(10000).optional(),
   comparator: z.enum(["lt", "le", "gt", "ge"]).optional(),
   unit: p.text(80).optional(),
-  lower: p.nonnegative.optional(),
-  upper: p.nonnegative.optional(),
+  lower: computedNonnegative.optional(),
+  upper: computedNonnegative.optional(),
   lower_inclusive: z.boolean().optional(),
   upper_inclusive: z.boolean().optional(),
   original_value_text: p.text(200).optional(),
@@ -226,6 +234,7 @@ const qualifiedSource = z.strictObject({
   source_id: z.uuid(),
   result: summaryResult,
   provenance: p.provenance.optional(),
+  definition_basis: definitionBasis.optional(),
 });
 const nutrientSummary = z.strictObject({
   effective_result: summaryResult.nullable(),
@@ -244,6 +253,16 @@ const nutrientSummary = z.strictObject({
   estimated_count: p.count,
   excluded_count: p.count,
   coverage: z.literal("only_supplied_fields"),
+  reported_coverage: p.text(200).nullable(),
+  energy_projection: z
+    .strictObject({
+      derived_from: z.literal("nutrition.energy"),
+      canonical_unit: z.literal("kcal"),
+      output_unit: z.enum(["kcal", "kJ"]),
+      factor: p.text(100),
+      stored_values_changed: z.literal(false),
+    })
+    .optional(),
   warnings: z.array(p.text(200)),
 });
 const energySummary = z.strictObject({
@@ -273,6 +292,7 @@ const energySummary = z.strictObject({
   qualified_count: p.count,
   missing_count: p.count,
   estimated_count: p.count,
+  reported_coverage: p.text(200).nullable(),
   warnings: z.array(p.text(200)),
 });
 const nutritionSummaryOutput = z.strictObject({
@@ -307,7 +327,10 @@ const fluidSummaryOutput = z.strictObject({
   known_intake_subtotal: z.strictObject(numericRepresentation),
   source_ids: sourceIds,
   missing_count: p.count,
+  estimated_count: p.count,
+  excluded_count: p.count,
   coverage: z.literal("tracked_oral_enteral_intake_only"),
+  warnings: z.array(p.text(200)),
 });
 const hydrationSummaryOutput = z.strictObject({
   total_fluids_ml: fluidSummaryOutput,
@@ -318,6 +341,15 @@ const hydrationSummaryOutput = z.strictObject({
     )
     .max(1000),
   source_ids: sourceIds,
+  provenance: z
+    .array(
+      z.strictObject({
+        source_id: z.uuid(),
+        provenance: p.provenance,
+        validity: p.validity,
+      }),
+    )
+    .max(1000),
 });
 const numericSource = z.strictObject({
   ...numericRepresentation,
@@ -377,6 +409,11 @@ const sleepSummaryOutput = z.strictObject({
   ...numericRepresentation,
   warnings: z.array(p.text(200)),
   basis: z.literal("supplied_sessions_only"),
+  source_ids: sourceIds,
+  missing_count: p.count,
+  estimated_count: p.count,
+  excluded_count: p.count,
+  coverage: z.literal("only_supplied_sessions"),
 });
 const completenessOutput = z.strictObject({
   value: z.enum(["unknown", "partial", "complete", "not_tracked"]),
@@ -413,7 +450,10 @@ const dailyOutput = z.strictObject({
         source_id: z.uuid(),
         record_type: z.enum(recordTypes),
         period: p.effectivePeriod,
-        labelled_as: z.literal("overlapping_interval_study"),
+        labelled_as: z.enum([
+          "overlapping_interval_study",
+          "overlapping_interval_intake",
+        ]),
       }),
     )
     .max(1000),
@@ -439,7 +479,15 @@ const contextOutput = z.strictObject({
         observed_on: p.date.nullable(),
         age_days: p.count.nullable(),
         predates_query_window: z.boolean(),
-        value: p.decimal.or(p.resultValue),
+        value: p.decimal.or(p.resultValue).or(
+          z.strictObject({
+            kind: z.literal("blood_pressure"),
+            systolic: p.decimal.or(p.quantity),
+            diastolic: p.decimal.or(p.quantity),
+            pulse: p.decimal.or(p.quantity).optional(),
+            unit: z.enum(["mmHg", "kPa"]),
+          }),
+        ),
         unit: p.text(80).optional(),
         provenance: p.provenance,
         series_context: z.record(p.text(100), z.json()),
@@ -459,20 +507,36 @@ const contextOutput = z.strictObject({
 const trendObservation = z.union([
   z.strictObject({
     date: p.date,
-    value: p.signed.nullable(),
+    value: computedSigned.nullable(),
     exact_decimal: p.text(10000).nullable(),
     basis: p.text(100),
     effective_result: summaryResult.nullable(),
     source_ids: sourceIds,
     definition_basis: definitionBasis.nullable(),
     coverage: p.text(500),
+    estimated_count: p.count,
+    qualified_count: p.count,
+    missing_count: p.count,
+    excluded_count: p.count,
+    provenance: z
+      .array(
+        z.strictObject({
+          source_id: z.uuid(),
+          provenance: p.provenance,
+          validity: p.validity,
+        }),
+      )
+      .max(1000),
+    known_subtotals: z.array(intakeSubtotal).max(1000),
+    qualified_results: z.array(qualifiedSource).max(1000),
+    warnings: z.array(p.text(200)),
   }),
   z.strictObject({
     source_id: z.uuid(),
     component_path: p.pointer.nullable(),
     date: p.date,
     occurred_at: p.instant.nullable(),
-    value: p.signed.nullable(),
+    value: computedSigned.nullable(),
     exact_decimal: p.text(10000).nullable(),
     supplied_result: p.decimal.or(p.resultValue).or(recordSchemas.measurement),
     source_status: p.sourceStatus,
@@ -480,22 +544,24 @@ const trendObservation = z.union([
     excluded_from_numeric: z.boolean(),
     period: p.effectivePeriod.nullable(),
     provenance: p.provenance,
+    component_provenance: p.fieldOverride.optional(),
+    component_validity: p.validity.optional(),
   }),
 ]);
 const trendPoint = z.union([
   z.strictObject({
     date: p.date,
-    value: p.signed.nullable(),
+    value: computedSigned.nullable(),
     exact_decimal: p.text(10000).nullable(),
     contributing_records: p.count,
     source_ids: sourceIds,
-    seven_day_moving_average: p.signed.nullable().optional(),
+    seven_day_moving_average: computedSigned.nullable().optional(),
     contributing_days: p.count.optional(),
   }),
   z.strictObject({
     start_date: p.date,
     end_date: p.date,
-    value: p.signed.nullable(),
+    value: computedSigned.nullable(),
     contributing_days: p.count,
     source_ids: sourceIds,
   }),
@@ -527,32 +593,12 @@ const trendsOutput = z.strictObject({
     )
     .max(20),
 });
-const catalogOutput = z.strictObject({
-  ...metadata,
-  category: catalogInput.shape.category.unwrap(),
-  response_variant: z.enum(["overview", "list", "lookup"]),
-  items: z.array(z.json()).max(100).optional(),
-  returned_count: p.count.optional(),
-  total_count: p.count.optional(),
-  has_more: z.boolean().optional(),
-  next_cursor: p.text(2000).nullable().optional(),
-  categories: z.array(p.text(100)).optional(),
-  record_types: z.array(z.enum(recordTypes)).optional(),
-  counts: z.record(p.text(100), p.count).optional(),
-  panel_keys: z.array(p.text(100)).optional(),
-  nutrient_groups: z.record(p.text(100), p.count).optional(),
-  measurement_groups: z.record(p.text(100), p.count).optional(),
-  custom_analyte_policy: p.text(500).optional(),
-  discovery_examples: z.array(z.json()).optional(),
-  openapi_path: z.literal("/openapi.json").optional(),
-  record_schema_path: p.text(100).optional(),
-});
 export type Operation = {
   name: string;
   method: "GET" | "POST";
   path: string;
   input: z.ZodObject;
-  output: z.ZodObject;
+  output: z.ZodType;
   description: string;
   mutation: boolean;
   record_type?: RecordType;
@@ -610,6 +656,7 @@ export const operations: Operation[] = [
     input: z.strictObject({
       id: z.uuid(),
       include_history: z.boolean().optional(),
+      history_limit: z.number().int().min(1).max(100).optional(),
       history_before_version: p.count.optional(),
     }),
     output: recordOutput,
@@ -622,7 +669,7 @@ export const operations: Operation[] = [
     method: "GET",
     path: "/v1/catalog",
     input: catalogInput,
-    output: catalogOutput,
+    output: catalogOutputSchema,
     mutation: false,
     description:
       "Discover exact supported keys, panel memberships, nested fields, units and complete schemas. Returns code definitions independently of health data.",
@@ -670,7 +717,7 @@ for (const type of recordTypes) {
                 z.strictObject({
                   ...commonEnvelope,
                   provenance: p.provenance.optional(),
-                  data: labResult,
+                  data: labResultInput,
                 }),
               )
               .min(1)

@@ -6,6 +6,7 @@ import {
   RECORD_SCHEMA_VERSION,
   type RecordType,
   inventory,
+  studyComponentKeys,
 } from "../registry/definitions.js";
 import { recordInputs } from "../registry/records.js";
 import { fail, parse } from "../errors.js";
@@ -27,6 +28,23 @@ export function validTimezone(zone: string): void {
   }
 }
 const number = (value: unknown) => new Decimal(value as string | number);
+const physicalQuantityFields = new Set([
+  "administered_quantity",
+  "administration_rate",
+  "compound_mass",
+  "active_moiety_amount",
+  "elemental_amount",
+  "pool_length",
+  "swolf_pool_length",
+  "volume",
+  "dose",
+  "bronchodilator_dose",
+  "flow",
+  "fio2",
+  "pressure",
+  "viewing_distance",
+  "inspired_volume",
+]);
 function recursiveRules(
   value: unknown,
   path: string,
@@ -41,6 +59,10 @@ function recursiveRules(
   }
   if (value === null || typeof value !== "object") return;
   const v = object(value);
+  if (typeof v.timezone === "string") {
+    validTimezone(v.timezone);
+    timezone = v.timezone;
+  }
   if (Object.keys(v).length > 200) fail(path, "Object has too many members");
   if (
     v.lower !== undefined &&
@@ -59,8 +81,21 @@ function recursiveRules(
     (v.numerator === undefined) !== (v.denominator === undefined)
   )
     fail(path, "Supply both dilution numbers or neither");
-  if (v.kind === "absent" && v.reason === "other" && !v.explanation)
+  if (
+    (v.kind === "absent" || v.kind === "unquantified") &&
+    v.reason === "other" &&
+    !v.explanation
+  )
     fail(path, "Explain the other absence reason");
+  if (
+    v.kind === "quantity" &&
+    (physicalQuantityFields.has(path.split("/").at(-1)!) ||
+      /\/ingredients\/\d+\/strength\/(?:numerator|denominator)$/.test(path))
+  ) {
+    if (number(v.value).lt(0))
+      fail(`${path}/value`, "A physical amount cannot be negative");
+    if (!v.unit) fail(`${path}/unit`, "Supply the physical amount's unit");
+  }
   if (
     v.kind === "susceptibility_result" &&
     !v.mic &&
@@ -84,6 +119,8 @@ function recursiveRules(
     "reported_at",
     "received_at",
     "analyzed_at",
+    "received_on",
+    "analyzed_on",
     "reported_on",
     "collected_on",
     "period_start",
@@ -115,15 +152,33 @@ function recursiveRules(
     ["start_at", "end_at"],
     ["period_start", "period_end"],
   ]) {
-    if (
-      typeof v[start!] === "string" &&
-      typeof v[end!] === "string" &&
-      String(v[start!]) > String(v[end!]) &&
-      new Date(String(v[start!])).getTime() >
-        new Date(String(v[end!])).getTime()
-    )
-      fail(path, "Start must not follow end");
+    const from = v[start!],
+      to = v[end!];
+    if (typeof from === "string" && typeof to === "string") {
+      if (from.includes("T") !== to.includes("T")) {
+        if (v.time_precision !== "unknown")
+          fail(path, "Mixed endpoint precision must remain explicitly unknown");
+        const fromDay = from.includes("T") ? localDate(from, timezone) : from;
+        const toDay = to.includes("T") ? localDate(to, timezone) : to;
+        if (fromDay > toDay)
+          fail(path, "Known starting date must not follow the ending date");
+        continue;
+      }
+      if (
+        from.includes("T")
+          ? new Date(from).getTime() > new Date(to).getTime()
+          : from > to
+      )
+        fail(path, "Start must not follow end");
+    }
   }
+  if (
+    v.onset_precision &&
+    typeof v.onset === "string" &&
+    ((v.onset_precision === "date" && v.onset.includes("T")) ||
+      (v.onset_precision === "instant" && !v.onset.includes("T")))
+  )
+    fail(`${path}/onset_precision`, "Onset precision conflicts with its value");
   if (v.scale && v.value !== undefined) {
     if (v.lower !== undefined && number(v.value).lt(number(v.lower)))
       fail(path, "Score is below its supplied scale");
@@ -150,13 +205,17 @@ function recursiveRules(
     )
       fail(path, "Period precision conflicts with date-only endpoints");
     if (
+      v.time_precision === "duration" &&
+      (v.start !== undefined || v.end !== undefined)
+    )
+      fail(path, "Duration-only precision cannot contain known endpoints");
+    if (
       v.start === undefined &&
       v.end === undefined &&
       v.duration_seconds === undefined &&
-      path.endsWith("period")
+      v.time_precision !== "unknown"
     )
       fail(path, "Supply known endpoints or duration");
-    if (v.timezone) validTimezone(String(v.timezone));
   }
   if (
     v.expected_samples !== undefined &&
@@ -225,26 +284,8 @@ function measurementRules(data: Data): void {
       }
   }
   if (data.kind === "study_summary") {
-    const groups: Record<string, string[]> = {
-      cgm_summary: ["blood_glucose", "interstitial_glucose"],
-      ambulatory_bp_summary: [
-        "heart_rate",
-        "pulse_pressure",
-        "mean_arterial_pressure",
-      ],
-      spirometry_summary: inventory.measurement_groups.respiratory_temperature,
-      body_composition_summary:
-        inventory.measurement_groups.anthropometry_body_composition,
-      dxa_summary: [
-        ...inventory.measurement_groups.bone,
-        ...inventory.measurement_groups.anthropometry_body_composition,
-      ],
-      ecg_summary: inventory.measurement_groups.cardiovascular,
-      echocardiography_summary: inventory.measurement_groups.cardiovascular,
-      functional_test_summary: inventory.measurement_groups.fitness_function,
-    };
     for (const [key, value] of Object.entries(object(data.components))) {
-      if (!groups[String(data.study_type)]?.includes(key))
+      if (!studyComponentKeys[String(data.study_type)]?.includes(key))
         fail(
           `/data/components/${key}`,
           "Component does not belong to this study type",
@@ -299,10 +340,71 @@ function validateScalar(key: string, data: Data, path: string): void {
   }
   if (v.unit && data.unit && v.unit !== data.unit)
     fail(`${path}/unit`, "Outer and result units must agree");
+  if (v.comparator && data.comparator && v.comparator !== data.comparator)
+    fail(`${path}/comparator`, "Outer and result comparators must agree");
+  if (data.comparator && !["quantity", "absent"].includes(kind))
+    fail(`${path}/comparator`, "A comparator qualifies a scalar quantity");
   const metadata = object(data.classification_metadata);
-  for (const field of definition.required_context)
-    if (data[field] === undefined && metadata[field] === undefined)
-      fail(`${path}/${field}`, "Required context for this metric is missing");
+  for (const contextPath of definition.required_context_paths)
+    if (at(data, contextPath) === undefined)
+      fail(
+        `${path}${contextPath}`,
+        "Required context for this metric is missing",
+      );
+  if (
+    key === "heart_rate_recovery" &&
+    ((metadata.recovery_kind === "actual_heart_rate" && unit !== "bpm") ||
+      (metadata.recovery_kind === "drop_from_peak" && unit !== "bpm_drop"))
+  )
+    fail(`${path}/unit`, "Recovery unit conflicts with its reported kind");
+}
+
+function activityRules(data: Data, path: string): void {
+  if (data.cadence !== undefined && !data.cadence_unit)
+    fail(`${path}/cadence_unit`, "Cadence needs an explicit denominator");
+  if (data.energy_kcal !== undefined && !data.energy_basis)
+    fail(`${path}/energy_basis`, "Specify active, gross or unknown energy");
+  if (
+    data.elapsed_seconds !== undefined &&
+    (Number(data.moving_seconds ?? 0) > Number(data.elapsed_seconds) ||
+      Number(data.paused_seconds ?? 0) > Number(data.elapsed_seconds) ||
+      (data.moving_seconds !== undefined &&
+        data.paused_seconds !== undefined &&
+        Number(data.moving_seconds) + Number(data.paused_seconds) >
+          Number(data.elapsed_seconds)))
+  )
+    fail(path, "Moving/pause duration exceeds elapsed duration");
+}
+
+function periodConsistency(data: Data, path: string, timezone: string): void {
+  const period = object(data.effective_period);
+  const periodZone = String(period.timezone ?? timezone);
+  for (const [endpoint, timestamp] of [
+    ["start", "start_at"],
+    ["end", "end_at"],
+  ]) {
+    const value = period[endpoint!],
+      at = data[timestamp!];
+    if (typeof value !== "string" || typeof at !== "string") continue;
+    if (
+      value.includes("T")
+        ? new Date(value).getTime() !== new Date(at).getTime()
+        : value !== localDate(at, periodZone)
+    )
+      fail(
+        `${path}/effective_period/${endpoint}`,
+        "Effective period conflicts with the supplied administration endpoint",
+      );
+  }
+  if (
+    period.duration_seconds !== undefined &&
+    data.duration_seconds !== undefined &&
+    !number(period.duration_seconds).eq(number(data.duration_seconds))
+  )
+    fail(
+      `${path}/effective_period/duration_seconds`,
+      "Effective period conflicts with the supplied administration duration",
+    );
 }
 
 export function normalizeInput(
@@ -360,14 +462,84 @@ export function normalizeInput(
       );
     if (data.unit && result.unit && data.unit !== result.unit)
       fail("/data/unit", "Outer and result units conflict");
-    if (result.kind === "quantity" && !result.unit && !data.unit)
+    if (
+      ["quantity", "interval"].includes(String(result.kind)) &&
+      !result.unit &&
+      !data.unit
+    )
       fail(
         "/data/result/unit",
-        "Quantities require a supplied unit, including 1 for dimensionless values",
+        "Quantitative results require a supplied unit, including 1 for dimensionless values",
       );
+    const requireResultUnit = (value: unknown, path: string) => {
+      const quantity = object(value);
+      if (quantity.kind === "quantity" && !quantity.unit && !data.unit)
+        fail(`${path}/unit`, "Supply the reported result unit");
+    };
+    if (result.kind === "pathogen_result")
+      requireResultUnit(result.result, "/data/result/result");
+    if (result.kind === "culture_result")
+      for (const [index, isolate] of (
+        (result.isolates as Data[] | undefined) ?? []
+      ).entries())
+        if (isolate.quantity)
+          requireResultUnit(
+            isolate.quantity,
+            `/data/result/isolates/${index}/quantity`,
+          );
+    if (result.kind === "susceptibility_result") {
+      for (const key of ["mic", "disk_zone"]) {
+        if (!result[key]) continue;
+        requireResultUnit(result[key], `/data/result/${key}`);
+        if (key === "disk_zone" && number(object(result[key]).value).lt(0))
+          fail(
+            `/data/result/${key}/value`,
+            "A physical amount cannot be negative",
+          );
+        if (result.mic && result.disk_zone && !object(result[key]).unit)
+          fail(
+            `/data/result/${key}/unit`,
+            "Separate MIC and disk-zone quantities need their own units",
+          );
+      }
+    }
+    if (
+      data.data_absent_reason &&
+      (result.kind !== "absent" || result.reason !== data.data_absent_reason)
+    )
+      fail(
+        "/data/data_absent_reason",
+        "An absence reason must agree with the absent result",
+      );
+    for (const prefix of ["collected", "received", "analyzed", "reported"]) {
+      const day = data[`${prefix}_on`],
+        timestamp = data[`${prefix}_at`];
+      if (
+        typeof day === "string" &&
+        typeof timestamp === "string" &&
+        day !== localDate(timestamp, timezone)
+      )
+        fail(
+          `/data/${prefix}_on`,
+          "Laboratory date conflicts with its local timestamp",
+        );
+    }
     occurredAt =
-      typeof data.collected_at === "string" ? data.collected_at : null;
-    const collectionStart = object(data.collection_period).start;
+      typeof data.collected_at === "string"
+        ? data.collected_at
+        : typeof data.collected_on === "string"
+          ? (input.occurred_at ?? null)
+          : null;
+    const collection = object(data.collection_period);
+    const collectionStart = collection.start ?? collection.end;
+    const collectionZone = String(collection.timezone ?? timezone);
+    if (
+      !occurredAt &&
+      typeof data.collected_on !== "string" &&
+      typeof collectionStart === "string" &&
+      collectionStart.includes("T")
+    )
+      occurredAt = collectionStart;
     occurredOn =
       typeof data.collected_on === "string"
         ? data.collected_on
@@ -375,13 +547,17 @@ export function normalizeInput(
           ? localDate(occurredAt, timezone)
           : typeof collectionStart === "string"
             ? collectionStart.includes("T")
-              ? localDate(collectionStart, timezone)
+              ? localDate(collectionStart, collectionZone)
               : collectionStart
             : null;
     basis = occurredOn ? "specimen_date" : "unknown";
     if (!occurredOn) {
       occurredAt =
-        typeof data.reported_at === "string" ? data.reported_at : null;
+        typeof data.reported_at === "string"
+          ? data.reported_at
+          : typeof data.reported_on === "string"
+            ? (input.occurred_at ?? null)
+            : null;
       occurredOn =
         typeof data.reported_on === "string"
           ? data.reported_on
@@ -390,9 +566,11 @@ export function normalizeInput(
             : null;
       if (occurredOn) basis = "report_date";
     }
-    if (!occurredOn && input.occurred_on) {
-      occurredOn = input.occurred_on;
+    if (!occurredOn && (input.occurred_on || input.occurred_at)) {
       occurredAt = input.occurred_at ?? null;
+      occurredOn =
+        input.occurred_on ??
+        (occurredAt ? localDate(occurredAt, timezone) : null);
       basis =
         input.date_basis === "specimen_date" ? "specimen_date" : "report_date";
     }
@@ -409,14 +587,28 @@ export function normalizeInput(
         "Common date conflicts with the effective specimen/report date",
       );
     if (
+      input.occurred_at &&
+      occurredAt &&
+      new Date(input.occurred_at).getTime() !== new Date(occurredAt).getTime()
+    )
+      fail(
+        "/occurred_at",
+        "Common timestamp conflicts with the effective specimen/report timestamp",
+      );
+    if (
       occurredOn &&
       occurredAt &&
       localDate(occurredAt, timezone) !== occurredOn
-    )
+    ) {
+      const sourceDate =
+        basis === "specimen_date" ? "collected_on" : "reported_on";
       fail(
-        "/data/collected_on",
+        typeof data[sourceDate] === "string"
+          ? `/data/${sourceDate}`
+          : "/occurred_on",
         "Laboratory date conflicts with its local timestamp",
       );
+    }
     if (data.collection_period && object(data.collection_period).end)
       endedAt = String(object(data.collection_period).end).includes("T")
         ? String(object(data.collection_period).end)
@@ -442,7 +634,10 @@ export function normalizeInput(
           "/data/study_metadata/effective_period",
           "Sleep studies require a supplied effective period",
         );
-      if (endedAt) {
+      if (data.entry_kind === "study_summary") {
+        precision = "period";
+        basis = input.date_basis ?? "reported_date";
+      } else if (endedAt) {
         const wake = localDate(endedAt, timezone);
         if (occurredOn && wake !== occurredOn)
           fail("/occurred_on", "Sleep must use its local wake date");
@@ -471,6 +666,21 @@ export function normalizeInput(
         occurredAt =
           typeof data.start_at === "string" ? data.start_at : occurredAt;
         endedAt = typeof data.end_at === "string" ? data.end_at : endedAt;
+        if (type === "intake") {
+          const period = object(data.effective_period);
+          if (
+            !occurredAt &&
+            typeof period.start === "string" &&
+            period.start.includes("T")
+          )
+            occurredAt = period.start;
+          if (
+            !endedAt &&
+            typeof period.end === "string" &&
+            period.end.includes("T")
+          )
+            endedAt = period.end;
+        }
       }
       if (occurredAt) {
         const day = localDate(occurredAt, timezone);
@@ -504,6 +714,9 @@ export function normalizeInput(
   if (type === "nutrition") validateNutrients(data);
   if (type === "intake") {
     validateNutrients(data, "nutrient_contributions");
+    periodConsistency(data, "/data", timezone);
+    if (data.effective_period || (data.start_at && data.end_at))
+      precision = "period";
     if (
       data.status === "partially_taken" &&
       !data.administered_quantity &&
@@ -520,7 +733,13 @@ export function normalizeInput(
         (data.nutrient_contributions &&
           Object.values(object(data.nutrient_contributions)).some(
             (v) => typeof v === "number" && v > 0,
-          )))
+          )) ||
+        Number(data.administered_volume_ml ?? 0) > 0 ||
+        (data.administration_rate &&
+          !number(object(data.administration_rate).value).isZero()) ||
+        Object.values(object(data.nutrient_qualifiers)).some(
+          (qualifier) => object(qualifier).kind !== "exact",
+        ))
     )
       fail(
         "/data",
@@ -548,23 +767,40 @@ export function normalizeInput(
       fail("/data/water_ml", "Plain water is included in total fluids");
   }
   if (type === "measurement") measurementRules(data);
+  if (type === "measurement" && data.kind === "study_summary")
+    precision = "period";
   if (type === "activity") {
     if (data.activity_type === "other" && !data.activity_label)
       fail("/data/activity_label", "Name the completed activity");
-    if (data.cadence !== undefined && !data.cadence_unit)
-      fail("/data/cadence_unit", "Cadence needs an explicit denominator");
-    if (data.energy_kcal !== undefined && !data.energy_basis)
-      fail("/data/energy_basis", "Specify active, gross or unknown energy");
+    activityRules(data, "/data");
+    for (const [index, segment] of (
+      (data.segments as Data[] | undefined) ?? []
+    ).entries())
+      activityRules(segment, `/data/segments/${index}`);
+    for (const [index, set] of (
+      (data.strength as Data[] | undefined) ?? []
+    ).entries()) {
+      const load = object(set.load);
+      if (set.load && !load.unit)
+        fail(
+          `/data/strength/${index}/load/unit`,
+          "Supply the reported load unit",
+        );
+      if (
+        load.value !== undefined &&
+        number(load.value).lt(0) &&
+        !["assistance", "unknown"].includes(String(set.load_interpretation))
+      )
+        fail(
+          `/data/strength/${index}/load/value`,
+          "Negative load needs an explicit assistance or unknown source interpretation",
+        );
+    }
     if (
-      data.elapsed_seconds !== undefined &&
-      (Number(data.moving_seconds ?? 0) > Number(data.elapsed_seconds) ||
-        Number(data.paused_seconds ?? 0) > Number(data.elapsed_seconds) ||
-        (data.moving_seconds !== undefined &&
-          data.paused_seconds !== undefined &&
-          Number(data.moving_seconds) + Number(data.paused_seconds) >
-            Number(data.elapsed_seconds)))
+      object(data.swimming).count !== undefined &&
+      !object(data.swimming).count_meaning
     )
-      fail("/data", "Moving/pause duration exceeds elapsed duration");
+      fail("/data/swimming/count_meaning", "Distinguish laps from lengths");
   }
   const overrides = input.provenance.field_overrides ?? {};
   if (Object.keys(overrides).length > 50)

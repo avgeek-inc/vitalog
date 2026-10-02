@@ -1495,8 +1495,68 @@ try {
   await check(
     "Real PostgreSQL streaming export, backup/restore and permanent operator erasure cover revisions/idempotency",
     async () => {
-      await save("nutrition", examples.nutrition.data);
+      const createKey = randomUUID();
+      const createArgs = { ...base, data: examples.nutrition.data };
+      const created = await rest("/v1/nutrition", createArgs, createKey);
+      assert.equal(created.status, 200);
+      const original = object(created.body.record);
+      const correctionKey = randomUUID();
+      const correctionArgs = {
+        expected_version: 1,
+        reason: "Corrected source observation for backup verification",
+        replacement: {
+          record_type: "nutrition",
+          ...base,
+          data: {
+            entry_kind: "intake",
+            nutrients: { protein_g: 0, energy_kcal: null },
+            nutrient_qualifiers: {
+              energy_kcal: { kind: "unquantified", reason: "unknown" },
+            },
+            notes: "Synthetic revised observation",
+          },
+        },
+      };
+      const corrected = await rest(
+        `/v1/records/${original.id}/corrections`,
+        correctionArgs,
+        correctionKey,
+      );
+      assert.equal(corrected.status, 200);
+      const voidKey = randomUUID();
+      const voidArgs = {
+        expected_version: 2,
+        reason: "Synthetic void retained in backup history",
+      };
+      const voided = await rest(
+        `/v1/records/${original.id}/voids`,
+        voidArgs,
+        voidKey,
+      );
+      assert.equal(voided.status, 200);
+      const originalHistory = await rest(
+        `/v1/records/${original.id}?include_history=true`,
+      );
       const before = await counts();
+      const tableQueries = {
+        health_records:
+          "SELECT row_to_json(r) AS data FROM health_records r ORDER BY id",
+        record_revisions:
+          "SELECT row_to_json(r) AS data FROM record_revisions r ORDER BY record_id, version",
+        idempotency_requests:
+          "SELECT row_to_json(r) AS data FROM idempotency_requests r ORDER BY operation, idempotency_key",
+      };
+      const tableSnapshot = async (
+        pool: ReturnType<typeof database>["pool"],
+      ) => {
+        const snapshot: Record<string, unknown[]> = {};
+        for (const [table, query] of Object.entries(tableQueries))
+          snapshot[table] = (await pool.query(query)).rows.map(
+            (row) => row.data,
+          );
+        return snapshot;
+      };
+      const beforeRows = await tableSnapshot(connection!.pool);
       const exported = execFileSync(
         process.execPath,
         ["--import", "tsx", "scripts/export.ts"],
@@ -1506,19 +1566,33 @@ try {
         .trim()
         .split("\n")
         .map((line) => JSON.parse(line));
-      assert.equal(rows.length, 4);
+      assert.equal(
+        rows.length,
+        1 + before.records + before.revisions + before.idempotency,
+      );
+      assert.equal(rows[0].format, "vitalog-export-jsonl");
+      for (const [table, values] of Object.entries(beforeRows))
+        assert.deepEqual(
+          rows.filter((row) => row.table === table).map((row) => row.data),
+          values,
+        );
       assert(!exported.includes(key));
-      const dump = command([
-        "exec",
-        container,
-        "pg_dump",
-        "-U",
-        "vitalog",
-        "-d",
-        "vitalog",
-        "--no-owner",
-        "--no-privileges",
-      ]);
+      const dump = execFileSync(
+        "docker",
+        [
+          "exec",
+          container,
+          "pg_dump",
+          "-U",
+          "vitalog",
+          "-d",
+          "vitalog",
+          "--format=custom",
+          "--no-owner",
+          "--no-privileges",
+        ],
+        { maxBuffer: 40 * 1024 * 1024, stdio: ["pipe", "pipe", "pipe"] },
+      );
       command([
         "exec",
         container,
@@ -1532,13 +1606,14 @@ try {
           "exec",
           "-i",
           container,
-          "psql",
+          "pg_restore",
           "-U",
           "vitalog",
           "-d",
           "vitalog_restore",
-          "-v",
-          "ON_ERROR_STOP=1",
+          "--no-owner",
+          "--no-privileges",
+          "--exit-on-error",
         ],
         { input: dump },
       );
@@ -1550,6 +1625,46 @@ try {
           "SELECT (SELECT count(*)::int FROM health_records) records, (SELECT count(*)::int FROM record_revisions) revisions, (SELECT count(*)::int FROM idempotency_requests) idempotency",
         );
         assert.deepEqual(result.rows[0], before);
+        assert.deepEqual(await tableSnapshot(restored.pool), beforeRows);
+        const restoredService = new Service(
+          restored.db,
+          "Asia/Kolkata",
+          hash(key),
+        );
+        const restoredHistory = await restoredService.execute(
+          "health_get_record",
+          { id: original.id, include_history: true },
+        );
+        assert.deepEqual(restoredHistory, originalHistory.body);
+        for (const [operation, args, committed] of [
+          [
+            "health_log_nutrition",
+            { ...createArgs, idempotency_key: createKey },
+            created.body,
+          ],
+          [
+            "health_correct_record",
+            {
+              ...correctionArgs,
+              id: original.id,
+              idempotency_key: correctionKey,
+            },
+            corrected.body,
+          ],
+          [
+            "health_void_record",
+            { ...voidArgs, id: original.id, idempotency_key: voidKey },
+            voided.body,
+          ],
+        ] as const) {
+          const replay = await restoredService.execute(operation, args);
+          assert.equal(replay.idempotent_replay, true);
+          assert.deepEqual(replay, { ...committed, idempotent_replay: true });
+          operations
+            .find((item) => item.name === operation)!
+            .output.parse(replay);
+        }
+        assert.deepEqual(await tableSnapshot(restored.pool), beforeRows);
       } finally {
         await restored.pool.end();
       }
@@ -1568,6 +1683,7 @@ try {
         revisions: 0,
         idempotency: 0,
       });
+      return 22;
     },
   );
   await check(
@@ -1582,10 +1698,23 @@ try {
         },
       });
       assert.equal(oversize.status, 413);
-      assert.equal(
-        (await mcpFailure("health_get_catalog", { AUTH_KEY: key })).code,
-        "VALIDATION_ERROR",
+      const credentialArgument = await rest(
+        "/mcp",
+        {
+          jsonrpc: "2.0",
+          id: "credential-in-argument",
+          method: "tools/call",
+          params: { name: "health_get_catalog", arguments: { AUTH_KEY: key } },
+        },
+        randomUUID(),
+        {
+          Accept: "application/json, text/event-stream",
+          "MCP-Protocol-Version": LATEST_PROTOCOL_VERSION,
+        },
       );
+      assert.equal(credentialArgument.status, 422);
+      assert.equal(credentialArgument.body.code, "VALIDATION_ERROR");
+      assert(!JSON.stringify(credentialArgument.body).includes(key));
       assert(!JSON.stringify(logs).includes(key));
       assert(!JSON.stringify(logs).includes("Lunch"));
       assert(
@@ -1647,7 +1776,7 @@ try {
     ),
     remaining_unsupported_branches: [],
     backup_restore:
-      "pg_dump into fresh database, record/revision/idempotency counts compared",
+      "Streaming export and custom-format pg_dump/pg_restore into a fresh database; all record/revision/idempotency values compared, history retrieved, original create/correction/void retries replayed without new rows",
     data_scope: "Synthetic fixtures in a disposable PostgreSQL container only",
   };
   await mkdir(".test-artifacts", { recursive: true });

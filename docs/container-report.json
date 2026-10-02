@@ -1,6 +1,6 @@
 {
-  "tested_at": "2026-10-02T14:27:56.710Z",
-  "image": "vitalog-smoke-63196:local",
+  "tested_at": "2026-10-02T15:29:07.026Z",
+  "image": "vitalog-smoke-95006:local",
   "postgres_image": "postgres:17.11-bookworm",
   "checks": [
     "fresh Compose service/database startup and automatic migrations",

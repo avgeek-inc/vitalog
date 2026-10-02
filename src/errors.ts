@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   CATALOG_VERSION,
   analyteKeys,
+  measurementKeys,
   nutrientKeys,
 } from "./registry/definitions.js";
 
@@ -66,26 +67,60 @@ export function fail(
 }
 export const pointerEscape = (part: string | number) =>
   String(part).replaceAll("~", "~0").replaceAll("/", "~1");
+function suppliedAt(value: unknown, path: PropertyKey[]): unknown {
+  return path.reduce<unknown>((current, part) => {
+    if (!current || typeof current !== "object") return undefined;
+    return (current as Record<PropertyKey, unknown>)[part];
+  }, value);
+}
+function catalogDiscriminatorIssues(
+  issues: z.core.$ZodIssue[],
+  value: unknown,
+  parent: PropertyKey[] = [],
+): z.core.$ZodIssue[] {
+  return issues.flatMap((issue) => {
+    const path = [...parent, ...issue.path];
+    const key = path.at(-1);
+    const known =
+      key === "metric_key"
+        ? measurementKeys
+        : key === "analyte_key"
+          ? analyteKeys
+          : undefined;
+    const supplied = suppliedAt(value, path);
+    if (known && typeof supplied === "string" && !known.includes(supplied))
+      return [{ ...issue, path }];
+    return issue.code === "invalid_union"
+      ? catalogDiscriminatorIssues(issue.errors.flat(), value, path)
+      : [];
+  });
+}
 export function parse<T>(schema: z.ZodType<T>, value: unknown): T {
   const result = schema.safeParse(value);
   if (result.success) return result.data;
-  const issues: Issue[] = result.error.issues.flatMap((issue) => {
-    const path =
-      "/" + issue.path.map((part) => pointerEscape(String(part))).join("/");
+  const actionable = result.error.issues.flatMap((issue) => {
+    if (issue.code !== "invalid_union") return [issue];
+    const nested = catalogDiscriminatorIssues([issue], value);
+    return nested.length ? nested : [issue];
+  });
+  const issues: Issue[] = actionable.flatMap((issue) => {
+    const path = issue.path.length
+      ? "/" + issue.path.map((part) => pointerEscape(String(part))).join("/")
+      : "";
     if (issue.code === "unrecognized_keys") {
       return issue.keys.map((key) =>
         validationIssue(`${path}/${pointerEscape(key)}`, "unknown_field", key),
       );
     }
-    if (issue.path.at(-1) === "analyte_key") {
+    if (["analyte_key", "metric_key"].includes(String(issue.path.at(-1)))) {
+      const supplied = suppliedAt(value, issue.path);
       return [
         validationIssue(
           path,
-          "unknown_builtin_analyte",
-          String(
-            (value as { data?: { analyte_key?: string } })?.data?.analyte_key ??
-              "",
-          ),
+          issue.path.at(-1) === "analyte_key"
+            ? "unknown_builtin_analyte"
+            : "unknown_measurement",
+          typeof supplied === "string" ? supplied : "",
         ),
       ];
     }
@@ -94,12 +129,31 @@ export function parse<T>(schema: z.ZodType<T>, value: unknown): T {
   throw new DomainError(
     "VALIDATION_ERROR",
     "Input failed validation",
-    issues.slice(0, 30),
+    [
+      ...new Map(
+        issues.map((issue) => [JSON.stringify(issue), issue]),
+      ).values(),
+    ].slice(0, 30),
   );
 }
 function validationIssue(path: string, reason: string, key: string): Issue {
-  const category = path.includes("analyte_key") ? "lab_analytes" : "nutrients";
-  const known = category === "nutrients" ? nutrientKeys : analyteKeys;
+  const category = path.endsWith("/analyte_key")
+    ? "lab_analytes"
+    : path.endsWith("/metric_key")
+      ? "measurements"
+      : /\/(nutrients|supplement_nutrients|nutrient_qualifiers|component_details)\//.test(
+            path,
+          )
+        ? "nutrients"
+        : "record_schemas";
+  const known =
+    category === "nutrients"
+      ? nutrientKeys
+      : category === "lab_analytes"
+        ? analyteKeys
+        : category === "measurements"
+          ? measurementKeys
+          : [];
   const suggestions = known
     .filter((candidate) => candidate === key || candidate.startsWith(key + "_"))
     .slice(0, 3);

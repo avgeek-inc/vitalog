@@ -48,7 +48,7 @@ const requestArgs = (operation: (typeof operations)[number]): Data => {
       end_date: "2026-09-30",
     };
   if (operation.name === "health_get_record")
-    return { id: "{{recordId}}", include_history: true };
+    return { id: "{{recordId}}", include_history: true, history_limit: 100 };
   if (operation.name === "health_correct_record")
     return {
       id: "{{recordId}}",

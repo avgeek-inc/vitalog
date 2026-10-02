@@ -20,16 +20,23 @@ const sum = (values: (string | number)[]) =>
     (total, value) => total.plus(new Decimal(value)),
     new Decimal(0),
   );
+export function numericProjection(value: Decimal): string | number {
+  const number = value.toNumber();
+  return Number.isFinite(number) && (number !== 0 || value.isZero())
+    ? number
+    : value.toFixed();
+}
 const representation = (value: Decimal | null) => ({
-  exact_value: value ? value.toNumber() : null,
+  exact_value: value ? numericProjection(value) : null,
   exact_decimal: value ? value.toFixed() : null,
 });
 export function point(value: unknown, comparator?: unknown): Decimal | null {
   if (typeof value === "string" || typeof value === "number")
     return comparator && comparator !== "eq" ? null : new Decimal(value);
   const result = object(value);
+  const effectiveComparator = result.comparator ?? comparator;
   return result.kind === "quantity" &&
-    (!result.comparator || result.comparator === "eq")
+    (!effectiveComparator || effectiveComparator === "eq")
     ? new Decimal(result.value as string | number)
     : null;
 }
@@ -71,6 +78,36 @@ function nutrientResult(
   if (value === undefined || value === null) return null;
   return { kind: qualifier.kind ?? "exact", value, ...qualifier };
 }
+function nutrientUsable(
+  record: HealthRecord,
+  key: string,
+  supplement = false,
+): boolean {
+  const root = supplement ? "nutrient_contributions" : "nutrients";
+  if (!usable(record, `/${root}/${key}`)) return false;
+  const qualifier = object(object(record.data.nutrient_qualifiers)[key]);
+  for (const field of [
+    "kind",
+    "comparator",
+    "lower",
+    "upper",
+    "lower_inclusive",
+    "upper_inclusive",
+    "unit",
+    "reason",
+  ])
+    if (
+      qualifier[field] !== undefined &&
+      !usable(record, `/nutrient_qualifiers/${key}/${field}`)
+    )
+      return false;
+  const detail = object(object(record.data.component_details)[key]);
+  for (const field of Object.keys(detail).filter(
+    (field) => field !== "coverage",
+  ))
+    if (!usable(record, `/component_details/${key}/${field}`)) return false;
+  return true;
+}
 function nutrient(
   records: HealthRecord[],
   key: string,
@@ -78,7 +115,7 @@ function nutrient(
 ): Data {
   const field = supplement ? "nutrient_contributions" : "nutrients";
   const usableRecords = records.filter((record) =>
-    usable(record, `/${field}/${key}`),
+    nutrientUsable(record, key, supplement),
   );
   const intakes = usableRecords.filter(
     (record) => supplement || record.data.entry_kind === "intake",
@@ -106,6 +143,7 @@ function nutrient(
         source_id: record.id,
         result,
         provenance: record.provenance,
+        definition_basis: JSON.parse(ingredientBasis(record, key)),
       });
       continue;
     }
@@ -138,7 +176,7 @@ function nutrient(
       (exact
         ? {
             kind: "exact",
-            value: exact.toNumber(),
+            value: numericProjection(exact),
             exact_decimal: exact.toFixed(),
           }
         : null),
@@ -164,6 +202,9 @@ function nutrient(
       (daily && valueKindAt(daily, `/${field}/${key}`) === "estimated" ? 1 : 0),
     excluded_count: records.length - usableRecords.length,
     coverage: "only_supplied_fields",
+    reported_coverage: daily
+      ? (object(object(daily.data.component_details)[key]).coverage ?? null)
+      : null,
     warnings: [
       ...(groups.size > 1 && !daily ? ["incompatible_definition"] : []),
       ...(qualified || missing ? ["incomplete_nutrient_coverage"] : []),
@@ -175,11 +216,10 @@ function energyResult(
   record: HealthRecord,
   supplement = false,
 ): { result: Data | null; conflicting: boolean; source_unit: string | null } {
-  const root = supplement ? "nutrient_contributions" : "nutrients";
-  const kcal = usable(record, `/${root}/energy_kcal`)
+  const kcal = nutrientUsable(record, "energy_kcal", supplement)
     ? nutrientResult(record, "energy_kcal", supplement)
     : null;
-  const kj = usable(record, `/${root}/energy_kj`)
+  const kj = nutrientUsable(record, "energy_kj", supplement)
     ? nutrientResult(record, "energy_kj", supplement)
     : null;
   if (!kcal && !kj)
@@ -189,7 +229,7 @@ function energyResult(
     for (const key of ["value", "lower", "upper"])
       if (typeof out[key] === "number") {
         const converted = new Decimal(out[key]).div("4.184");
-        out[key] = converted.toNumber();
+        out[key] = numericProjection(converted);
         out[`${key}_decimal`] = converted.toFixed();
       }
     out.unit = "kcal";
@@ -210,15 +250,21 @@ function energyResult(
         kcal.comparator !== converted.comparator
       )
         return { result: null, conflicting: true, source_unit: "kcal+kJ" };
-    } else if (
-      kcal.kind === "interval" &&
-      ["lower", "upper"].some((key) =>
-        new Decimal(kcal[key] as number)
-          .minus(String(converted[`${key}_decimal`]))
-          .abs()
-          .gt(1),
+    } else if (kcal.kind === "interval") {
+      if (
+        ["lower", "upper"].some((key) => {
+          const boundary = new Decimal(kcal[key] as number);
+          return boundary
+            .minus(String(converted[`${key}_decimal`]))
+            .abs()
+            .gt(Decimal.max(1, boundary.abs().mul(energyTolerance)));
+        }) ||
+        ["lower_inclusive", "upper_inclusive"].some(
+          (key) => kcal[key] !== converted[key],
+        )
       )
-    )
+        return { result: null, conflicting: true, source_unit: "kcal+kJ" };
+    } else if (kcal.kind === "unquantified" && kcal.reason !== converted.reason)
       return { result: null, conflicting: true, source_unit: "kcal+kJ" };
   }
   return {
@@ -284,7 +330,7 @@ function energy(records: HealthRecord[], supplement = false): Data {
     effective_result:
       dailyResult?.result ??
       (!daily && !conflicts && compatible && subtotal
-        ? { kind: "exact", value: subtotal.toNumber() }
+        ? { kind: "exact", value: numericProjection(subtotal) }
         : null),
     ...representation(daily || compatible ? exact : null),
     basis: daily
@@ -301,6 +347,13 @@ function energy(records: HealthRecord[], supplement = false): Data {
       : compatible && groups.size === 1
         ? JSON.parse([...groups.keys()][0]!)
         : null,
+    reported_coverage: daily
+      ? (object(
+          object(daily.data.component_details)[
+            keyForUnit(dailyResult?.source_unit ?? null)
+          ],
+        ).coverage ?? null)
+      : null,
     known_intake_subtotal: {
       ...representation(compatible ? subtotal : null),
       source_ids: values.map((entry) => entry.record.id),
@@ -355,6 +408,54 @@ function energy(records: HealthRecord[], supplement = false): Data {
     ],
   };
 }
+function energyNutrientProjection(
+  supplied: Data,
+  canonicalEnergy: Data,
+  key: string,
+): Data {
+  const outputUnit = key === "energy_kj" ? "kJ" : "kcal";
+  const factor = outputUnit === "kJ" ? "4.184" : "1";
+  const result: Data | null = canonicalEnergy.effective_result
+    ? { ...object(canonicalEnergy.effective_result), unit: outputUnit }
+    : null;
+  if (result) {
+    for (const field of ["value", "lower", "upper"]) {
+      if (result[field] !== undefined) {
+        const value = new Decimal(
+          String(result[`${field}_decimal`] ?? result[field]),
+        ).mul(factor);
+        result[field] = numericProjection(value);
+        result[`${field}_decimal`] = value.toFixed();
+        if (field === "value" && result.kind === "exact")
+          result.exact_decimal = value.toFixed();
+      }
+    }
+  }
+  const exact =
+    canonicalEnergy.exact_decimal !== null
+      ? new Decimal(String(canonicalEnergy.exact_decimal)).mul(factor)
+      : null;
+  return {
+    ...supplied,
+    ...representation(exact),
+    effective_result: result,
+    basis: canonicalEnergy.basis,
+    definition_basis: canonicalEnergy.definition_basis,
+    source_ids: canonicalEnergy.source_ids,
+    reported_coverage: canonicalEnergy.reported_coverage,
+    qualified_count: canonicalEnergy.qualified_count,
+    missing_count: canonicalEnergy.missing_count,
+    estimated_count: canonicalEnergy.estimated_count,
+    warnings: canonicalEnergy.warnings,
+    energy_projection: {
+      derived_from: "nutrition.energy",
+      canonical_unit: "kcal",
+      output_unit: outputUnit,
+      factor,
+      stored_values_changed: false,
+    },
+  };
+}
 export function nutritionSummary(
   records: HealthRecord[],
   supplement = false,
@@ -368,13 +469,22 @@ export function nutritionSummary(
         ),
     ),
   );
+  const energyConcept = keys.some((key) => key.startsWith("energy_"))
+    ? energy(records, supplement)
+    : null;
   return {
     nutrients: Object.fromEntries(
-      keys.map((key) => [key, nutrient(records, key, supplement)]),
+      keys.map((key) => {
+        const supplied = nutrient(records, key, supplement);
+        return [
+          key,
+          key.startsWith("energy_") && energyConcept
+            ? energyNutrientProjection(supplied, energyConcept, key)
+            : supplied,
+        ];
+      }),
     ),
-    energy: keys.some((key) => key.startsWith("energy_"))
-      ? energy(records, supplement)
-      : null,
+    energy: energyConcept,
     overlap_warnings: nonAdditiveGroups
       .filter((group) => group.filter((key) => keys.includes(key)).length > 1)
       .map((keys) => ({ code: "non_additive_components", keys })),
@@ -391,21 +501,30 @@ function fluidField(
   records: HealthRecord[],
   field: "water_ml" | "total_fluids_ml",
 ): Data {
-  const eligible = records.filter((record) => usable(record));
+  const tracked = records.filter((record) =>
+    ["oral", "enteral"].includes(
+      String(record.data.administration_route ?? "oral"),
+    ),
+  );
+  const relevant = tracked.filter(
+    (record) =>
+      record.data.entry_kind === "daily_total" ||
+      field !== "water_ml" ||
+      record.data.drink_type === "water",
+  );
+  const eligible = relevant.filter((record) =>
+    usable(
+      record,
+      record.data.entry_kind === "daily_total" ? `/${field}` : "/volume_ml",
+    ),
+  );
   const daily = eligible.find(
     (record) =>
       record.data.entry_kind === "daily_total" &&
-      typeof record.data[field] === "number" &&
-      usable(record, `/${field}`),
+      typeof record.data[field] === "number",
   );
   const drinks = eligible.filter(
-    (record) =>
-      record.data.entry_kind === "intake" &&
-      ["oral", "enteral"].includes(
-        String(record.data.administration_route ?? "oral"),
-      ) &&
-      (field !== "water_ml" || record.data.drink_type === "water") &&
-      usable(record, "/volume_ml"),
+    (record) => record.data.entry_kind === "intake",
   );
   const subtotal = drinks.length
     ? sum(drinks.map((record) => record.data.volume_ml as number))
@@ -417,8 +536,24 @@ function fluidField(
     basis: daily ? "reported_daily_total" : "known_intake_subtotal",
     known_intake_subtotal: representation(subtotal),
     source_ids: daily ? [daily.id] : drinks.map((record) => record.id),
-    missing_count: records.length - eligible.length,
+    missing_count: eligible.filter(
+      (record) =>
+        record.data.entry_kind === "daily_total" &&
+        typeof record.data[field] !== "number",
+    ).length,
+    estimated_count: (daily ? [daily] : drinks).filter(
+      (record) =>
+        valueKindAt(
+          record,
+          record.data.entry_kind === "daily_total" ? `/${field}` : "/volume_ml",
+        ) === "estimated",
+    ).length,
+    excluded_count: relevant.length - eligible.length,
     coverage: "tracked_oral_enteral_intake_only",
+    warnings:
+      records.length > tracked.length
+        ? ["other_or_unknown_routes_excluded"]
+        : [],
   };
 }
 export function hydrationSummary(records: HealthRecord[]): Data {
@@ -436,6 +571,11 @@ export function hydrationSummary(records: HealthRecord[]): Data {
         route: record.data.administration_route,
       })),
     source_ids: records.map((record) => record.id),
+    provenance: records.map((record) => ({
+      source_id: record.id,
+      provenance: record.provenance,
+      validity: record.validity,
+    })),
   };
 }
 export function activitySummary(records: HealthRecord[]): Data {
@@ -522,6 +662,20 @@ export function overlaps(a: HealthRecord, b: HealthRecord): boolean {
   return a.occurred_at < b.ended_at && b.occurred_at < a.ended_at;
 }
 export function studyPeriod(record: HealthRecord): Data {
+  if (record.record_type === "intake") {
+    if (record.data.effective_period)
+      return object(record.data.effective_period);
+    return {
+      ...(record.data.start_at ? { start: record.data.start_at } : {}),
+      ...(record.data.end_at ? { end: record.data.end_at } : {}),
+      ...(record.data.duration_seconds !== undefined
+        ? { duration_seconds: record.data.duration_seconds }
+        : {}),
+      time_precision:
+        record.data.start_at || record.data.end_at ? "instant" : "duration",
+      timezone: record.timezone,
+    };
+  }
   return object(
     record.data.effective_period ??
       record.data.collection_period ??
@@ -529,6 +683,15 @@ export function studyPeriod(record: HealthRecord): Data {
   );
 }
 export function isStudy(record: HealthRecord): boolean {
+  if (record.record_type === "intake") {
+    if (record.data.effective_period) return true;
+    if (record.data.start_at && record.data.end_at)
+      return (
+        localDate(String(record.data.start_at), record.timezone) !==
+        localDate(String(record.data.end_at), record.timezone)
+      );
+    return Number(record.data.duration_seconds ?? 0) >= 86_400;
+  }
   return (
     record.data.kind === "study_summary" ||
     record.data.entry_kind === "study_summary" ||
@@ -598,17 +761,38 @@ export function dailySummary(
       ),
       warnings: hasOverlap ? ["unresolved_session_overlap"] : [],
       basis: "supplied_sessions_only",
+      source_ids: sessions.map((record) => record.id),
+      missing_count: sessions.filter(
+        (record) => typeof record.data.sleep_seconds !== "number",
+      ).length,
+      estimated_count: sessions.filter(
+        (record) => valueKindAt(record, "/sleep_seconds") === "estimated",
+      ).length,
+      excluded_count: byType("sleep").length - sessions.length,
+      coverage: "only_supplied_sessions",
     };
   const checkins = byType("checkin").filter((record) => usable(record));
+  const overlappingStudies = all.filter(
+    (record) =>
+      record.status === "active" &&
+      isStudy(record) &&
+      periodOverlapsDate(record, date),
+  );
   const completeness: Data = Object.fromEntries(
     recordTypes.map((type) => [type, { value: "unknown", source_id: null }]),
   );
-  for (const record of [...checkins].sort((a, b) =>
-    String(
-      object(a.data.diary_completeness).reported_at ?? a.recorded_at,
-    ).localeCompare(
-      String(object(b.data.diary_completeness).reported_at ?? b.recorded_at),
-    ),
+  for (const record of [...checkins].sort(
+    (a, b) =>
+      Date.parse(
+        String(object(a.data.diary_completeness).reported_at ?? a.recorded_at),
+      ) -
+        Date.parse(
+          String(
+            object(b.data.diary_completeness).reported_at ?? b.recorded_at,
+          ),
+        ) ||
+      Date.parse(a.recorded_at) - Date.parse(b.recorded_at) ||
+      a.id.localeCompare(b.id),
   )) {
     for (const [key, value] of Object.entries(
       object(record.data.diary_completeness),
@@ -653,19 +837,15 @@ export function dailySummary(
     timezone,
     ...payload,
     diary_completeness: completeness,
-    overlapping_studies: all
-      .filter(
-        (record) =>
-          record.status === "active" &&
-          isStudy(record) &&
-          periodOverlapsDate(record, date),
-      )
-      .map((record) => ({
-        source_id: record.id,
-        record_type: record.record_type,
-        period: studyPeriod(record),
-        labelled_as: "overlapping_interval_study",
-      })),
+    overlapping_studies: overlappingStudies.map((record) => ({
+      source_id: record.id,
+      record_type: record.record_type,
+      period: studyPeriod(record),
+      labelled_as:
+        record.record_type === "intake"
+          ? "overlapping_interval_intake"
+          : "overlapping_interval_study",
+    })),
     quality_exclusions: {
       records: records.filter((record) => !usable(record)).length,
       preliminary: records.filter(
@@ -677,7 +857,15 @@ export function dailySummary(
       suspect_invalid: records.filter((record) => record.validity !== "valid")
         .length,
     },
-    warnings: hasOverlap ? ["unresolved_session_overlap"] : [],
+    warnings: [
+      ...(hasOverlap ? ["unresolved_session_overlap"] : []),
+      ...(overlappingStudies.some((record) => {
+        const period = studyPeriod(record);
+        return !period.start || !period.end;
+      })
+        ? ["unresolved_interval_coverage"]
+        : []),
+    ],
     source_ids: records.map((record) => record.id),
   };
 }

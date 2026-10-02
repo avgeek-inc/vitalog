@@ -1,9 +1,11 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { isIP } from "node:net";
 import { validTimezone } from "./domain/validation.js";
+import { credentialGuard, type CredentialGuard } from "./security.js";
 
 export type Config = {
   authDigest: Buffer;
+  assertCredentialAbsent: CredentialGuard;
   databaseUrl: string;
   timezone: string;
   port: number;
@@ -77,6 +79,7 @@ export function configuration(env: NodeJS.ProcessEnv = process.env): Config {
     );
   return {
     authDigest: createHash("sha256").update(key).digest(),
+    assertCredentialAbsent: credentialGuard(key),
     databaseUrl,
     timezone,
     port,

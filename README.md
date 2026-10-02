@@ -14,7 +14,7 @@ The service has eight record types and sixteen MCP tools. The registry contains 
 
 Compose runs the API and PostgreSQL 17.11. It publishes the API on `127.0.0.1:3000` and keeps PostgreSQL on the internal network. The API applies the checked-in Drizzle migrations before listening, runs as UID 1000, and has a read-only root filesystem. Each container has a 512 MiB memory limit and one CPU. The API has a 128-process limit and a 35-second shutdown allowance.
 
-For production, put a TLS ingress in front of the loopback API. Forward its original Host header and configure that host in `ALLOWED_HOSTS`. Prevent direct public access to the container network and PostgreSQL. Keep ingress access logs free of Authorization, query strings containing secrets, request/response bodies and health data. The API never accepts a key in a URL, cookie or JSON argument. Avoid request-body capture and health payload capture in tracing systems.
+For production, put a TLS ingress in front of the loopback API. Forward its original Host header and configure that host in `ALLOWED_HOSTS`. Prevent direct public access to the container network and PostgreSQL. Keep ingress access logs free of Authorization, query strings containing secrets, request/response bodies and health data. The API rejects its configured key anywhere outside the Authorization header before domain validation, including record text, encoded property names, URLs and idempotency headers. Avoid request-body capture and health payload capture in tracing systems.
 
 The default installation ignores forwarded client addresses. To trust one ingress, set `TRUST_PROXY=true` and exact `TRUSTED_PROXY_IPS` matching the API's immediate socket peer. The ingress must overwrite `X-Forwarded-For` with one validated client IP. Forwarded host/protocol values do not expand the host allowlist. CORS is not an authentication mechanism.
 
@@ -57,14 +57,16 @@ The [integration guide](docs/integration.md) describes all REST/MCP mappings, fi
 ```sh
 npm run verify
 npm run test:integration
+npm run test:security
+npm run test:summaries
 npm run test:container
 npm run build
 npm audit --omit=dev --audit-level=moderate
 ```
 
-`verify` runs type checks, unit/schema tests, generated-artifact checks and formatting. The PostgreSQL integration command creates a disposable Docker database, exercises the official MCP client and REST, and removes that database. The container command starts an isolated Compose project, tests the production image, and removes that project's containers and volumes. Both commands use synthetic records and generated test credentials confined to their processes.
+`verify` runs type checks, unit/schema tests, generated-artifact checks and formatting. The PostgreSQL integration command creates a disposable Docker database, exercises the official MCP client and REST, and removes that database. Separate security and summary checks verify that credentials cannot be stored or reflected and that historical studies do not exhaust unrelated read windows. The container command starts an isolated Compose project, tests the production image, and removes that project's containers and volumes. All commands use synthetic records and generated test credentials confined to their processes.
 
-[The acceptance traceability](docs/acceptance.md) maps all 76 requirements to implementation and verification. [The coverage report](docs/coverage.json) lists every implemented key and its tests. [The verification report](docs/verification-report.json) records the executed interoperability run, exact SDK/protocol/client versions, and database backup/restore result. [The container report](docs/container-report.json) records the production-image smoke test. Current runs write their reports to ignored `.test-artifacts/`; they do not rewrite checked-in evidence automatically.
+[The acceptance traceability](docs/acceptance.md) maps all 76 requirements to implementation and verification. [The coverage report](docs/coverage.json) lists every implemented key and its tests. [The verification report](docs/verification-report.json) records the executed interoperability run, exact SDK/protocol/client versions, and database backup/restore result. [The container report](docs/container-report.json), [security report](docs/security-report.json) and [summary report](docs/summary-report.json) record the additional deployment checks. Current runs write their reports to ignored `.test-artifacts/`; they do not rewrite checked-in evidence automatically.
 
 The GitHub verification workflow runs these checks on pushes and pull requests. A separate tag workflow verifies the repository and publishes `ghcr.io/avgeek-inc/vitalog:<tag>` for a pushed `v*` tag. Publishing an image does not deploy a server. There is no production address or account secret checked into this repository.
 
@@ -88,7 +90,7 @@ docker compose exec -T postgres pg_dump -U vitalog -d vitalog --format=custom > 
 docker compose exec -T postgres pg_restore -U vitalog -d vitalog --no-owner --no-privileges < vitalog.dump
 ```
 
-A real backup/restore test is part of integration verification. Choose an encrypted backup location, a retention period and a restore drill cadence through the deployment's infrastructure. Backups include revisions and idempotency data. A restored older backup may resurrect corrected or erased observations and may lack newer retry keys. Review the backup date before allowing writes after a restore.
+A real backup/restore test is part of integration verification. It compares all restored record, revision and idempotency values, retrieves immutable history, and replays committed creation, correction and void requests without new rows. Choose an encrypted backup location, a retention period and a restore drill cadence through the deployment's infrastructure. Backups include revisions and idempotency data. A restored older backup may resurrect corrected or erased observations and may lack newer retry keys. Review the backup date before allowing writes after a restore.
 
 Voiding preserves history and removes a record from effective calculations. Permanent erasure is an operator operation. Stop the API, confirm the intended database, and run:
 
@@ -102,6 +104,6 @@ The erasure transaction truncates records, revisions and idempotency metadata. I
 
 ## Definition and version policy
 
-The initial catalog version is `1.0.0`. REST `/v1`, MCP negotiation, record schema versions and record revision numbers are separate. Record schema version 1 represents preserved legacy snapshot semantics; version 2 is the revision-5 contract. Existing broad nutrient names keep their supplied or unknown definition. `upgradeSnapshot` makes an explicit lossless copy and does not add measurements, nutrient bases or clinical identity. Current writes use version 2. Historical snapshots and committed retries are read without fresh-event clock validation.
+The current catalog version is `1.0.1`. It retains the initial `1.0.0` identifiers while adding precise field conditions and shared per-key input constraints. REST `/v1`, MCP negotiation, record schema versions and record revision numbers are separate. Record schema version 1 represents preserved legacy snapshot semantics; version 2 is the revision-5 contract. Stored version-2 data keeps its original typed shape, while fresh writes and corrections use the current input schemas. Existing broad nutrient names keep their supplied or unknown definition. `upgradeSnapshot` makes an explicit lossless copy and does not add measurements, nutrient bases or clinical identity. Current writes use version 2. Historical snapshots and committed retries are read without fresh-event clock validation.
 
 The embedded inventory was supplied with [specification revision 5](docs/specification.md). Its research/source register is preserved there. Registry identifiers are application keys. No unverified LOINC/UCUM crosswalk or clinical reference intervals are installed. The code stores original units, reference information, source statuses and context rather than guessing assay equivalence. The chosen [official TypeScript MCP SDK](https://github.com/modelcontextprotocol/typescript-sdk/tree/v1.x) is pinned to `1.31.0`; its tested protocol revision is recorded in the verification report.

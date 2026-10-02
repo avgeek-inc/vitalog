@@ -99,7 +99,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{baseUrl}}/v1/records/{{recordId}}?include_history=true",
+            "url": "{{baseUrl}}/v1/records/{{recordId}}?include_history=true&history_limit=100",
             "description": "Retrieve one recorded observation and optionally a bounded page of immutable revisions."
           }
         },
@@ -687,7 +687,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 7,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"health_get_record\",\n    \"arguments\": {\n      \"id\": \"{{recordId}}\",\n      \"include_history\": true\n    }\n  }\n}",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 7,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"health_get_record\",\n    \"arguments\": {\n      \"id\": \"{{recordId}}\",\n      \"include_history\": true,\n      \"history_limit\": 100\n    }\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"

@@ -27,7 +27,11 @@ const transportSchema = (schema: z.ZodType) => {
     reused: "ref",
     io: "input",
   });
-  return { ...document, $id: `urn:vitalog:schema:${hash(document)}` };
+  return {
+    ...document,
+    type: "object" as const,
+    $id: `urn:vitalog:schema:${hash(document)}`,
+  };
 };
 const toolMetadata = operations.map((operation) => ({
   name: operation.name,

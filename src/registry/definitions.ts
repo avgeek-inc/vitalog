@@ -15,7 +15,14 @@ import {
 } from "./primitives.js";
 
 export { inventory };
-export const CATALOG_VERSION = "1.0.0";
+export const CATALOG_VERSION = "1.0.1";
+export const fieldConditionSemantics = {
+  missing: "True when the field at field_path is not supplied.",
+  not_equals:
+    "True when the supplied field differs from the stated value, including when that field is not supplied.",
+  requires_enclosing_unit:
+    "True when a decimal, quantity, or interval lacks its own supplied unit, including unitless quantitative children of a pathogen, culture, or susceptibility result.",
+};
 export const RECORD_SCHEMA_VERSION = 2;
 export const recordTypes = [
   "measurement",
@@ -41,6 +48,38 @@ export const studyKeys = inventory.measurement_groups.study_summaries;
 export const scalarKeys = measurementKeys.filter(
   (key) => !studyKeys.includes(key) && key !== "blood_pressure",
 );
+export const seriesIdentityFields = [
+  "method",
+  "specimen",
+  "specimen_context",
+  "instrument",
+  "assay_version",
+  "measurement_site",
+  "body_region",
+  "laterality",
+  "body_position",
+  "resting_state",
+  "fasting_context",
+  "fasting_state",
+  "meal_state",
+  "hydration_context",
+  "time_since_meal_minutes",
+  "exercise_context",
+  "oxygen_context",
+  "temperature_site",
+  "reference_equation",
+  "classification_metadata",
+  "quantity_context",
+  "challenge_context",
+  "sampling_context",
+  "device_context",
+  "reference_ranges",
+  "source_reference_range",
+  "original_unit",
+  "laboratory",
+  "laboratory_site",
+  "collection_clock_time",
+] as const;
 export const label = (key: string) => key.replaceAll("_", " ");
 
 const units: Record<string, string[]> = {};
@@ -146,6 +185,42 @@ const requiredContexts: Record<string, string[]> = {
   hearing_threshold: ["frequency_hz", "laterality", "conduction"],
   heart_rate_recovery: ["recovery_kind", "recovery_interval_seconds"],
 };
+const requiredContextPaths: Record<string, string[]> = {
+  segmental_fat_mass: ["/body_region", "/laterality"],
+  segmental_lean_mass: ["/body_region", "/laterality"],
+  segmental_body_fat_percent: ["/body_region", "/laterality"],
+  hearing_threshold: [
+    "/classification_metadata/frequency_hz",
+    "/laterality",
+    "/classification_metadata/conduction",
+  ],
+  heart_rate_recovery: [
+    "/classification_metadata/recovery_kind",
+    "/classification_metadata/recovery_interval_seconds",
+  ],
+};
+export const studyComponentKeys: Record<string, string[]> = {
+  cgm_summary: ["blood_glucose", "interstitial_glucose"],
+  ambulatory_bp_summary: [
+    "heart_rate",
+    "pulse_pressure",
+    "mean_arterial_pressure",
+  ],
+  spirometry_summary: inventory.measurement_groups.respiratory_temperature,
+  body_composition_summary:
+    inventory.measurement_groups.anthropometry_body_composition,
+  dxa_summary: [
+    ...inventory.measurement_groups.bone,
+    ...inventory.measurement_groups.anthropometry_body_composition,
+  ],
+  ecg_summary: inventory.measurement_groups.cardiovascular,
+  echocardiography_summary: inventory.measurement_groups.cardiovascular,
+  functional_test_summary: inventory.measurement_groups.fitness_function,
+};
+for (const key of Object.keys(studyComponentKeys))
+  studyComponentKeys[key] = studyComponentKeys[key]!.filter((component) =>
+    scalarKeys.includes(component),
+  );
 export const measurementDefinitions = measurementKeys.map((key) => ({
   key,
   label: label(key),
@@ -163,24 +238,33 @@ export const measurementDefinitions = measurementKeys.map((key) => ({
   recognized_units: units[key] ?? [],
   canonical_unit: units[key]?.[0] ?? null,
   allow_negative: signedKeys.has(key),
-  result_variants:
-    key === "visual_acuity_snellen"
-      ? ["ratio", "absent"]
-      : ["quantity", "interval", "ratio", "ordinal", "absent"],
+  result_variants: studyKeys.includes(key)
+    ? []
+    : key === "blood_pressure"
+      ? ["quantity"]
+      : key === "visual_acuity_snellen"
+        ? ["ratio", "absent"]
+        : ["quantity", "interval", "ratio", "ordinal", "absent"],
   required_context: requiredContexts[key] ?? [],
-  context_fields: [
-    "body_region",
-    "laterality",
-    "measurement_site",
-    "method",
-    "device_context",
-    "resting_state",
-    "fasting_state",
-    "reference_equation",
-    "effective_period",
-    "coverage",
-  ],
-  field_path: "/value",
+  required_context_paths: requiredContextPaths[key] ?? [],
+  required_context_conditions: (requiredContextPaths[key] ?? []).map(
+    (field_path) => ({
+      field_path,
+      when: { result_kind: { not: "absent" } },
+    }),
+  ),
+  field_path:
+    studyKeys.includes(key) || key === "blood_pressure" ? "" : "/value",
+  value_field_paths: studyKeys.includes(key)
+    ? [
+        "/components",
+        ...(key === "cgm_summary" ? ["/cgm"] : []),
+        ...(key === "ambulatory_bp_summary" ? ["/ambulatory_bp"] : []),
+      ]
+    : key === "blood_pressure"
+      ? ["/systolic", "/diastolic", "/pulse"]
+      : ["/value"],
+  component_keys: studyComponentKeys[key] ?? [],
   field_override_policy:
     "Existing indexed payload paths only; descendants inherit a parent override.",
   series_identity_dimensions: [
@@ -188,10 +272,22 @@ export const measurementDefinitions = measurementKeys.map((key) => ({
     "unit",
     "body_region",
     "laterality",
+    "body_position",
     "measurement_site",
     "specimen",
     "resting_state",
     "fasting_state",
+    "meal_state",
+    "hydration_context",
+    "time_since_meal_minutes",
+    "exercise_context",
+    "oxygen_context",
+    "temperature_site",
+    "specimen_context",
+    "device_context",
+    "source_reference_range",
+    "original_unit",
+    "challenge_context",
     "reference_equation",
     "classification_metadata",
     "effective_period",
@@ -202,7 +298,7 @@ export const measurementDefinitions = measurementKeys.map((key) => ({
     "last_usable_observation_per_local_day; interval studies stay individual",
   missing_context_policy: "unspecified remains its own series",
   normalization_policy:
-    "Only explicit tested conversions; original values are retained.",
+    "No measurement conversion; supplied units are preserved and incompatible units remain separate series.",
   introduced_in: "1.0.0",
   deprecated: false,
   search_aliases: key === "weight" ? ["body mass"] : [],
@@ -222,13 +318,13 @@ const codedAnalytes = new Set(
     " ",
   ),
 );
-const recognizedLabUnits: Record<string, string[]> = {
+export const recognizedLabUnits: Record<string, string[]> = {
   hemoglobin: ["g/dL", "g/L"],
   hematocrit: ["%", "L/L"],
   wbc_count: ["10^9/L"],
   rbc_count: ["10^12/L"],
   platelet_count: ["10^9/L"],
-  glucose: ["mg/dL", "mmol/L"],
+  blood_glucose: ["mg/dL", "mmol/L"],
   hba1c: ["%", "mmol/mol"],
   sodium: ["mmol/L"],
   potassium: ["mmol/L"],
@@ -290,16 +386,8 @@ export const labDefinitions = inventory.lab_analytes.map((entry) => {
         ? ["result.isolate_reference", "result.antimicrobial"]
         : [],
     series_identity_dimensions: [
-      "specimen",
-      "method",
-      "instrument",
-      "assay_version",
+      ...seriesIdentityFields,
       "result.unit",
-      "original_unit",
-      "quantity_context",
-      "fasting_context",
-      "challenge_context",
-      "sampling_context",
       "result.organism_or_target",
       "result.isolate_reference",
       "result.antimicrobial",

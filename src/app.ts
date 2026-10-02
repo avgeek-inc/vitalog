@@ -10,6 +10,8 @@ import { openapi } from "./openapi.js";
 import { operations } from "./registry/operations.js";
 import type { Service } from "./service.js";
 import type { Data } from "./domain/types.js";
+import { inspectBody, MAX_REQUEST_BYTES } from "./security.js";
+import { MAX_RESPONSE_BYTES } from "./domain/catalog.js";
 
 export function application(
   service: Service,
@@ -95,15 +97,6 @@ export function application(
   });
   app.use(
     "*",
-    bodyLimit({
-      maxSize: 1024 * 1024,
-      onError: () => {
-        throw new DomainError("LIMIT_EXCEEDED", "Request exceeds 1 MiB");
-      },
-    }),
-  );
-  app.use(
-    "*",
     timeout(25_000, () => {
       throw new DomainError(
         "TIMEOUT",
@@ -111,6 +104,51 @@ export function application(
       );
     }),
   );
+  app.use(
+    "*",
+    bodyLimit({
+      maxSize: MAX_REQUEST_BYTES,
+      onError: () => {
+        throw new DomainError("LIMIT_EXCEEDED", "Request exceeds 1 MiB");
+      },
+    }),
+  );
+  app.use("*", async (c, next) => {
+    const guard = config.assertCredentialAbsent;
+    guard(c.req.url);
+    const url = new URL(c.req.url);
+    guard(url.pathname);
+    try {
+      guard(decodeURIComponent(url.pathname));
+    } catch (error) {
+      if (error instanceof DomainError) throw error;
+    }
+    for (const [key, value] of url.searchParams) {
+      guard(key);
+      guard(value);
+    }
+    for (const [key, value] of c.req.raw.headers) {
+      guard(key);
+      if (key.toLowerCase() !== "authorization") guard(value);
+    }
+    await inspectBody(c.req.raw, guard);
+    await next();
+    try {
+      await inspectBody(
+        c.res,
+        guard,
+        MAX_RESPONSE_BYTES,
+        "Response exceeds the byte limit; narrow the query",
+      );
+    } catch (error) {
+      if (error instanceof DomainError && error.code === "VALIDATION_ERROR")
+        throw new DomainError(
+          "INTERNAL_ERROR",
+          "The response cannot be returned safely",
+        );
+      throw error;
+    }
+  });
   app.get("/healthz", (c) => c.json({ status: "ok" }));
   app.get("/readyz", async (c) => {
     const ready = await service.ready();
@@ -125,7 +163,7 @@ export function application(
   for (const operation of operations) {
     const path = operation.path.replace(/\{([^}]+)\}/g, ":$1");
     const handler = async (c: Context<{ Bindings: HttpBindings }>) => {
-      const input: Data = {};
+      const input: Data = Object.create(null);
       const query = new URL(c.req.url).searchParams;
       if (operation.method === "GET") {
         for (const [key, value] of query) {
@@ -152,7 +190,12 @@ export function application(
               );
             input[key] = value === "true";
           } else if (
-            ["limit", "lookback_days", "history_before_version"].includes(key)
+            [
+              "limit",
+              "lookback_days",
+              "history_limit",
+              "history_before_version",
+            ].includes(key)
           ) {
             if (!/^(0|[1-9]\d*)$/.test(value))
               throw new DomainError(

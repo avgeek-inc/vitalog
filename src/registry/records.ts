@@ -6,6 +6,12 @@ import {
   recordTypes,
   scalarKeys,
   studyKeys,
+  measurementDefinitions,
+  measurementByKey,
+  labDefinitions,
+  labByKey,
+  labResultSchemas,
+  studyComponentKeys,
 } from "./definitions.js";
 import * as p from "./primitives.js";
 
@@ -144,7 +150,19 @@ const measurementContext = {
     .enum(["resting", "exercise", "recovery", "sleep", "unknown"])
     .optional(),
   fasting_state: z.enum(["fasting", "nonfasting", "unknown"]).optional(),
+  meal_state: z
+    .enum(["fasting", "random", "pre_meal", "post_meal", "unknown"])
+    .optional(),
   time_since_meal_minutes: p.nonnegative.optional(),
+  challenge_context: z
+    .strictObject({
+      label: p.text(200),
+      dose: p.quantity.optional(),
+      elapsed_seconds: p.nonnegative.optional(),
+      procedure: p.text(200).optional(),
+    })
+    .optional(),
+  hydration_context: p.text(200).optional(),
   exercise_context: p.text(200).optional(),
   oxygen_context: z
     .strictObject({
@@ -803,6 +821,7 @@ export const intake = z.strictObject({
   start_at: p.instant.optional(),
   end_at: p.instant.optional(),
   duration_seconds: p.nonnegative.optional(),
+  effective_period: p.effectivePeriod.optional(),
   administered_volume_ml: p.nonnegative.optional(),
   administration_rate: p.quantity.optional(),
   taken_with_food: z.boolean().nullable().optional(),
@@ -828,11 +847,15 @@ const labCommon = {
   collected_on: p.date.optional(),
   collected_at: p.instant.optional(),
   received_at: p.instant.optional(),
+  received_on: p.date.optional(),
   analyzed_at: p.instant.optional(),
+  analyzed_on: p.date.optional(),
   reported_on: p.date.optional(),
   reported_at: p.instant.optional(),
   original_date_notes: p.text(300).optional(),
   laboratory: p.text(200).optional(),
+  laboratory_site: p.text(200).optional(),
+  collection_clock_time: z.iso.time().optional(),
   method: p.methodContext.optional(),
   instrument: p.text(200).optional(),
   assay_version: p.text(100).optional(),
@@ -925,6 +948,343 @@ export const recordSchemas = {
   lab_result: labResult,
 };
 export const dataUnion = z.union(Object.values(recordSchemas));
+
+const nonnegativeDecimal = z.union([
+  p.nonnegative,
+  z
+    .string()
+    .max(80)
+    .regex(/^(?:0|[1-9]\d*)(?:\.\d+)?$/),
+]);
+const percentageDecimal = z.union([
+  p.percent,
+  z
+    .string()
+    .max(80)
+    .regex(/^(?:(?:0|[1-9]\d?)(?:\.\d+)?|100(?:\.0+)?)$/),
+]);
+function nonempty<T>(values: T[]): [T, ...T[]] {
+  const first = values[0];
+  if (!first) throw new Error("Registry branches cannot be empty");
+  return [first, ...values.slice(1)];
+}
+const contextCache = new Map<string, z.ZodObject>();
+function scalarContext(key: string, required: boolean): z.ZodObject {
+  const paths = required
+    ? measurementByKey.get(key)!.required_context_paths
+    : [];
+  const identity = JSON.stringify(paths);
+  const cached = contextCache.get(identity);
+  if (cached) return cached;
+  const shape: Record<string, z.ZodType> = { ...measurementContext };
+  const classification: Record<string, z.ZodType> = {
+    ...classificationMetadata.shape,
+  };
+  for (const path of paths) {
+    const [, field, nested] = path.split("/");
+    if (nested) {
+      classification[nested] = (
+        classification[nested] as z.ZodOptional<z.ZodType>
+      ).unwrap();
+      shape[field!] = z.strictObject(classification);
+    } else shape[field!] = (shape[field!] as z.ZodOptional<z.ZodType>).unwrap();
+  }
+  const schema = z.strictObject(shape);
+  contextCache.set(identity, schema);
+  return schema;
+}
+const scalarValueCache = new Map<string, z.ZodType>();
+function scalarInputValue(key: string, innerUnit: boolean): z.ZodType {
+  const definition = measurementByKey.get(key)!;
+  const policy = JSON.stringify({
+    units: definition.recognized_units,
+    negative: definition.allow_negative,
+    percent:
+      definition.recognized_units.includes("%") &&
+      key !== "global_longitudinal_strain",
+    variants: definition.result_variants,
+    innerUnit,
+  });
+  const cached = scalarValueCache.get(policy);
+  if (cached) return cached;
+  const unit = z.enum(definition.recognized_units as [string, ...string[]]);
+  const amount = definition.allow_negative
+    ? p.decimal
+    : definition.recognized_units.every((value) => value === "%")
+      ? percentageDecimal
+      : nonnegativeDecimal;
+  const variants: z.ZodType[] = [];
+  if (!innerUnit && definition.result_variants.includes("quantity"))
+    variants.push(amount);
+  for (const kind of definition.result_variants) {
+    if (kind === "quantity")
+      variants.push(
+        p.quantity.extend({
+          value: amount,
+          unit: innerUnit ? unit : unit.optional(),
+        }),
+      );
+    else if (kind === "interval")
+      variants.push(
+        p.interval.extend({
+          lower: amount,
+          upper: amount,
+          unit: innerUnit ? unit : unit.optional(),
+        }),
+      );
+    else if (kind !== "absent")
+      variants.push(labResultSchemas[kind as keyof typeof labResultSchemas]);
+  }
+  const schema = variants.length === 1 ? variants[0]! : z.union(variants);
+  scalarValueCache.set(policy, schema);
+  return schema;
+}
+const scalarPolicies = new Map<string, string[]>();
+for (const definition of measurementDefinitions.filter(
+  (entry) => entry.kind === "scalar",
+)) {
+  const policy = JSON.stringify({
+    units: definition.recognized_units,
+    negative: definition.allow_negative,
+    percent: definition.key === "global_longitudinal_strain",
+    variants: definition.result_variants,
+    context: definition.required_context_paths,
+  });
+  const keys = scalarPolicies.get(policy) ?? [];
+  keys.push(definition.key);
+  scalarPolicies.set(policy, keys);
+}
+function scalarBranches(innerUnit: boolean) {
+  return [...scalarPolicies.values()].map((keys) => {
+    const key = keys[0]!;
+    const definition = measurementByKey.get(key)!;
+    const unit = z.enum(definition.recognized_units as [string, ...string[]]);
+    return z.strictObject({
+      ...scalarContext(key, true).shape,
+      kind: z.literal("scalar"),
+      metric_key: z.enum(keys as [string, ...string[]]),
+      value: scalarInputValue(key, innerUnit),
+      unit: innerUnit ? unit.optional() : unit,
+      original_value: p.text(200).optional(),
+      original_unit: p.text(80).optional(),
+      comparator: p.comparator.optional(),
+    });
+  });
+}
+const componentInputCache = new Map<string, z.ZodType>();
+function componentInput(key: string): z.ZodType {
+  const definition = measurementByKey.get(key)!;
+  const policy = JSON.stringify({
+    units: definition.recognized_units,
+    negative: definition.allow_negative,
+    variants: definition.result_variants,
+    context: definition.required_context_paths,
+  });
+  const cached = componentInputCache.get(policy);
+  if (cached) return cached;
+  const unit = z.enum(definition.recognized_units as [string, ...string[]]);
+  const context = scalarContext(key, true);
+  const fields = {
+    comparator: p.comparator.optional(),
+    validity: p.validity.optional(),
+    provenance: p.fieldOverride.optional(),
+    context: definition.required_context_paths.length
+      ? context
+      : context.optional(),
+  };
+  const schema = z.union([
+    z.strictObject({
+      ...fields,
+      value: scalarInputValue(key, false),
+      unit,
+    }),
+    z.strictObject({
+      ...fields,
+      value: scalarInputValue(key, true),
+      unit: unit.optional(),
+    }),
+    z.strictObject({
+      ...fields,
+      value: p.absent,
+      unit: unit.optional(),
+      context: scalarContext(key, false).optional(),
+    }),
+  ]);
+  componentInputCache.set(policy, schema);
+  return schema;
+}
+const studyInput = z.discriminatedUnion(
+  "study_type",
+  nonempty(
+    studyKeys.map((key) =>
+      z.strictObject({
+        ...measurementContext,
+        kind: z.literal("study_summary"),
+        study_type: z.literal(key),
+        components: z.strictObject(
+          Object.fromEntries(
+            studyComponentKeys[key]!.map((componentKey) => [
+              componentKey,
+              componentInput(componentKey).optional(),
+            ]),
+          ),
+        ),
+        effective_period: p.effectivePeriod,
+        coverage: p.coverage.optional(),
+        ...(key === "cgm_summary" ? { cgm: cgm.optional() } : {}),
+        ...(key === "ambulatory_bp_summary"
+          ? { ambulatory_bp: bpSummary.optional() }
+          : {}),
+      }),
+    ),
+  ),
+);
+const bloodPressureInput = z.strictObject({
+  ...measurementContext,
+  kind: z.literal("blood_pressure"),
+  metric_key: z.literal("blood_pressure").optional(),
+  systolic: nonnegativeDecimal.or(
+    p.quantity.extend({
+      value: nonnegativeDecimal,
+      unit: z.enum(["mmHg", "kPa"]).optional(),
+    }),
+  ),
+  diastolic: nonnegativeDecimal.or(
+    p.quantity.extend({
+      value: nonnegativeDecimal,
+      unit: z.enum(["mmHg", "kPa"]).optional(),
+    }),
+  ),
+  pulse: nonnegativeDecimal
+    .or(
+      p.quantity.extend({
+        value: nonnegativeDecimal,
+        unit: z.literal("bpm").optional(),
+      }),
+    )
+    .optional(),
+  unit: z.enum(["mmHg", "kPa"]),
+});
+export const measurementInput = z.union([
+  z.discriminatedUnion("metric_key", nonempty(scalarBranches(false))),
+  z.discriminatedUnion("metric_key", nonempty(scalarBranches(true))),
+  z.strictObject({
+    ...measurementContext,
+    kind: z.literal("scalar"),
+    metric_key: z.enum(scalarKeys as [string, ...string[]]),
+    value: p.absent,
+    unit: p.text(80).optional(),
+    original_value: p.text(200).optional(),
+    original_unit: p.text(80).optional(),
+  }),
+  bloodPressureInput,
+  studyInput,
+]);
+const labPolicies = new Map<string, string[]>();
+for (const definition of labDefinitions) {
+  const policy = JSON.stringify(definition.result_variants);
+  const keys = labPolicies.get(policy) ?? [];
+  keys.push(definition.key);
+  labPolicies.set(policy, keys);
+}
+const laboratoryValueCache = new Map<string, z.ZodType>();
+function laboratoryInputValue(
+  variants: string[],
+  innerUnit: boolean,
+): z.ZodType {
+  const policy = JSON.stringify({ variants, innerUnit });
+  const cached = laboratoryValueCache.get(policy);
+  if (cached) return cached;
+  const values = variants.map((kind) => {
+    if (kind === "quantity")
+      return p.quantity.extend({
+        unit: innerUnit ? p.text(80) : p.text(80).optional(),
+      });
+    if (kind === "interval")
+      return p.interval.extend({
+        unit: innerUnit ? p.text(80) : p.text(80).optional(),
+      });
+    if (kind === "pathogen_result")
+      return p.pathogenResult.extend({
+        result: z.discriminatedUnion("kind", [
+          p.quantity.extend({
+            unit: innerUnit ? p.text(80) : p.text(80).optional(),
+          }),
+          p.coded,
+          p.absent,
+        ]),
+      });
+    if (kind === "culture_result")
+      return p.cultureResult.extend({
+        isolates: z
+          .array(
+            z.strictObject({
+              isolate_label: p.text(100),
+              organism: p.text(200),
+              quantity: p.quantity
+                .extend({
+                  unit: innerUnit ? p.text(80) : p.text(80).optional(),
+                })
+                .optional(),
+            }),
+          )
+          .max(20),
+      });
+    if (kind === "susceptibility_result")
+      return p.susceptibilityResult.extend({
+        mic: p.quantity
+          .extend({
+            unit: innerUnit ? p.text(80) : p.text(80).optional(),
+          })
+          .optional(),
+        disk_zone: p.quantity
+          .extend({
+            value: nonnegativeDecimal,
+            unit: innerUnit ? p.text(80) : p.text(80).optional(),
+          })
+          .optional(),
+      });
+    return labResultSchemas[kind as keyof typeof labResultSchemas];
+  });
+  const schema = values.length === 1 ? values[0]! : z.union(values);
+  laboratoryValueCache.set(policy, schema);
+  return schema;
+}
+function builtinLabBranches(innerUnit: boolean) {
+  return [...labPolicies.values()].map((keys) =>
+    z.strictObject({
+      ...labCommon,
+      analyte_kind: z.literal("builtin"),
+      analyte_key: z.enum(keys as [string, ...string[]]),
+      result: laboratoryInputValue(
+        labByKey.get(keys[0]!)!.result_variants,
+        innerUnit,
+      ),
+      unit: innerUnit ? p.text(80).optional() : p.text(80),
+    }),
+  );
+}
+const customLabInput = (innerUnit: boolean) =>
+  z.strictObject({
+    ...labCommon,
+    analyte_kind: z.literal("custom"),
+    analyte_key: z.null(),
+    original_analyte_name: p.text(200),
+    custom_identity: p.text(100).optional(),
+    result: laboratoryInputValue(Object.keys(labResultSchemas), innerUnit),
+    unit: innerUnit ? p.text(80).optional() : p.text(80),
+  });
+export const labResultInput = z.union([
+  z.discriminatedUnion("analyte_key", nonempty(builtinLabBranches(false))),
+  z.discriminatedUnion("analyte_key", nonempty(builtinLabBranches(true))),
+  customLabInput(false),
+  customLabInput(true),
+]);
+export const recordInputSchemas = {
+  ...recordSchemas,
+  measurement: measurementInput,
+  lab_result: labResultInput,
+};
 export const commonEnvelope = {
   occurred_on: p.date.nullable().optional(),
   occurred_at: p.instant.nullable().optional(),
@@ -945,14 +1305,14 @@ export const commonEnvelope = {
   validity: p.validity.optional(),
 };
 const inputFor = <T extends z.ZodType>(data: T) =>
-  z.strictObject({ ...commonEnvelope, data });
+  z.strictObject({ ...commonEnvelope, occurred_on: p.date, data });
 export const recordInputs = {
-  measurement: inputFor(measurement),
+  measurement: inputFor(measurementInput),
   nutrition: inputFor(nutrition),
   hydration: inputFor(hydration),
   activity: inputFor(activity),
   sleep: inputFor(sleep),
   checkin: inputFor(checkin),
   intake: inputFor(intake),
-  lab_result: inputFor(labResult),
+  lab_result: z.strictObject({ ...commonEnvelope, data: labResultInput }),
 };

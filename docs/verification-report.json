@@ -1,5 +1,5 @@
 {
-  "tested_at": "2026-10-02T14:27:44.856Z",
+  "tested_at": "2026-10-02T15:29:02.011Z",
   "node": "v24.16.0",
   "postgres": "17.11 (Debian 17.11-1.pgdg12+2)",
   "mcp_sdk": "@modelcontextprotocol/sdk@1.31.0",
@@ -110,7 +110,7 @@
     {
       "name": "Real PostgreSQL streaming export, backup/restore and permanent operator erasure cover revisions/idempotency",
       "status": "passed",
-      "assertions": 1
+      "assertions": 22
     },
     {
       "name": "Oversized requests and secret-bearing argument shapes are rejected; logs contain operational metadata only",
@@ -853,6 +853,6 @@
     "measurements": 110
   },
   "remaining_unsupported_branches": [],
-  "backup_restore": "pg_dump into fresh database, record/revision/idempotency counts compared",
+  "backup_restore": "Streaming export and custom-format pg_dump/pg_restore into a fresh database; all record/revision/idempotency values compared, history retrieved, original create/correction/void retries replayed without new rows",
   "data_scope": "Synthetic fixtures in a disposable PostgreSQL container only"
 }

@@ -19,7 +19,8 @@ body:
         "name": "health_get_record",
         "arguments": {
           "id": "{{recordId}}",
-          "include_history": true
+          "include_history": true,
+          "history_limit": 100
         }
       }
     }
