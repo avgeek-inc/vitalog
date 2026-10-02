@@ -1,0 +1,47 @@
+$kind: http-request
+id: 10344eb8-33ce-5cc8-860b-9e018ad2d050
+description: Stateless MCP with the same private Bearer header. Initialize
+  before discovery and calls.
+method: POST
+url: "{{baseUrl}}/mcp"
+headers:
+  Accept: application/json, text/event-stream
+  Content-Type: application/json
+  MCP-Protocol-Version: 2025-11-25
+body:
+  type: json
+  content: |-
+    {
+      "jsonrpc": "2.0",
+      "id": 17,
+      "method": "tools/call",
+      "params": {
+        "name": "health_correct_record",
+        "arguments": {
+          "id": "{{recordId}}",
+          "idempotency_key": "{{idempotencyKey}}",
+          "expected_version": 1,
+          "reason": "Correct supplied observation",
+          "replacement": {
+            "record_type": "nutrition",
+            "occurred_on": "2026-09-10",
+            "timezone": "Asia/Kolkata",
+            "provenance": {
+              "source_type": "manual",
+              "value_kind": "reported"
+            },
+            "data": {
+              "entry_kind": "intake",
+              "label": "Lunch",
+              "nutrients": {
+                "energy_kcal": 430,
+                "protein_g": 26,
+                "carbohydrate_g": 45,
+                "fat_g": 16,
+                "fiber_g": null
+              }
+            }
+          }
+        }
+      }
+    }

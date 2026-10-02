@@ -1,0 +1,13 @@
+package-lock.json
+src/registry/inventory.json
+docs/specification.md
+docs/openapi.json
+docs/record-schemas.json
+docs/examples.json
+docs/coverage.json
+docs/catalog.json
+postman/**/*.json
+postman/**/*.yaml
+drizzle/meta/
+dist/
+node_modules/

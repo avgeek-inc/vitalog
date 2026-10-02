@@ -1,0 +1,9 @@
+name: Vitalog
+values:
+  - key: baseUrl
+    value: http://localhost:3000
+    enabled: true
+  - key: authKey
+    value: ""
+    type: secret
+    enabled: true

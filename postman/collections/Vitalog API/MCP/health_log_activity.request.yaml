@@ -1,0 +1,39 @@
+$kind: http-request
+id: a2034ffc-d83e-5904-85d2-795494ebad90
+description: Stateless MCP with the same private Bearer header. Initialize
+  before discovery and calls.
+method: POST
+url: "{{baseUrl}}/mcp"
+headers:
+  Accept: application/json, text/event-stream
+  Content-Type: application/json
+  MCP-Protocol-Version: 2025-11-25
+body:
+  type: json
+  content: |-
+    {
+      "jsonrpc": "2.0",
+      "id": 12,
+      "method": "tools/call",
+      "params": {
+        "name": "health_log_activity",
+        "arguments": {
+          "idempotency_key": "{{idempotencyKey}}",
+          "occurred_on": "2026-09-10",
+          "timezone": "Asia/Kolkata",
+          "provenance": {
+            "source_type": "manual",
+            "value_kind": "reported"
+          },
+          "data": {
+            "entry_kind": "workout",
+            "activity_type": "treadmill_incline_walk",
+            "elapsed_seconds": 900,
+            "average_speed_mps": 1.2,
+            "treadmill_incline_percent": 5,
+            "energy_kcal": 80,
+            "energy_basis": "unknown"
+          }
+        }
+      }
+    }

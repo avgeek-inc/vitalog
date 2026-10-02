@@ -1,0 +1,6 @@
+$kind: http-request
+id: cf2c9e21-8033-5830-87e9-95b1084be3ac
+method: GET
+url: "{{baseUrl}}/openapi.json"
+headers:
+  Accept: application/json

@@ -1,0 +1,32 @@
+$kind: http-request
+id: a54c6cef-685d-54cb-81b3-8a33758ba056
+description: Save one supplied activity observation. Actual recorded events
+  only. Use health_get_catalog for exact fields and units; do not infer missing
+  values.
+method: POST
+url: "{{baseUrl}}/v1/activities"
+headers:
+  Accept: application/json
+  Content-Type: application/json
+  Idempotency-Key: "{{idempotencyKey}}"
+body:
+  type: json
+  content: |-
+    {
+      "occurred_on": "2026-09-10",
+      "timezone": "Asia/Kolkata",
+      "provenance": {
+        "source_type": "manual",
+        "value_kind": "reported"
+      },
+      "data": {
+        "entry_kind": "workout",
+        "activity_type": "treadmill_incline_walk",
+        "elapsed_seconds": 900,
+        "average_speed_mps": 1.2,
+        "treadmill_incline_percent": 5,
+        "energy_kcal": 80,
+        "energy_basis": "unknown"
+      }
+    }
+order: 10000

@@ -1,0 +1,9 @@
+$kind: http-request
+id: cccae013-bf38-5071-8bcc-04c9955eeadf
+description: Read a bounded current snapshot with observation ages, provenance
+  and missingness; no targets or coaching memory.
+method: GET
+url: "{{baseUrl}}/v1/context"
+headers:
+  Accept: application/json
+order: 1000

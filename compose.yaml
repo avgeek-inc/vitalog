@@ -1,0 +1,56 @@
+name: vitalog
+services:
+  api:
+    build: .
+    image: ${VITALOG_IMAGE:-vitalog:local}
+    init: true
+    restart: unless-stopped
+    environment:
+      AUTH_KEY: ${AUTH_KEY:?Operator-supplied AUTH_KEY is required}
+      DATABASE_URL: postgresql://vitalog:${POSTGRES_PASSWORD:?Database password is required}@postgres:5432/vitalog
+      DEFAULT_TIMEZONE: ${DEFAULT_TIMEZONE:-Asia/Kolkata}
+      PORT: "3000"
+      NODE_ENV: production
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost:3000,127.0.0.1:3000}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+      TRUSTED_PROXY_IPS: ${TRUSTED_PROXY_IPS:-}
+      RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-600}
+    ports:
+      - "127.0.0.1:${PORT:-3000}:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    mem_limit: 512m
+    cpus: 1
+    pids_limit: 128
+    stop_grace_period: 35s
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+  postgres:
+    image: postgres:17.11-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: vitalog
+      POSTGRES_DB: vitalog
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Database password is required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -h 127.0.0.1 -U vitalog -d vitalog"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    mem_limit: 512m
+    cpus: 1
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+volumes:
+  postgres_data:

@@ -1,0 +1,20 @@
+{
+  "tested_at": "2026-10-02T15:29:07.026Z",
+  "image": "vitalog-smoke-95006:local",
+  "postgres_image": "postgres:17.11-bookworm",
+  "checks": [
+    "fresh Compose service/database startup and automatic migrations",
+    "empty database",
+    "non-root UID 1000",
+    "read-only root filesystem",
+    "readiness",
+    "unauthenticated rejection",
+    "no-store responses",
+    "committed REST write",
+    "container restart",
+    "fresh MCP client retrieval",
+    "cross-interface durable retry",
+    "operational log privacy"
+  ],
+  "status": "passed"
+}

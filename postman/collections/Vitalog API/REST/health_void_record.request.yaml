@@ -1,0 +1,19 @@
+$kind: http-request
+id: 94b4befe-527e-576c-8687-0eaf16c87245
+description: Void one record using its expected version and a reason. Exclude it
+  from effective calculations and preserve history; this is not permanent
+  erasure.
+method: POST
+url: "{{baseUrl}}/v1/records/{{recordId}}/voids"
+headers:
+  Accept: application/json
+  Content-Type: application/json
+  Idempotency-Key: "{{idempotencyKey}}"
+body:
+  type: json
+  content: |-
+    {
+      "expected_version": 1,
+      "reason": "Void supplied observation"
+    }
+order: 16000

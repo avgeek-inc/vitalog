@@ -1,0 +1,6 @@
+$kind: http-request
+id: d53d98c1-7749-56ba-8685-29b735a17d59
+method: GET
+url: "{{baseUrl}}/readyz"
+headers:
+  Accept: application/json

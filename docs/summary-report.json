@@ -1,0 +1,64 @@
+{
+  "generated_at": "2026-10-02T15:28:31.813Z",
+  "status": "passed",
+  "mode": "shared_domain_with_real_postgresql",
+  "environment": {
+    "node": "v24.16.0",
+    "postgresql": "17.11 (Debian 17.11-1.pgdg13+2)"
+  },
+  "synthetic_only": true,
+  "checks": [
+    {
+      "name": "Unrelated historical studies do not consume a narrowed read's bound",
+      "status": "passed",
+      "assertions": 5
+    },
+    {
+      "name": "Requested sections and metric identities are applied before the record bound",
+      "status": "passed",
+      "assertions": 4
+    },
+    {
+      "name": "Source filters precede LIMIT and an actually oversized matching window still fails",
+      "status": "passed",
+      "assertions": 3
+    },
+    {
+      "name": "Known interval observations follow period timezone and do not use the report day",
+      "status": "passed",
+      "assertions": 4
+    },
+    {
+      "name": "Context includes overlapping intervals whose report date predates the window",
+      "status": "passed",
+      "assertions": 2
+    },
+    {
+      "name": "Unknown interval endpoints remain unknown and disclose unresolved coverage",
+      "status": "passed",
+      "assertions": 5
+    },
+    {
+      "name": "Paired blood pressure is a latest context value and invalid pulse stays excluded",
+      "status": "passed",
+      "assertions": 4
+    },
+    {
+      "name": "Prolonged administrations label overlap without single-day nutrient assignment",
+      "status": "passed",
+      "assertions": 9
+    },
+    {
+      "name": "Explicit intake periods and same-day administrations preserve their distinct semantics",
+      "status": "passed",
+      "assertions": 4
+    },
+    {
+      "name": "A caller-selected history limit retrieves all large admitted snapshots without loss",
+      "status": "passed",
+      "assertions": 80
+    }
+  ],
+  "check_count": 10,
+  "assertion_count": 120
+}
