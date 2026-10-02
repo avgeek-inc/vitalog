@@ -102,7 +102,13 @@ for (const entity of [app, database]) {
     `${entity.id}: duplicate secrets`,
   );
 }
-for (const key of ["AUTH_KEY", "DATABASE_URL", "ALLOWED_HOSTS"])
+for (const key of [
+  "AUTH_KEY",
+  "ROOT_EMAIL",
+  "ROOT_PASSWORD",
+  "DATABASE_URL",
+  "ALLOWED_HOSTS",
+])
   assert(app.secrets?.runtime?.includes(key), `Missing service key ${key}`);
 for (const key of ["POSTGRES_USER", "POSTGRES_DB", "POSTGRES_PASSWORD"])
   assert(

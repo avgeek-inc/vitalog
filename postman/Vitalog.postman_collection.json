@@ -27,6 +27,10 @@
     {
       "key": "idempotencyKey",
       "value": ""
+    },
+    {
+      "key": "apiKeyId",
+      "value": ""
     }
   ],
   "item": [
@@ -1024,6 +1028,113 @@
                 }
               }
             }
+          }
+        }
+      ]
+    },
+    {
+      "name": "API keys",
+      "item": [
+        {
+          "name": "create_api_key",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/api-keys",
+            "description": "Generate a 30-day API key using ROOT_EMAIL and ROOT_PASSWORD. The complete key is returned once; it cannot manage API keys.",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{rootEmail}}\",\n  \"password\": \"{{rootPassword}}\",\n  \"name\": \"Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "list_api_keys",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/v1/api-keys?limit=50&offset=0",
+            "description": "List generated key metadata, including expiry and revocation status. Requires the environment AUTH_KEY; never returns keys or hashes.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{rootAuthKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "name": "revoke_api_key",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/v1/api-keys/{{apiKeyId}}",
+            "description": "Revoke a generated API key by ID. Already revoked keys return their metadata. Requires the environment AUTH_KEY.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{rootAuthKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "name": "revoke_all_api_keys",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/v1/api-keys",
+            "description": "Revoke all currently unrevoked generated keys, including expired keys. The environment AUTH_KEY is unaffected.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{rootAuthKey}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
           }
         }
       ]

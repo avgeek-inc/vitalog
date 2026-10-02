@@ -8,9 +8,10 @@ variables:
   recordId: ""
   date: 2026-09-10
   idempotencyKey: ""
+  apiKeyId: ""
 auth:
   - id: 90a04aa8-96bc-51d5-87fb-0f9ef93e9542
     type: bearer
-    name: Operator AUTH_KEY
+    name: Ledger Bearer key
     credentials:
       token: "{{authKey}}"

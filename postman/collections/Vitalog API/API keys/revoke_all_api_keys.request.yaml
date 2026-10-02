@@ -1,0 +1,14 @@
+$kind: http-request
+id: 3aeca7d8-370a-5738-86d9-32078556001b
+description: Revoke all currently unrevoked generated keys, including expired
+  keys. The environment AUTH_KEY is unaffected.
+method: DELETE
+url: "{{baseUrl}}/v1/api-keys"
+headers:
+  Accept: application/json
+auth:
+  - id: bc533f90-af88-54d0-8e97-e070cebfe063
+    type: bearer
+    name: Primary AUTH_KEY
+    credentials:
+      token: "{{rootAuthKey}}"

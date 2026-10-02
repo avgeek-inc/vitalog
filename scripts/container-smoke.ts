@@ -82,6 +82,8 @@ await new Promise<void>((resolve, reject) =>
 const env = {
   ...process.env,
   AUTH_KEY: key,
+  ROOT_EMAIL: "root@example.test",
+  ROOT_PASSWORD: randomBytes(32).toString("base64url"),
   POSTGRES_PASSWORD: randomBytes(32).toString("hex"),
   PORT: String(publishedPort),
   ALLOWED_HOSTS: [service?.domains?.primary, `127.0.0.1:${publishedPort}`]
@@ -114,6 +116,43 @@ try {
   const port = compose(["port", "api", "3000"]).split(":").at(-1)!;
   const url = `http://127.0.0.1:${port}`;
   const headers = { Authorization: `Bearer ${key}` };
+  const page = await fetch(url + "/api-keys");
+  assert.equal(page.status, 200);
+  assert.equal(page.headers.get("cache-control"), "no-store");
+  await page.text();
+  const issued = await fetch(url + "/auth/api-keys", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Origin: url },
+    body: JSON.stringify({
+      email: env.ROOT_EMAIL,
+      password: env.ROOT_PASSWORD,
+      name: "Container smoke",
+    }),
+  });
+  assert.equal(issued.status, 201);
+  const issuedKey = object(await issued.json());
+  const generatedHeaders = { Authorization: `Bearer ${issuedKey.api_key}` };
+  const generatedCatalog = await fetch(url + "/v1/catalog", {
+    headers: generatedHeaders,
+  });
+  assert.equal(generatedCatalog.status, 200);
+  await generatedCatalog.text();
+  const administration = await fetch(url + "/v1/api-keys", {
+    headers: generatedHeaders,
+  });
+  assert.equal(administration.status, 403);
+  await administration.text();
+  const revoked = await fetch(url + `/v1/api-keys/${issuedKey.id}`, {
+    method: "DELETE",
+    headers,
+  });
+  assert.equal(revoked.status, 200);
+  await revoked.text();
+  const denied = await fetch(url + "/v1/catalog", {
+    headers: generatedHeaders,
+  });
+  assert.equal(denied.status, 401);
+  await denied.text();
   const count = () =>
     compose([
       "exec",

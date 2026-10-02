@@ -21,6 +21,7 @@
     "test": "vitest run",
     "test:integration": "tsx scripts/integration.ts",
     "test:security": "tsx scripts/security-verification.ts",
+    "test:auth": "tsx scripts/auth-verification.ts",
     "test:summaries": "tsx scripts/summary-verification.ts",
     "test:container": "tsx scripts/container-smoke.ts",
     "test:towbar": "tsx scripts/container-smoke.ts --towbar",

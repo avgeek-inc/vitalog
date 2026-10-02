@@ -7,6 +7,8 @@ services:
     restart: unless-stopped
     environment:
       AUTH_KEY: ${AUTH_KEY:?Operator-supplied AUTH_KEY is required}
+      ROOT_EMAIL: ${ROOT_EMAIL:-}
+      ROOT_PASSWORD: ${ROOT_PASSWORD:-}
       DATABASE_URL: postgresql://vitalog:${POSTGRES_PASSWORD:?Database password is required}@postgres:5432/vitalog
       DEFAULT_TIMEZONE: ${DEFAULT_TIMEZONE:-Asia/Kolkata}
       PORT: "3000"

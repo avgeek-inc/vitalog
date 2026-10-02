@@ -119,4 +119,35 @@ export const idempotencyRequests = pgTable(
   },
   (t) => [primaryKey({ columns: [t.operation, t.idempotencyKey] })],
 );
-export const schema = { healthRecords, revisions, idempotencyRequests };
+export const apiKeys = pgTable(
+  "api_keys",
+  {
+    id: uuid("id").primaryKey(),
+    name: text("name").notNull(),
+    tokenDigest: text("token_digest").notNull(),
+    tokenHint: text("token_hint").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`statement_timestamp()`),
+    expiresAt: timestamp("expires_at", { withTimezone: true })
+      .notNull()
+      .default(sql`statement_timestamp() + interval '720 hours'`),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("api_key_digest").on(t.tokenDigest),
+    index("api_key_creation_order").on(t.createdAt, t.id),
+    check(
+      "api_key_lifetime",
+      sql`${t.expiresAt} = ${t.createdAt} + interval '720 hours'`,
+    ),
+    check("api_key_name", sql`length(${t.name}) between 1 and 80`),
+    check("api_key_sha256", sql`${t.tokenDigest} ~ '^[0-9a-f]{64}$'`),
+  ],
+);
+export const schema = {
+  healthRecords,
+  revisions,
+  idempotencyRequests,
+  apiKeys,
+};

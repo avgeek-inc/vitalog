@@ -17,6 +17,7 @@ jobs:
       - run: npm ci
       - run: npm run verify
       - run: npm run test:integration
+      - run: npm run test:auth
       - run: node --import tsx scripts/security-verification.ts
       - run: node --import tsx scripts/summary-verification.ts
       - run: npm run build
@@ -32,5 +33,6 @@ jobs:
             .test-artifacts/verification.json
             .test-artifacts/container.json
             .test-artifacts/security.json
+            .test-artifacts/auth.json
             .test-artifacts/summary.json
             .test-artifacts/towbar.json
