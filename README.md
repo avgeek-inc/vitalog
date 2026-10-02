@@ -20,6 +20,10 @@ The default installation ignores forwarded client addresses. To trust one ingres
 
 `GET /healthz` returns minimal unauthenticated liveness. `GET /readyz` requires the key and checks the migrated database without returning connection details. Missing credentials, a placeholder secret, invalid configuration or unapplied migrations prevent startup. All health responses use `Cache-Control: no-store`.
 
+## Run with Towbar
+
+For deployment on Praveen Apps with a managed PostgreSQL datastore and `vitalog.praveent.com`, follow [the Towbar deployment guide](docs/towbar-deployment.md). The version-2 manifests declare both workloads and their private network; runtime credentials are supplied in Towbar.
+
 ## Run from source
 
 Use Node.js 24.16.0 and npm 11.13.0. Dependency versions and transitive dependencies are locked in `package-lock.json`.
@@ -60,6 +64,7 @@ npm run test:integration
 npm run test:security
 npm run test:summaries
 npm run test:container
+npm run test:towbar
 npm run build
 npm audit --omit=dev --audit-level=moderate
 ```

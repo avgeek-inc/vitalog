@@ -23,6 +23,7 @@ jobs:
       - run: npm run build
       - run: npm audit --omit=dev --audit-level=moderate
       - run: npm run test:container
+      - run: npm run test:towbar
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: verification
@@ -33,6 +34,7 @@ jobs:
             .test-artifacts/container.json
             .test-artifacts/security.json
             .test-artifacts/summary.json
+            .test-artifacts/towbar.json
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:

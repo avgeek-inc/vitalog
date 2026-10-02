@@ -1,0 +1,27 @@
+{
+  "tested_at": "2026-10-02T18:00:21.356Z",
+  "mode": "local_compose_with_towbar_manifest_runtime_settings",
+  "image": "vitalog-towbar-89380:local",
+  "postgres_image": "postgres:17.11-bookworm@sha256:639ab7ceb90e13123085b741fb31ef493fba25463002f6da665352e7b534b652",
+  "checks": [
+    "fresh Compose service/database startup and automatic migrations",
+    "empty database",
+    "non-root UID 1000",
+    "read-only root filesystem",
+    "readiness",
+    "unauthenticated rejection",
+    "no-store responses",
+    "committed REST write",
+    "container restart",
+    "fresh MCP client retrieval",
+    "cross-interface durable retry",
+    "operational log privacy",
+    "manifest runtime CPU/memory limits",
+    "tuned PostgreSQL settings",
+    "authenticated readiness uses the configured public Host header",
+    "private PostgreSQL network alias",
+    "readiness fails while PostgreSQL is unavailable",
+    "readiness recovers after PostgreSQL restarts without data loss"
+  ],
+  "status": "passed"
+}

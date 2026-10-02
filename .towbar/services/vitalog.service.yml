@@ -1,0 +1,57 @@
+# yaml-language-server: $schema=https://towbar.dev/schemas/app.v2.json
+id: vitalog
+name: Vitalog
+description: Personal health ledger REST API and MCP service
+deployment:
+  type: dockerfile
+  context: .
+  dockerfile: Dockerfile
+  architecture: arm64
+  resources:
+    cpus: 1
+    memory: 512m
+autoDeploy: false
+rollout:
+  type: recreate
+  maintenanceMode: true
+  reason: Stable private network alias and authenticated database readiness
+container:
+  port: 3000
+  network: vitalog
+  networkAlias: vitalog
+  resources:
+    cpus: 0.5
+    memory: 512m
+health:
+  type: command
+  command:
+    - node
+    - -e
+    - >-
+      const request = require('node:http').get('http://127.0.0.1:3000/readyz', {
+        headers: {
+          Authorization: 'Bearer ' + process.env.AUTH_KEY,
+          Host: process.env.ALLOWED_HOSTS.split(',')[0].trim()
+        }
+      }, response => {
+        response.resume();
+        process.exit(response.statusCode === 200 ? 0 : 1);
+      });
+      request.on('error', () => process.exit(1));
+      request.setTimeout(5000, () => { request.destroy(); process.exit(1); });
+  timeoutSeconds: 90
+  publicPath: /healthz
+ingress:
+  type: proxy
+domains:
+  primary: vitalog.praveent.com
+tls:
+  mode: cloudflare-dns
+secrets:
+  runtime:
+    - AUTH_KEY
+    - DATABASE_URL
+    - ALLOWED_HOSTS
+environments:
+  production:
+    server: 13.204.184.47

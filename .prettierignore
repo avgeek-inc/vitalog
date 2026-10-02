@@ -11,3 +11,4 @@ postman/**/*.yaml
 drizzle/meta/
 dist/
 node_modules/
+schemas/towbar/*.json
