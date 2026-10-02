@@ -1,0 +1,16 @@
+$kind: collection
+id: b629dc6d-6637-521b-8796-192d97410f17
+description: Generated from the shared registry and OpenAPI. Set authKey as a
+  local private secret. Examples use synthetic historical observations; writes
+  modify the configured database. Choose a new idempotencyKey for each
+  intentional event and retain it for retries.
+variables:
+  recordId: ""
+  date: 2026-09-10
+  idempotencyKey: ""
+auth:
+  - id: 90a04aa8-96bc-51d5-87fb-0f9ef93e9542
+    type: bearer
+    name: Operator AUTH_KEY
+    credentials:
+      token: "{{authKey}}"

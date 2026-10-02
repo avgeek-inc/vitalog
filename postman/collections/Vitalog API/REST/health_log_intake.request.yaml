@@ -1,0 +1,33 @@
+$kind: http-request
+id: a46f4b96-5913-53f7-85c0-a427d42c164d
+description: Save one supplied intake observation. Actual recorded events only.
+  Use health_get_catalog for exact fields and units; do not infer missing
+  values.
+method: POST
+url: "{{baseUrl}}/v1/intakes"
+headers:
+  Accept: application/json
+  Content-Type: application/json
+  Idempotency-Key: "{{idempotencyKey}}"
+body:
+  type: json
+  content: |-
+    {
+      "occurred_on": "2026-09-10",
+      "timezone": "Asia/Kolkata",
+      "provenance": {
+        "source_type": "manual",
+        "value_kind": "reported"
+      },
+      "data": {
+        "product_name": "Supplied supplement",
+        "category": "supplement",
+        "status": "taken",
+        "administered_quantity": {
+          "kind": "quantity",
+          "value": 1,
+          "unit": "tablet"
+        }
+      }
+    }
+order: 13000

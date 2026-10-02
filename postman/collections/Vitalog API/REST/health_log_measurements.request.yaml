@@ -1,0 +1,33 @@
+$kind: http-request
+id: 2a912e5c-4533-51e3-8d72-dd669c6a40b9
+description: Save an atomic bounded batch of supplied measurement observations.
+  Actual recorded events only. Use health_get_catalog for exact fields and
+  units; do not infer missing values.
+method: POST
+url: "{{baseUrl}}/v1/measurements"
+headers:
+  Accept: application/json
+  Content-Type: application/json
+  Idempotency-Key: "{{idempotencyKey}}"
+body:
+  type: json
+  content: |-
+    {
+      "records": [
+        {
+          "occurred_on": "2026-09-10",
+          "timezone": "Asia/Kolkata",
+          "provenance": {
+            "source_type": "manual",
+            "value_kind": "reported"
+          },
+          "data": {
+            "kind": "scalar",
+            "metric_key": "weight",
+            "value": "1.25",
+            "unit": "kg"
+          }
+        }
+      ]
+    }
+order: 7000

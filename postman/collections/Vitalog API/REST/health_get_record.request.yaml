@@ -1,0 +1,9 @@
+$kind: http-request
+id: 58af93db-41ad-52e4-8973-4b488dd4592f
+description: Retrieve one recorded observation and optionally a bounded page of
+  immutable revisions.
+method: GET
+url: "{{baseUrl}}/v1/records/{{recordId}}?include_history=true"
+headers:
+  Accept: application/json
+order: 5000

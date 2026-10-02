@@ -1,0 +1,43 @@
+$kind: http-request
+id: eadc4bba-e9ef-55fb-840a-6d7d10f566f2
+description: Save an atomic bounded batch of supplied lab_result observations.
+  Actual recorded events only. Use health_get_catalog for exact fields and
+  units; do not infer missing values.
+method: POST
+url: "{{baseUrl}}/v1/lab-results"
+headers:
+  Accept: application/json
+  Content-Type: application/json
+  Idempotency-Key: "{{idempotencyKey}}"
+body:
+  type: json
+  content: |-
+    {
+      "records": [
+        {
+          "occurred_on": "2026-09-10",
+          "timezone": "Asia/Kolkata",
+          "provenance": {
+            "source_type": "manual",
+            "value_kind": "reported"
+          },
+          "data": {
+            "analyte_kind": "builtin",
+            "analyte_key": "hemoglobin",
+            "result": {
+              "kind": "quantity",
+              "value": "1.250",
+              "unit": "source_unit",
+              "original_unit": "printed unit",
+              "original_value": "1.250"
+            },
+            "source_status": "final",
+            "collected_on": "2026-09-10",
+            "specimen": {
+              "type": "unknown"
+            }
+          }
+        }
+      ]
+    }
+order: 14000

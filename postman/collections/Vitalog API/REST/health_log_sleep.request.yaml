@@ -1,0 +1,28 @@
+$kind: http-request
+id: f28a4828-72b3-5864-8014-4feadb0d6c9b
+description: Save one supplied sleep observation. Actual recorded events only.
+  Use health_get_catalog for exact fields and units; do not infer missing
+  values.
+method: POST
+url: "{{baseUrl}}/v1/sleep"
+headers:
+  Accept: application/json
+  Content-Type: application/json
+  Idempotency-Key: "{{idempotencyKey}}"
+body:
+  type: json
+  content: |-
+    {
+      "occurred_on": "2026-09-10",
+      "timezone": "Asia/Kolkata",
+      "provenance": {
+        "source_type": "manual",
+        "value_kind": "reported"
+      },
+      "data": {
+        "entry_kind": "session",
+        "session_type": "main",
+        "sleep_seconds": 24000
+      }
+    }
+order: 11000

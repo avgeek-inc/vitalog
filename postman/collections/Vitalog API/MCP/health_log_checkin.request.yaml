@@ -1,0 +1,41 @@
+$kind: http-request
+id: 716d01e4-ee33-51c3-813d-c84fbb2561df
+description: Stateless MCP with the same private Bearer header. Initialize
+  before discovery and calls.
+method: POST
+url: "{{baseUrl}}/mcp"
+headers:
+  Accept: application/json, text/event-stream
+  Content-Type: application/json
+  MCP-Protocol-Version: 2025-11-25
+body:
+  type: json
+  content: |-
+    {
+      "jsonrpc": "2.0",
+      "id": 14,
+      "method": "tools/call",
+      "params": {
+        "name": "health_log_checkin",
+        "arguments": {
+          "idempotency_key": "{{idempotencyKey}}",
+          "occurred_on": "2026-09-10",
+          "timezone": "Asia/Kolkata",
+          "provenance": {
+            "source_type": "manual",
+            "value_kind": "reported"
+          },
+          "data": {
+            "ratings": {
+              "energy": {
+                "value": 7,
+                "scale": "reported_energy",
+                "lower": 0,
+                "upper": 10,
+                "meaning": "Higher means more energy"
+              }
+            }
+          }
+        }
+      }
+    }

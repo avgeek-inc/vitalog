@@ -1,0 +1,1032 @@
+{
+  "info": {
+    "_postman_id": "b629dc6d-6637-521b-8796-192d97410f17",
+    "name": "Vitalog API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Generated REST and MCP contracts. Synthetic examples; configure the private authKey locally. See postman/README.md."
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{authKey}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "recordId",
+      "value": ""
+    },
+    {
+      "key": "date",
+      "value": "2026-09-10"
+    },
+    {
+      "key": "idempotencyKey",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "REST",
+      "item": [
+        {
+          "name": "health_get_context",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/context",
+            "description": "Read a bounded current snapshot with observation ages, provenance and missingness; no targets or coaching memory."
+          }
+        },
+        {
+          "name": "health_get_daily_summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/days/{{date}}",
+            "description": "Read a local day with qualified daily-total precedence, known subtotals and completeness. Studies remain overlapping interval observations."
+          }
+        },
+        {
+          "name": "health_get_trends",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/trends?metrics=measurement%3Aweight&start_date=2026-09-01&end_date=2026-09-30",
+            "description": "Read up to 20 catalog metrics over at most 366 days, partitioned by supplied context. Use health_get_catalog for identifiers. No predictions."
+          }
+        },
+        {
+          "name": "health_list_records",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/records",
+            "description": "Page through recorded observations using allowlisted dates, types and source filters; no arbitrary predicates."
+          }
+        },
+        {
+          "name": "health_get_record",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/records/{{recordId}}?include_history=true",
+            "description": "Retrieve one recorded observation and optionally a bounded page of immutable revisions."
+          }
+        },
+        {
+          "name": "health_get_catalog",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/catalog",
+            "description": "Discover exact supported keys, panel memberships, nested fields, units and complete schemas. Returns code definitions independently of health data."
+          }
+        },
+        {
+          "name": "health_log_measurements",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/measurements",
+            "description": "Save an atomic bounded batch of supplied measurement observations. Actual recorded events only. Use health_get_catalog for exact fields and units; do not infer missing values.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"records\": [\n    {\n      \"occurred_on\": \"2026-09-10\",\n      \"timezone\": \"Asia/Kolkata\",\n      \"provenance\": {\n        \"source_type\": \"manual\",\n        \"value_kind\": \"reported\"\n      },\n      \"data\": {\n        \"kind\": \"scalar\",\n        \"metric_key\": \"weight\",\n        \"value\": \"1.25\",\n        \"unit\": \"kg\"\n      }\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "health_log_nutrition",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/nutrition",
+            "description": "Save one supplied nutrition observation. Actual recorded events only. Use health_get_catalog for exact fields and units; do not infer missing values.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"occurred_on\": \"2026-09-10\",\n  \"timezone\": \"Asia/Kolkata\",\n  \"provenance\": {\n    \"source_type\": \"manual\",\n    \"value_kind\": \"reported\"\n  },\n  \"data\": {\n    \"entry_kind\": \"intake\",\n    \"label\": \"Lunch\",\n    \"nutrients\": {\n      \"energy_kcal\": 430,\n      \"protein_g\": 26,\n      \"carbohydrate_g\": 45,\n      \"fat_g\": 16,\n      \"fiber_g\": null\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "health_log_hydration",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/hydration",
+            "description": "Save one supplied hydration observation. Actual recorded events only. Use health_get_catalog for exact fields and units; do not infer missing values.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"occurred_on\": \"2026-09-10\",\n  \"timezone\": \"Asia/Kolkata\",\n  \"provenance\": {\n    \"source_type\": \"manual\",\n    \"value_kind\": \"reported\"\n  },\n  \"data\": {\n    \"entry_kind\": \"intake\",\n    \"volume_ml\": 250,\n    \"drink_type\": \"water\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "health_log_activity",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/activities",
+            "description": "Save one supplied activity observation. Actual recorded events only. Use health_get_catalog for exact fields and units; do not infer missing values.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"occurred_on\": \"2026-09-10\",\n  \"timezone\": \"Asia/Kolkata\",\n  \"provenance\": {\n    \"source_type\": \"manual\",\n    \"value_kind\": \"reported\"\n  },\n  \"data\": {\n    \"entry_kind\": \"workout\",\n    \"activity_type\": \"treadmill_incline_walk\",\n    \"elapsed_seconds\": 900,\n    \"average_speed_mps\": 1.2,\n    \"treadmill_incline_percent\": 5,\n    \"energy_kcal\": 80,\n    \"energy_basis\": \"unknown\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "health_log_sleep",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/sleep",
+            "description": "Save one supplied sleep observation. Actual recorded events only. Use health_get_catalog for exact fields and units; do not infer missing values.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"occurred_on\": \"2026-09-10\",\n  \"timezone\": \"Asia/Kolkata\",\n  \"provenance\": {\n    \"source_type\": \"manual\",\n    \"value_kind\": \"reported\"\n  },\n  \"data\": {\n    \"entry_kind\": \"session\",\n    \"session_type\": \"main\",\n    \"sleep_seconds\": 24000\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "health_log_checkin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/checkins",
+            "description": "Save one supplied checkin observation. Actual recorded events only. Use health_get_catalog for exact fields and units; do not infer missing values.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"occurred_on\": \"2026-09-10\",\n  \"timezone\": \"Asia/Kolkata\",\n  \"provenance\": {\n    \"source_type\": \"manual\",\n    \"value_kind\": \"reported\"\n  },\n  \"data\": {\n    \"ratings\": {\n      \"energy\": {\n        \"value\": 7,\n        \"scale\": \"reported_energy\",\n        \"lower\": 0,\n        \"upper\": 10,\n        \"meaning\": \"Higher means more energy\"\n      }\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "health_log_intake",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/intakes",
+            "description": "Save one supplied intake observation. Actual recorded events only. Use health_get_catalog for exact fields and units; do not infer missing values.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"occurred_on\": \"2026-09-10\",\n  \"timezone\": \"Asia/Kolkata\",\n  \"provenance\": {\n    \"source_type\": \"manual\",\n    \"value_kind\": \"reported\"\n  },\n  \"data\": {\n    \"product_name\": \"Supplied supplement\",\n    \"category\": \"supplement\",\n    \"status\": \"taken\",\n    \"administered_quantity\": {\n      \"kind\": \"quantity\",\n      \"value\": 1,\n      \"unit\": \"tablet\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "health_log_lab_results",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/lab-results",
+            "description": "Save an atomic bounded batch of supplied lab_result observations. Actual recorded events only. Use health_get_catalog for exact fields and units; do not infer missing values.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"records\": [\n    {\n      \"occurred_on\": \"2026-09-10\",\n      \"timezone\": \"Asia/Kolkata\",\n      \"provenance\": {\n        \"source_type\": \"manual\",\n        \"value_kind\": \"reported\"\n      },\n      \"data\": {\n        \"analyte_kind\": \"builtin\",\n        \"analyte_key\": \"hemoglobin\",\n        \"result\": {\n          \"kind\": \"quantity\",\n          \"value\": \"1.250\",\n          \"unit\": \"source_unit\",\n          \"original_unit\": \"printed unit\",\n          \"original_value\": \"1.250\"\n        },\n        \"source_status\": \"final\",\n        \"collected_on\": \"2026-09-10\",\n        \"specimen\": {\n          \"type\": \"unknown\"\n        }\n      }\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "health_correct_record",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/records/{{recordId}}/corrections",
+            "description": "Correct one record using a complete replacement and expected version. Preserve history and supplied provenance; a voided record stays voided.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expected_version\": 1,\n  \"reason\": \"Correct supplied observation\",\n  \"replacement\": {\n    \"record_type\": \"nutrition\",\n    \"occurred_on\": \"2026-09-10\",\n    \"timezone\": \"Asia/Kolkata\",\n    \"provenance\": {\n      \"source_type\": \"manual\",\n      \"value_kind\": \"reported\"\n    },\n    \"data\": {\n      \"entry_kind\": \"intake\",\n      \"label\": \"Lunch\",\n      \"nutrients\": {\n        \"energy_kcal\": 430,\n        \"protein_g\": 26,\n        \"carbohydrate_g\": 45,\n        \"fat_g\": 16,\n        \"fiber_g\": null\n      }\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "health_void_record",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/records/{{recordId}}/voids",
+            "description": "Void one record using its expected version and a reason. Exclude it from effective calculations and preserve history; this is not permanent erasure.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expected_version\": 1,\n  \"reason\": \"Void supplied observation\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Liveness",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/healthz",
+            "description": "Liveness"
+          }
+        },
+        {
+          "name": "Readiness",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/readyz",
+            "description": "Readiness"
+          }
+        },
+        {
+          "name": "OpenAPI",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/openapi.json",
+            "description": "OpenAPI"
+          }
+        }
+      ]
+    },
+    {
+      "name": "MCP",
+      "item": [
+        {
+          "name": "Initialize",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/mcp",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "2025-11-25"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"initialize\",\n  \"params\": {\n    \"protocolVersion\": \"2025-11-25\",\n    \"capabilities\": {},\n    \"clientInfo\": {\n      \"name\": \"Postman\",\n      \"version\": \"1.0.0\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Initialized notification",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/mcp",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "2025-11-25"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"method\": \"notifications/initialized\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "List tools",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/mcp",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "2025-11-25"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 2,\n  \"method\": \"tools/list\",\n  \"params\": {}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "health_get_context",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/mcp",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "2025-11-25"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 3,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"health_get_context\",\n    \"arguments\": {}\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "health_get_daily_summary",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/mcp",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "2025-11-25"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 4,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"health_get_daily_summary\",\n    \"arguments\": {\n      \"date\": \"{{date}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "health_get_trends",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/mcp",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "2025-11-25"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 5,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"health_get_trends\",\n    \"arguments\": {\n      \"metrics\": [\n        \"measurement:weight\"\n      ],\n      \"start_date\": \"2026-09-01\",\n      \"end_date\": \"2026-09-30\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "health_list_records",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/mcp",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "2025-11-25"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 6,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"health_list_records\",\n    \"arguments\": {}\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "health_get_record",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/mcp",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "2025-11-25"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 7,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"health_get_record\",\n    \"arguments\": {\n      \"id\": \"{{recordId}}\",\n      \"include_history\": true\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "health_get_catalog",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/mcp",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "2025-11-25"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 8,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"health_get_catalog\",\n    \"arguments\": {}\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "health_log_measurements",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/mcp",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "2025-11-25"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 9,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"health_log_measurements\",\n    \"arguments\": {\n      \"idempotency_key\": \"{{idempotencyKey}}\",\n      \"records\": [\n        {\n          \"occurred_on\": \"2026-09-10\",\n          \"timezone\": \"Asia/Kolkata\",\n          \"provenance\": {\n            \"source_type\": \"manual\",\n            \"value_kind\": \"reported\"\n          },\n          \"data\": {\n            \"kind\": \"scalar\",\n            \"metric_key\": \"weight\",\n            \"value\": \"1.25\",\n            \"unit\": \"kg\"\n          }\n        }\n      ]\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "health_log_nutrition",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/mcp",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "2025-11-25"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 10,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"health_log_nutrition\",\n    \"arguments\": {\n      \"idempotency_key\": \"{{idempotencyKey}}\",\n      \"occurred_on\": \"2026-09-10\",\n      \"timezone\": \"Asia/Kolkata\",\n      \"provenance\": {\n        \"source_type\": \"manual\",\n        \"value_kind\": \"reported\"\n      },\n      \"data\": {\n        \"entry_kind\": \"intake\",\n        \"label\": \"Lunch\",\n        \"nutrients\": {\n          \"energy_kcal\": 430,\n          \"protein_g\": 26,\n          \"carbohydrate_g\": 45,\n          \"fat_g\": 16,\n          \"fiber_g\": null\n        }\n      }\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "health_log_hydration",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/mcp",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "2025-11-25"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 11,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"health_log_hydration\",\n    \"arguments\": {\n      \"idempotency_key\": \"{{idempotencyKey}}\",\n      \"occurred_on\": \"2026-09-10\",\n      \"timezone\": \"Asia/Kolkata\",\n      \"provenance\": {\n        \"source_type\": \"manual\",\n        \"value_kind\": \"reported\"\n      },\n      \"data\": {\n        \"entry_kind\": \"intake\",\n        \"volume_ml\": 250,\n        \"drink_type\": \"water\"\n      }\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "health_log_activity",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/mcp",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "2025-11-25"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 12,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"health_log_activity\",\n    \"arguments\": {\n      \"idempotency_key\": \"{{idempotencyKey}}\",\n      \"occurred_on\": \"2026-09-10\",\n      \"timezone\": \"Asia/Kolkata\",\n      \"provenance\": {\n        \"source_type\": \"manual\",\n        \"value_kind\": \"reported\"\n      },\n      \"data\": {\n        \"entry_kind\": \"workout\",\n        \"activity_type\": \"treadmill_incline_walk\",\n        \"elapsed_seconds\": 900,\n        \"average_speed_mps\": 1.2,\n        \"treadmill_incline_percent\": 5,\n        \"energy_kcal\": 80,\n        \"energy_basis\": \"unknown\"\n      }\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "health_log_sleep",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/mcp",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "2025-11-25"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 13,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"health_log_sleep\",\n    \"arguments\": {\n      \"idempotency_key\": \"{{idempotencyKey}}\",\n      \"occurred_on\": \"2026-09-10\",\n      \"timezone\": \"Asia/Kolkata\",\n      \"provenance\": {\n        \"source_type\": \"manual\",\n        \"value_kind\": \"reported\"\n      },\n      \"data\": {\n        \"entry_kind\": \"session\",\n        \"session_type\": \"main\",\n        \"sleep_seconds\": 24000\n      }\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "health_log_checkin",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/mcp",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "2025-11-25"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 14,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"health_log_checkin\",\n    \"arguments\": {\n      \"idempotency_key\": \"{{idempotencyKey}}\",\n      \"occurred_on\": \"2026-09-10\",\n      \"timezone\": \"Asia/Kolkata\",\n      \"provenance\": {\n        \"source_type\": \"manual\",\n        \"value_kind\": \"reported\"\n      },\n      \"data\": {\n        \"ratings\": {\n          \"energy\": {\n            \"value\": 7,\n            \"scale\": \"reported_energy\",\n            \"lower\": 0,\n            \"upper\": 10,\n            \"meaning\": \"Higher means more energy\"\n          }\n        }\n      }\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "health_log_intake",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/mcp",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "2025-11-25"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 15,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"health_log_intake\",\n    \"arguments\": {\n      \"idempotency_key\": \"{{idempotencyKey}}\",\n      \"occurred_on\": \"2026-09-10\",\n      \"timezone\": \"Asia/Kolkata\",\n      \"provenance\": {\n        \"source_type\": \"manual\",\n        \"value_kind\": \"reported\"\n      },\n      \"data\": {\n        \"product_name\": \"Supplied supplement\",\n        \"category\": \"supplement\",\n        \"status\": \"taken\",\n        \"administered_quantity\": {\n          \"kind\": \"quantity\",\n          \"value\": 1,\n          \"unit\": \"tablet\"\n        }\n      }\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "health_log_lab_results",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/mcp",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "2025-11-25"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 16,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"health_log_lab_results\",\n    \"arguments\": {\n      \"idempotency_key\": \"{{idempotencyKey}}\",\n      \"records\": [\n        {\n          \"occurred_on\": \"2026-09-10\",\n          \"timezone\": \"Asia/Kolkata\",\n          \"provenance\": {\n            \"source_type\": \"manual\",\n            \"value_kind\": \"reported\"\n          },\n          \"data\": {\n            \"analyte_kind\": \"builtin\",\n            \"analyte_key\": \"hemoglobin\",\n            \"result\": {\n              \"kind\": \"quantity\",\n              \"value\": \"1.250\",\n              \"unit\": \"source_unit\",\n              \"original_unit\": \"printed unit\",\n              \"original_value\": \"1.250\"\n            },\n            \"source_status\": \"final\",\n            \"collected_on\": \"2026-09-10\",\n            \"specimen\": {\n              \"type\": \"unknown\"\n            }\n          }\n        }\n      ]\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "health_correct_record",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/mcp",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "2025-11-25"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 17,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"health_correct_record\",\n    \"arguments\": {\n      \"id\": \"{{recordId}}\",\n      \"idempotency_key\": \"{{idempotencyKey}}\",\n      \"expected_version\": 1,\n      \"reason\": \"Correct supplied observation\",\n      \"replacement\": {\n        \"record_type\": \"nutrition\",\n        \"occurred_on\": \"2026-09-10\",\n        \"timezone\": \"Asia/Kolkata\",\n        \"provenance\": {\n          \"source_type\": \"manual\",\n          \"value_kind\": \"reported\"\n        },\n        \"data\": {\n          \"entry_kind\": \"intake\",\n          \"label\": \"Lunch\",\n          \"nutrients\": {\n            \"energy_kcal\": 430,\n            \"protein_g\": 26,\n            \"carbohydrate_g\": 45,\n            \"fat_g\": 16,\n            \"fiber_g\": null\n          }\n        }\n      }\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "health_void_record",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/mcp",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "2025-11-25"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 18,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"health_void_record\",\n    \"arguments\": {\n      \"id\": \"{{recordId}}\",\n      \"idempotency_key\": \"{{idempotencyKey}}\",\n      \"expected_version\": 1,\n      \"reason\": \"Void supplied observation\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

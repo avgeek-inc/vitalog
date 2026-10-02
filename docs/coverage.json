@@ -1,0 +1,4619 @@
+{
+  "catalog_version": "1.0.0",
+  "specification_revision": 5,
+  "inventory_counts": {
+    "nutrient_keys": 182,
+    "nutrient_groups": 11,
+    "lab_analyte_keys": 424,
+    "lab_panel_groups": 30,
+    "measurement_keys": 110,
+    "measurement_groups": 8,
+    "record_types": 8,
+    "mcp_tools": 16
+  },
+  "definitions": {
+    "nutrients": [
+      {
+        "key": "energy_kcal",
+        "implemented": true,
+        "unit": "kcal",
+        "test": "Nutrient energy_kcal",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "energy_kj",
+        "implemented": true,
+        "unit": "kJ",
+        "test": "Nutrient energy_kj",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "protein_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient protein_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "fat_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient fat_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "carbohydrate_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient carbohydrate_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "water_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient water_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "ash_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient ash_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "nitrogen_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient nitrogen_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "alcohol_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient alcohol_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "available_carbohydrate_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient available_carbohydrate_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "carbohydrate_by_difference_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient carbohydrate_by_difference_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "starch_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient starch_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "resistant_starch_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient resistant_starch_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "fiber_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient fiber_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "soluble_fiber_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient soluble_fiber_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "insoluble_fiber_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient insoluble_fiber_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "beta_glucan_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient beta_glucan_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "inulin_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient inulin_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "fructooligosaccharides_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient fructooligosaccharides_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "galactooligosaccharides_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient galactooligosaccharides_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "total_sugars_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient total_sugars_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "added_sugars_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient added_sugars_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "free_sugars_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient free_sugars_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "glucose_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient glucose_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "fructose_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient fructose_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "galactose_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient galactose_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "sucrose_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient sucrose_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "lactose_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient lactose_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "maltose_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient maltose_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "trehalose_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient trehalose_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "allulose_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient allulose_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "total_sugar_alcohols_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient total_sugar_alcohols_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "erythritol_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient erythritol_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "sorbitol_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient sorbitol_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "mannitol_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient mannitol_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "xylitol_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient xylitol_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "maltitol_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient maltitol_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "lactitol_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient lactitol_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "isomalt_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient isomalt_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "saturated_fat_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient saturated_fat_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "trans_fat_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient trans_fat_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "monounsaturated_fat_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient monounsaturated_fat_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "polyunsaturated_fat_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient polyunsaturated_fat_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "omega_3_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient omega_3_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "omega_6_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient omega_6_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "omega_9_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient omega_9_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "epa_dha_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient epa_dha_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "cholesterol_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient cholesterol_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "butyric_acid_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient butyric_acid_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "caproic_acid_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient caproic_acid_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "caprylic_acid_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient caprylic_acid_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "capric_acid_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient capric_acid_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "lauric_acid_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient lauric_acid_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "myristic_acid_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient myristic_acid_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "palmitic_acid_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient palmitic_acid_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "stearic_acid_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient stearic_acid_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "arachidic_acid_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient arachidic_acid_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "behenic_acid_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient behenic_acid_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "lignoceric_acid_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient lignoceric_acid_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "palmitoleic_acid_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient palmitoleic_acid_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "oleic_acid_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient oleic_acid_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "eicosenoic_acid_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient eicosenoic_acid_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "erucic_acid_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient erucic_acid_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "nervonic_acid_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient nervonic_acid_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "linoleic_acid_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient linoleic_acid_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "ala_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient ala_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "gamma_linolenic_acid_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient gamma_linolenic_acid_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "arachidonic_acid_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient arachidonic_acid_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "epa_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient epa_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "dpa_n3_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient dpa_n3_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "dha_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient dha_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "cla_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient cla_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "fatty_acid_16_1_undifferentiated_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient fatty_acid_16_1_undifferentiated_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "fatty_acid_18_1_undifferentiated_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient fatty_acid_18_1_undifferentiated_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "fatty_acid_18_2_undifferentiated_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient fatty_acid_18_2_undifferentiated_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "fatty_acid_18_3_undifferentiated_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient fatty_acid_18_3_undifferentiated_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "bcaa_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient bcaa_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "alanine_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient alanine_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "arginine_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient arginine_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "aspartic_acid_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient aspartic_acid_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "asparagine_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient asparagine_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "cysteine_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient cysteine_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "cystine_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient cystine_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "glutamic_acid_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient glutamic_acid_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "glutamine_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient glutamine_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "glycine_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient glycine_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "histidine_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient histidine_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "isoleucine_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient isoleucine_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "leucine_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient leucine_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "lysine_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient lysine_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "methionine_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient methionine_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "phenylalanine_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient phenylalanine_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "proline_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient proline_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "serine_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient serine_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "threonine_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient threonine_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "tryptophan_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient tryptophan_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "tyrosine_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient tyrosine_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "valine_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient valine_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "hydroxyproline_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient hydroxyproline_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "taurine_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient taurine_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "sodium_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient sodium_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "potassium_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient potassium_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "calcium_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient calcium_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "magnesium_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient magnesium_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "phosphorus_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient phosphorus_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "iron_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient iron_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "zinc_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient zinc_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "copper_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient copper_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "manganese_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient manganese_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "selenium_ug",
+        "implemented": true,
+        "unit": "ug",
+        "test": "Nutrient selenium_ug",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "iodine_ug",
+        "implemented": true,
+        "unit": "ug",
+        "test": "Nutrient iodine_ug",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "chloride_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient chloride_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "salt_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient salt_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "salt_equivalent_g",
+        "implemented": true,
+        "unit": "g",
+        "test": "Nutrient salt_equivalent_g",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "chromium_ug",
+        "implemented": true,
+        "unit": "ug",
+        "test": "Nutrient chromium_ug",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "molybdenum_ug",
+        "implemented": true,
+        "unit": "ug",
+        "test": "Nutrient molybdenum_ug",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "fluoride_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient fluoride_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "boron_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient boron_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "cobalt_ug",
+        "implemented": true,
+        "unit": "ug",
+        "test": "Nutrient cobalt_ug",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "nickel_ug",
+        "implemented": true,
+        "unit": "ug",
+        "test": "Nutrient nickel_ug",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "sulfur_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient sulfur_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "vitamin_a_rae_ug",
+        "implemented": true,
+        "unit": "ug",
+        "test": "Nutrient vitamin_a_rae_ug",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "retinol_ug",
+        "implemented": true,
+        "unit": "ug",
+        "test": "Nutrient retinol_ug",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "alpha_carotene_ug",
+        "implemented": true,
+        "unit": "ug",
+        "test": "Nutrient alpha_carotene_ug",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "beta_carotene_ug",
+        "implemented": true,
+        "unit": "ug",
+        "test": "Nutrient beta_carotene_ug",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "beta_cryptoxanthin_ug",
+        "implemented": true,
+        "unit": "ug",
+        "test": "Nutrient beta_cryptoxanthin_ug",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "lycopene_ug",
+        "implemented": true,
+        "unit": "ug",
+        "test": "Nutrient lycopene_ug",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "lutein_ug",
+        "implemented": true,
+        "unit": "ug",
+        "test": "Nutrient lutein_ug",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "zeaxanthin_ug",
+        "implemented": true,
+        "unit": "ug",
+        "test": "Nutrient zeaxanthin_ug",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "lutein_zeaxanthin_ug",
+        "implemented": true,
+        "unit": "ug",
+        "test": "Nutrient lutein_zeaxanthin_ug",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "vitamin_d_ug",
+        "implemented": true,
+        "unit": "ug",
+        "test": "Nutrient vitamin_d_ug",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "vitamin_d2_ug",
+        "implemented": true,
+        "unit": "ug",
+        "test": "Nutrient vitamin_d2_ug",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "vitamin_d3_ug",
+        "implemented": true,
+        "unit": "ug",
+        "test": "Nutrient vitamin_d3_ug",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "vitamin_d_25_oh_d3_ug",
+        "implemented": true,
+        "unit": "ug",
+        "test": "Nutrient vitamin_d_25_oh_d3_ug",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "vitamin_e_alpha_tocopherol_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient vitamin_e_alpha_tocopherol_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "beta_tocopherol_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient beta_tocopherol_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "gamma_tocopherol_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient gamma_tocopherol_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "delta_tocopherol_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient delta_tocopherol_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "alpha_tocotrienol_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient alpha_tocotrienol_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "beta_tocotrienol_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient beta_tocotrienol_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "gamma_tocotrienol_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient gamma_tocotrienol_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "delta_tocotrienol_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient delta_tocotrienol_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "vitamin_k_ug",
+        "implemented": true,
+        "unit": "ug",
+        "test": "Nutrient vitamin_k_ug",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "vitamin_k1_ug",
+        "implemented": true,
+        "unit": "ug",
+        "test": "Nutrient vitamin_k1_ug",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "dihydrophylloquinone_ug",
+        "implemented": true,
+        "unit": "ug",
+        "test": "Nutrient dihydrophylloquinone_ug",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "vitamin_k2_mk4_ug",
+        "implemented": true,
+        "unit": "ug",
+        "test": "Nutrient vitamin_k2_mk4_ug",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "vitamin_k2_mk7_ug",
+        "implemented": true,
+        "unit": "ug",
+        "test": "Nutrient vitamin_k2_mk7_ug",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "vitamin_c_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient vitamin_c_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "thiamin_b1_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient thiamin_b1_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "riboflavin_b2_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient riboflavin_b2_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "niacin_b3_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient niacin_b3_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "niacin_equivalents_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient niacin_equivalents_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "pantothenic_acid_b5_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient pantothenic_acid_b5_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "vitamin_b6_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient vitamin_b6_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "biotin_b7_ug",
+        "implemented": true,
+        "unit": "ug",
+        "test": "Nutrient biotin_b7_ug",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "folate_ug",
+        "implemented": true,
+        "unit": "ug",
+        "test": "Nutrient folate_ug",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "folate_dfe_ug",
+        "implemented": true,
+        "unit": "ug",
+        "test": "Nutrient folate_dfe_ug",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "food_folate_ug",
+        "implemented": true,
+        "unit": "ug",
+        "test": "Nutrient food_folate_ug",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "folic_acid_ug",
+        "implemented": true,
+        "unit": "ug",
+        "test": "Nutrient folic_acid_ug",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "five_mthf_ug",
+        "implemented": true,
+        "unit": "ug",
+        "test": "Nutrient five_mthf_ug",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "vitamin_b12_ug",
+        "implemented": true,
+        "unit": "ug",
+        "test": "Nutrient vitamin_b12_ug",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "choline_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient choline_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "choline_free_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient choline_free_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "choline_from_glycerophosphocholine_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient choline_from_glycerophosphocholine_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "choline_from_phosphocholine_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient choline_from_phosphocholine_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "choline_from_phosphatidylcholine_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient choline_from_phosphatidylcholine_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "choline_from_sphingomyelin_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient choline_from_sphingomyelin_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "betaine_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient betaine_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "caffeine_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient caffeine_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "theobromine_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient theobromine_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "phytosterols_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient phytosterols_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "beta_sitosterol_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient beta_sitosterol_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "campesterol_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient campesterol_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "stigmasterol_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient stigmasterol_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "total_isoflavones_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient total_isoflavones_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "daidzein_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient daidzein_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "genistein_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient genistein_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "glycitein_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient glycitein_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "total_oxalate_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient total_oxalate_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "soluble_oxalate_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient soluble_oxalate_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "phytate_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient phytate_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      },
+      {
+        "key": "total_purines_mg",
+        "implemented": true,
+        "unit": "mg",
+        "test": "Nutrient total_purines_mg",
+        "integration_group": "Every advertised nutrient accepts REST and MCP writes and typed corrections"
+      }
+    ],
+    "lab_analytes": [
+      {
+        "key": "acth",
+        "implemented": true,
+        "test": "Lab acth",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "active_b12_holotranscobalamin",
+        "implemented": true,
+        "test": "Lab active_b12_holotranscobalamin",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "albumin",
+        "implemented": true,
+        "test": "Lab albumin",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "albumin_globulin_ratio",
+        "implemented": true,
+        "test": "Lab albumin_globulin_ratio",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "aldosterone",
+        "implemented": true,
+        "test": "Lab aldosterone",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "aldosterone_renin_ratio",
+        "implemented": true,
+        "test": "Lab aldosterone_renin_ratio",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "allergen_specific_ige",
+        "implemented": true,
+        "test": "Lab allergen_specific_ige",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "alp",
+        "implemented": true,
+        "test": "Lab alp",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "alpha_fetoprotein",
+        "implemented": true,
+        "test": "Lab alpha_fetoprotein",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "alt",
+        "implemented": true,
+        "test": "Lab alt",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "aluminum",
+        "implemented": true,
+        "test": "Lab aluminum",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "amh",
+        "implemented": true,
+        "test": "Lab amh",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "ammonia",
+        "implemented": true,
+        "test": "Lab ammonia",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "amylase",
+        "implemented": true,
+        "test": "Lab amylase",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "ana_pattern",
+        "implemented": true,
+        "test": "Lab ana_pattern",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "ana_screen",
+        "implemented": true,
+        "test": "Lab ana_screen",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "ana_titer",
+        "implemented": true,
+        "test": "Lab ana_titer",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "anca_pattern",
+        "implemented": true,
+        "test": "Lab anca_pattern",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "anca_screen",
+        "implemented": true,
+        "test": "Lab anca_screen",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "anca_titer",
+        "implemented": true,
+        "test": "Lab anca_titer",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "androstenedione",
+        "implemented": true,
+        "test": "Lab androstenedione",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "anion_gap",
+        "implemented": true,
+        "test": "Lab anion_gap",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "anti_beta2_glycoprotein_igg",
+        "implemented": true,
+        "test": "Lab anti_beta2_glycoprotein_igg",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "anti_beta2_glycoprotein_igm",
+        "implemented": true,
+        "test": "Lab anti_beta2_glycoprotein_igm",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "anti_cardiolipin_igg",
+        "implemented": true,
+        "test": "Lab anti_cardiolipin_igg",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "anti_cardiolipin_igm",
+        "implemented": true,
+        "test": "Lab anti_cardiolipin_igm",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "anti_ccp",
+        "implemented": true,
+        "test": "Lab anti_ccp",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "anti_centromere",
+        "implemented": true,
+        "test": "Lab anti_centromere",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "anti_dsdna",
+        "implemented": true,
+        "test": "Lab anti_dsdna",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "anti_factor_xa",
+        "implemented": true,
+        "test": "Lab anti_factor_xa",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "anti_jo1",
+        "implemented": true,
+        "test": "Lab anti_jo1",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "anti_mpo",
+        "implemented": true,
+        "test": "Lab anti_mpo",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "anti_pr3",
+        "implemented": true,
+        "test": "Lab anti_pr3",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "anti_rnp",
+        "implemented": true,
+        "test": "Lab anti_rnp",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "anti_scl70",
+        "implemented": true,
+        "test": "Lab anti_scl70",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "anti_smith",
+        "implemented": true,
+        "test": "Lab anti_smith",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "anti_ssa_ro",
+        "implemented": true,
+        "test": "Lab anti_ssa_ro",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "anti_ssb_la",
+        "implemented": true,
+        "test": "Lab anti_ssb_la",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "antimicrobial_susceptibility",
+        "implemented": true,
+        "test": "Lab antimicrobial_susceptibility",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "antithrombin_activity",
+        "implemented": true,
+        "test": "Lab antithrombin_activity",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "apob_apoa1_ratio",
+        "implemented": true,
+        "test": "Lab apob_apoa1_ratio",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "apolipoprotein_a1",
+        "implemented": true,
+        "test": "Lab apolipoprotein_a1",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "apolipoprotein_b",
+        "implemented": true,
+        "test": "Lab apolipoprotein_b",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "aptt",
+        "implemented": true,
+        "test": "Lab aptt",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "aptt_ratio",
+        "implemented": true,
+        "test": "Lab aptt_ratio",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "arsenic_inorganic",
+        "implemented": true,
+        "test": "Lab arsenic_inorganic",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "arsenic_total",
+        "implemented": true,
+        "test": "Lab arsenic_total",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "ast",
+        "implemented": true,
+        "test": "Lab ast",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "ast_alt_ratio",
+        "implemented": true,
+        "test": "Lab ast_alt_ratio",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "band_neutrophils_absolute",
+        "implemented": true,
+        "test": "Lab band_neutrophils_absolute",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "band_neutrophils_percent",
+        "implemented": true,
+        "test": "Lab band_neutrophils_percent",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "base_excess",
+        "implemented": true,
+        "test": "Lab base_excess",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "basophils_absolute",
+        "implemented": true,
+        "test": "Lab basophils_absolute",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "basophils_percent",
+        "implemented": true,
+        "test": "Lab basophils_percent",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "beta2_microglobulin",
+        "implemented": true,
+        "test": "Lab beta2_microglobulin",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "beta_carotene",
+        "implemented": true,
+        "test": "Lab beta_carotene",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "beta_ctx",
+        "implemented": true,
+        "test": "Lab beta_ctx",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "beta_hydroxybutyrate",
+        "implemented": true,
+        "test": "Lab beta_hydroxybutyrate",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "bicarbonate",
+        "implemented": true,
+        "test": "Lab bicarbonate",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "bile_acids_total",
+        "implemented": true,
+        "test": "Lab bile_acids_total",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "bilirubin_direct",
+        "implemented": true,
+        "test": "Lab bilirubin_direct",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "bilirubin_indirect",
+        "implemented": true,
+        "test": "Lab bilirubin_indirect",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "bilirubin_total",
+        "implemented": true,
+        "test": "Lab bilirubin_total",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "blood_gas_bicarbonate_standard",
+        "implemented": true,
+        "test": "Lab blood_gas_bicarbonate_standard",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "blood_gas_ph",
+        "implemented": true,
+        "test": "Lab blood_gas_ph",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "blood_glucose",
+        "implemented": true,
+        "test": "Lab blood_glucose",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "blood_group_abo",
+        "implemented": true,
+        "test": "Lab blood_group_abo",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "blood_ketones",
+        "implemented": true,
+        "test": "Lab blood_ketones",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "bnp",
+        "implemented": true,
+        "test": "Lab bnp",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "bone_specific_alp",
+        "implemented": true,
+        "test": "Lab bone_specific_alp",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "bun",
+        "implemented": true,
+        "test": "Lab bun",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "bun_creatinine_ratio",
+        "implemented": true,
+        "test": "Lab bun_creatinine_ratio",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "c3_complement",
+        "implemented": true,
+        "test": "Lab c3_complement",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "c4_complement",
+        "implemented": true,
+        "test": "Lab c4_complement",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "c_peptide",
+        "implemented": true,
+        "test": "Lab c_peptide",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "ca_125",
+        "implemented": true,
+        "test": "Lab ca_125",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "ca_15_3",
+        "implemented": true,
+        "test": "Lab ca_15_3",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "ca_19_9",
+        "implemented": true,
+        "test": "Lab ca_19_9",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "cadmium",
+        "implemented": true,
+        "test": "Lab cadmium",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "calcitonin",
+        "implemented": true,
+        "test": "Lab calcitonin",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "calcium_ionized",
+        "implemented": true,
+        "test": "Lab calcium_ionized",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "calcium_total",
+        "implemented": true,
+        "test": "Lab calcium_total",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "calculated_osmolality",
+        "implemented": true,
+        "test": "Lab calculated_osmolality",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "carbamazepine",
+        "implemented": true,
+        "test": "Lab carbamazepine",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "carbon_dioxide_total",
+        "implemented": true,
+        "test": "Lab carbon_dioxide_total",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "carboxyhemoglobin",
+        "implemented": true,
+        "test": "Lab carboxyhemoglobin",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "cea",
+        "implemented": true,
+        "test": "Lab cea",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "ceruloplasmin",
+        "implemented": true,
+        "test": "Lab ceruloplasmin",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "ch50",
+        "implemented": true,
+        "test": "Lab ch50",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "chloride",
+        "implemented": true,
+        "test": "Lab chloride",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "chromium",
+        "implemented": true,
+        "test": "Lab chromium",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "ck_mb_activity",
+        "implemented": true,
+        "test": "Lab ck_mb_activity",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "ck_mb_mass",
+        "implemented": true,
+        "test": "Lab ck_mb_mass",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "copper",
+        "implemented": true,
+        "test": "Lab copper",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "cortisol",
+        "implemented": true,
+        "test": "Lab cortisol",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "cotinine",
+        "implemented": true,
+        "test": "Lab cotinine",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "creatine_kinase",
+        "implemented": true,
+        "test": "Lab creatine_kinase",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "creatinine",
+        "implemented": true,
+        "test": "Lab creatinine",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "creatinine_clearance",
+        "implemented": true,
+        "test": "Lab creatinine_clearance",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "crp",
+        "implemented": true,
+        "test": "Lab crp",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "cyclosporine",
+        "implemented": true,
+        "test": "Lab cyclosporine",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "cystatin_c",
+        "implemented": true,
+        "test": "Lab cystatin_c",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "d_dimer_ddu",
+        "implemented": true,
+        "test": "Lab d_dimer_ddu",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "d_dimer_feu",
+        "implemented": true,
+        "test": "Lab d_dimer_feu",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "deamidated_gliadin_peptide_iga",
+        "implemented": true,
+        "test": "Lab deamidated_gliadin_peptide_iga",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "deamidated_gliadin_peptide_igg",
+        "implemented": true,
+        "test": "Lab deamidated_gliadin_peptide_igg",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "dengue_igg",
+        "implemented": true,
+        "test": "Lab dengue_igg",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "dengue_igm",
+        "implemented": true,
+        "test": "Lab dengue_igm",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "dengue_ns1_antigen",
+        "implemented": true,
+        "test": "Lab dengue_ns1_antigen",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "dheas",
+        "implemented": true,
+        "test": "Lab dheas",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "digoxin",
+        "implemented": true,
+        "test": "Lab digoxin",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "direct_antiglobulin_test",
+        "implemented": true,
+        "test": "Lab direct_antiglobulin_test",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "drvvt_confirm_ratio",
+        "implemented": true,
+        "test": "Lab drvvt_confirm_ratio",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "drvvt_screen_ratio",
+        "implemented": true,
+        "test": "Lab drvvt_screen_ratio",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "egfr",
+        "implemented": true,
+        "test": "Lab egfr",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "egfr_creatinine_cystatin_c",
+        "implemented": true,
+        "test": "Lab egfr_creatinine_cystatin_c",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "egfr_cystatin_c",
+        "implemented": true,
+        "test": "Lab egfr_cystatin_c",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "endomysial_antibody_iga",
+        "implemented": true,
+        "test": "Lab endomysial_antibody_iga",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "eosinophils_absolute",
+        "implemented": true,
+        "test": "Lab eosinophils_absolute",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "eosinophils_percent",
+        "implemented": true,
+        "test": "Lab eosinophils_percent",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "esr",
+        "implemented": true,
+        "test": "Lab esr",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "estimated_average_glucose",
+        "implemented": true,
+        "test": "Lab estimated_average_glucose",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "estradiol",
+        "implemented": true,
+        "test": "Lab estradiol",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "ethanol",
+        "implemented": true,
+        "test": "Lab ethanol",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "fecal_calprotectin",
+        "implemented": true,
+        "test": "Lab fecal_calprotectin",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "fecal_fat_24h",
+        "implemented": true,
+        "test": "Lab fecal_fat_24h",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "fecal_fat_qualitative",
+        "implemented": true,
+        "test": "Lab fecal_fat_qualitative",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "fecal_lactoferrin",
+        "implemented": true,
+        "test": "Lab fecal_lactoferrin",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "fecal_pancreatic_elastase",
+        "implemented": true,
+        "test": "Lab fecal_pancreatic_elastase",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "ferritin",
+        "implemented": true,
+        "test": "Lab ferritin",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "fib4_reported",
+        "implemented": true,
+        "test": "Lab fib4_reported",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "fibrin_degradation_products",
+        "implemented": true,
+        "test": "Lab fibrin_degradation_products",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "fibrinogen_activity",
+        "implemented": true,
+        "test": "Lab fibrinogen_activity",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "fibrinogen_antigen",
+        "implemented": true,
+        "test": "Lab fibrinogen_antigen",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "folate_rbc",
+        "implemented": true,
+        "test": "Lab folate_rbc",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "folate_serum",
+        "implemented": true,
+        "test": "Lab folate_serum",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "free_t3",
+        "implemented": true,
+        "test": "Lab free_t3",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "free_t4",
+        "implemented": true,
+        "test": "Lab free_t4",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "fructosamine",
+        "implemented": true,
+        "test": "Lab fructosamine",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "fsh",
+        "implemented": true,
+        "test": "Lab fsh",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "g6pd_activity",
+        "implemented": true,
+        "test": "Lab g6pd_activity",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "gastrin",
+        "implemented": true,
+        "test": "Lab gastrin",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "gastrointestinal_pathogen_pcr",
+        "implemented": true,
+        "test": "Lab gastrointestinal_pathogen_pcr",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "gentamicin",
+        "implemented": true,
+        "test": "Lab gentamicin",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "ggt",
+        "implemented": true,
+        "test": "Lab ggt",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "globulin",
+        "implemented": true,
+        "test": "Lab globulin",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "glycated_albumin",
+        "implemented": true,
+        "test": "Lab glycated_albumin",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "growth_hormone",
+        "implemented": true,
+        "test": "Lab growth_hormone",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "haptoglobin",
+        "implemented": true,
+        "test": "Lab haptoglobin",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "hba1c",
+        "implemented": true,
+        "test": "Lab hba1c",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "hcg_qualitative",
+        "implemented": true,
+        "test": "Lab hcg_qualitative",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "hcg_quantitative",
+        "implemented": true,
+        "test": "Lab hcg_quantitative",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "hdl_cholesterol",
+        "implemented": true,
+        "test": "Lab hdl_cholesterol",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "hdl_particle_number",
+        "implemented": true,
+        "test": "Lab hdl_particle_number",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "hematocrit",
+        "implemented": true,
+        "test": "Lab hematocrit",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "hemoglobin",
+        "implemented": true,
+        "test": "Lab hemoglobin",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "hemoglobin_a2_percent",
+        "implemented": true,
+        "test": "Lab hemoglobin_a2_percent",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "hemoglobin_a_percent",
+        "implemented": true,
+        "test": "Lab hemoglobin_a_percent",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "hemoglobin_c_percent",
+        "implemented": true,
+        "test": "Lab hemoglobin_c_percent",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "hemoglobin_e_percent",
+        "implemented": true,
+        "test": "Lab hemoglobin_e_percent",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "hemoglobin_f_percent",
+        "implemented": true,
+        "test": "Lab hemoglobin_f_percent",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "hemoglobin_s_percent",
+        "implemented": true,
+        "test": "Lab hemoglobin_s_percent",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "hemoglobin_variant_identification",
+        "implemented": true,
+        "test": "Lab hemoglobin_variant_identification",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "hemolysis_index",
+        "implemented": true,
+        "test": "Lab hemolysis_index",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "hepatitis_a_antibody_total",
+        "implemented": true,
+        "test": "Lab hepatitis_a_antibody_total",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "hepatitis_a_igm",
+        "implemented": true,
+        "test": "Lab hepatitis_a_igm",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "hepatitis_b_core_antibody_igm",
+        "implemented": true,
+        "test": "Lab hepatitis_b_core_antibody_igm",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "hepatitis_b_core_antibody_total",
+        "implemented": true,
+        "test": "Lab hepatitis_b_core_antibody_total",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "hepatitis_b_dna",
+        "implemented": true,
+        "test": "Lab hepatitis_b_dna",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "hepatitis_b_e_antibody",
+        "implemented": true,
+        "test": "Lab hepatitis_b_e_antibody",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "hepatitis_b_e_antigen",
+        "implemented": true,
+        "test": "Lab hepatitis_b_e_antigen",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "hepatitis_b_surface_antibody",
+        "implemented": true,
+        "test": "Lab hepatitis_b_surface_antibody",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "hepatitis_b_surface_antigen",
+        "implemented": true,
+        "test": "Lab hepatitis_b_surface_antigen",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "hepatitis_c_antibody",
+        "implemented": true,
+        "test": "Lab hepatitis_c_antibody",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "hepatitis_c_rna",
+        "implemented": true,
+        "test": "Lab hepatitis_c_rna",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "hiv_1_2_antigen_antibody",
+        "implemented": true,
+        "test": "Lab hiv_1_2_antigen_antibody",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "hiv_1_antibody",
+        "implemented": true,
+        "test": "Lab hiv_1_antibody",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "hiv_1_rna",
+        "implemented": true,
+        "test": "Lab hiv_1_rna",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "hiv_2_antibody",
+        "implemented": true,
+        "test": "Lab hiv_2_antibody",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "homa_ir_reported",
+        "implemented": true,
+        "test": "Lab homa_ir_reported",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "homocysteine",
+        "implemented": true,
+        "test": "Lab homocysteine",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "hs_crp",
+        "implemented": true,
+        "test": "Lab hs_crp",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "hs_troponin_i",
+        "implemented": true,
+        "test": "Lab hs_troponin_i",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "hs_troponin_t",
+        "implemented": true,
+        "test": "Lab hs_troponin_t",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "icterus_index",
+        "implemented": true,
+        "test": "Lab icterus_index",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "igf_1",
+        "implemented": true,
+        "test": "Lab igf_1",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "immature_granulocytes_absolute",
+        "implemented": true,
+        "test": "Lab immature_granulocytes_absolute",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "immature_granulocytes_percent",
+        "implemented": true,
+        "test": "Lab immature_granulocytes_percent",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "immature_reticulocyte_fraction",
+        "implemented": true,
+        "test": "Lab immature_reticulocyte_fraction",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "immunoglobulin_a",
+        "implemented": true,
+        "test": "Lab immunoglobulin_a",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "immunoglobulin_e_total",
+        "implemented": true,
+        "test": "Lab immunoglobulin_e_total",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "immunoglobulin_g",
+        "implemented": true,
+        "test": "Lab immunoglobulin_g",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "immunoglobulin_g1",
+        "implemented": true,
+        "test": "Lab immunoglobulin_g1",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "immunoglobulin_g2",
+        "implemented": true,
+        "test": "Lab immunoglobulin_g2",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "immunoglobulin_g3",
+        "implemented": true,
+        "test": "Lab immunoglobulin_g3",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "immunoglobulin_g4",
+        "implemented": true,
+        "test": "Lab immunoglobulin_g4",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "immunoglobulin_m",
+        "implemented": true,
+        "test": "Lab immunoglobulin_m",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "inhibin_b",
+        "implemented": true,
+        "test": "Lab inhibin_b",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "inr",
+        "implemented": true,
+        "test": "Lab inr",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "insulin",
+        "implemented": true,
+        "test": "Lab insulin",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "iodine",
+        "implemented": true,
+        "test": "Lab iodine",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "ionized_calcium_blood_gas",
+        "implemented": true,
+        "test": "Lab ionized_calcium_blood_gas",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "iron",
+        "implemented": true,
+        "test": "Lab iron",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "lactate",
+        "implemented": true,
+        "test": "Lab lactate",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "ldh",
+        "implemented": true,
+        "test": "Lab ldh",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "ldl_cholesterol",
+        "implemented": true,
+        "test": "Lab ldl_cholesterol",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "ldl_hdl_ratio",
+        "implemented": true,
+        "test": "Lab ldl_hdl_ratio",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "ldl_particle_number",
+        "implemented": true,
+        "test": "Lab ldl_particle_number",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "ldl_particle_size",
+        "implemented": true,
+        "test": "Lab ldl_particle_size",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "lead",
+        "implemented": true,
+        "test": "Lab lead",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "lh",
+        "implemented": true,
+        "test": "Lab lh",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "lipase",
+        "implemented": true,
+        "test": "Lab lipase",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "lipemia_index",
+        "implemented": true,
+        "test": "Lab lipemia_index",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "lipoprotein_a_mass",
+        "implemented": true,
+        "test": "Lab lipoprotein_a_mass",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "lipoprotein_a_molar",
+        "implemented": true,
+        "test": "Lab lipoprotein_a_molar",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "lithium",
+        "implemented": true,
+        "test": "Lab lithium",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "lupus_anticoagulant_screen",
+        "implemented": true,
+        "test": "Lab lupus_anticoagulant_screen",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "lymphocytes_absolute",
+        "implemented": true,
+        "test": "Lab lymphocytes_absolute",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "lymphocytes_percent",
+        "implemented": true,
+        "test": "Lab lymphocytes_percent",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "magnesium",
+        "implemented": true,
+        "test": "Lab magnesium",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "magnesium_rbc",
+        "implemented": true,
+        "test": "Lab magnesium_rbc",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "malaria_parasite_test",
+        "implemented": true,
+        "test": "Lab malaria_parasite_test",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "manganese",
+        "implemented": true,
+        "test": "Lab manganese",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "mch",
+        "implemented": true,
+        "test": "Lab mch",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "mchc",
+        "implemented": true,
+        "test": "Lab mchc",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "mcv",
+        "implemented": true,
+        "test": "Lab mcv",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "measured_osmolality",
+        "implemented": true,
+        "test": "Lab measured_osmolality",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "mercury_total",
+        "implemented": true,
+        "test": "Lab mercury_total",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "metanephrine_free",
+        "implemented": true,
+        "test": "Lab metanephrine_free",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "methemoglobin",
+        "implemented": true,
+        "test": "Lab methemoglobin",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "methylmalonic_acid",
+        "implemented": true,
+        "test": "Lab methylmalonic_acid",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "molybdenum",
+        "implemented": true,
+        "test": "Lab molybdenum",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "monocytes_absolute",
+        "implemented": true,
+        "test": "Lab monocytes_absolute",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "monocytes_percent",
+        "implemented": true,
+        "test": "Lab monocytes_percent",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "mpv",
+        "implemented": true,
+        "test": "Lab mpv",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "myoglobin",
+        "implemented": true,
+        "test": "Lab myoglobin",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "neutrophils_absolute",
+        "implemented": true,
+        "test": "Lab neutrophils_absolute",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "neutrophils_percent",
+        "implemented": true,
+        "test": "Lab neutrophils_percent",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "non_hdl_cholesterol",
+        "implemented": true,
+        "test": "Lab non_hdl_cholesterol",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "normetanephrine_free",
+        "implemented": true,
+        "test": "Lab normetanephrine_free",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "nt_probnp",
+        "implemented": true,
+        "test": "Lab nt_probnp",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "nucleated_rbc_absolute",
+        "implemented": true,
+        "test": "Lab nucleated_rbc_absolute",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "nucleated_rbc_per_100_wbc",
+        "implemented": true,
+        "test": "Lab nucleated_rbc_per_100_wbc",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "organism_culture_identification",
+        "implemented": true,
+        "test": "Lab organism_culture_identification",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "osteocalcin",
+        "implemented": true,
+        "test": "Lab osteocalcin",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "oxygen_content",
+        "implemented": true,
+        "test": "Lab oxygen_content",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "oxygen_saturation_blood_gas",
+        "implemented": true,
+        "test": "Lab oxygen_saturation_blood_gas",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "pancreatic_amylase",
+        "implemented": true,
+        "test": "Lab pancreatic_amylase",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "parathyroid_hormone_intact",
+        "implemented": true,
+        "test": "Lab parathyroid_hormone_intact",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "parathyroid_hormone_whole",
+        "implemented": true,
+        "test": "Lab parathyroid_hormone_whole",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "partial_pressure_carbon_dioxide",
+        "implemented": true,
+        "test": "Lab partial_pressure_carbon_dioxide",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "partial_pressure_oxygen",
+        "implemented": true,
+        "test": "Lab partial_pressure_oxygen",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "pathogen_nucleic_acid",
+        "implemented": true,
+        "test": "Lab pathogen_nucleic_acid",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "pdw",
+        "implemented": true,
+        "test": "Lab pdw",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "peripheral_smear_findings",
+        "implemented": true,
+        "test": "Lab peripheral_smear_findings",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "phenytoin_free",
+        "implemented": true,
+        "test": "Lab phenytoin_free",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "phenytoin_total",
+        "implemented": true,
+        "test": "Lab phenytoin_total",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "phosphate",
+        "implemented": true,
+        "test": "Lab phosphate",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "platelet_count",
+        "implemented": true,
+        "test": "Lab platelet_count",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "platelet_large_cell_ratio",
+        "implemented": true,
+        "test": "Lab platelet_large_cell_ratio",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "platelet_morphology",
+        "implemented": true,
+        "test": "Lab platelet_morphology",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "plateletcrit",
+        "implemented": true,
+        "test": "Lab plateletcrit",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "potassium",
+        "implemented": true,
+        "test": "Lab potassium",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "prealbumin",
+        "implemented": true,
+        "test": "Lab prealbumin",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "procalcitonin",
+        "implemented": true,
+        "test": "Lab procalcitonin",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "procollagen_type_1_n_terminal_propeptide",
+        "implemented": true,
+        "test": "Lab procollagen_type_1_n_terminal_propeptide",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "progesterone",
+        "implemented": true,
+        "test": "Lab progesterone",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "prolactin",
+        "implemented": true,
+        "test": "Lab prolactin",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "protein_c_activity",
+        "implemented": true,
+        "test": "Lab protein_c_activity",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "protein_s_activity",
+        "implemented": true,
+        "test": "Lab protein_s_activity",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "prothrombin_time",
+        "implemented": true,
+        "test": "Lab prothrombin_time",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "psa_free",
+        "implemented": true,
+        "test": "Lab psa_free",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "psa_free_total_ratio",
+        "implemented": true,
+        "test": "Lab psa_free_total_ratio",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "psa_total",
+        "implemented": true,
+        "test": "Lab psa_total",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "rbc_count",
+        "implemented": true,
+        "test": "Lab rbc_count",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "rbc_morphology",
+        "implemented": true,
+        "test": "Lab rbc_morphology",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "rdw_cv",
+        "implemented": true,
+        "test": "Lab rdw_cv",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "rdw_sd",
+        "implemented": true,
+        "test": "Lab rdw_sd",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "red_cell_antibody_identification",
+        "implemented": true,
+        "test": "Lab red_cell_antibody_identification",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "red_cell_antibody_screen",
+        "implemented": true,
+        "test": "Lab red_cell_antibody_screen",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "remnant_cholesterol",
+        "implemented": true,
+        "test": "Lab remnant_cholesterol",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "renin_activity",
+        "implemented": true,
+        "test": "Lab renin_activity",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "renin_concentration",
+        "implemented": true,
+        "test": "Lab renin_concentration",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "respiratory_pathogen_pcr",
+        "implemented": true,
+        "test": "Lab respiratory_pathogen_pcr",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "reticulocyte_hemoglobin",
+        "implemented": true,
+        "test": "Lab reticulocyte_hemoglobin",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "reticulocytes_absolute",
+        "implemented": true,
+        "test": "Lab reticulocytes_absolute",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "reticulocytes_percent",
+        "implemented": true,
+        "test": "Lab reticulocytes_percent",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "reverse_t3",
+        "implemented": true,
+        "test": "Lab reverse_t3",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "rhd_type",
+        "implemented": true,
+        "test": "Lab rhd_type",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "rheumatoid_factor",
+        "implemented": true,
+        "test": "Lab rheumatoid_factor",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "rpr_qualitative",
+        "implemented": true,
+        "test": "Lab rpr_qualitative",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "rpr_titer",
+        "implemented": true,
+        "test": "Lab rpr_titer",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "selenium",
+        "implemented": true,
+        "test": "Lab selenium",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "semen_leukocytes",
+        "implemented": true,
+        "test": "Lab semen_leukocytes",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "semen_liquefaction_time",
+        "implemented": true,
+        "test": "Lab semen_liquefaction_time",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "semen_ph",
+        "implemented": true,
+        "test": "Lab semen_ph",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "semen_viscosity",
+        "implemented": true,
+        "test": "Lab semen_viscosity",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "semen_volume",
+        "implemented": true,
+        "test": "Lab semen_volume",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "seventeen_hydroxyprogesterone",
+        "implemented": true,
+        "test": "Lab seventeen_hydroxyprogesterone",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "shbg",
+        "implemented": true,
+        "test": "Lab shbg",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "sirolimus",
+        "implemented": true,
+        "test": "Lab sirolimus",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "small_ldl_particle_number",
+        "implemented": true,
+        "test": "Lab small_ldl_particle_number",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "sodium",
+        "implemented": true,
+        "test": "Lab sodium",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "soluble_transferrin_receptor",
+        "implemented": true,
+        "test": "Lab soluble_transferrin_receptor",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "sperm_agglutination",
+        "implemented": true,
+        "test": "Lab sperm_agglutination",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "sperm_concentration",
+        "implemented": true,
+        "test": "Lab sperm_concentration",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "sperm_dna_fragmentation_index",
+        "implemented": true,
+        "test": "Lab sperm_dna_fragmentation_index",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "sperm_immotile_percent",
+        "implemented": true,
+        "test": "Lab sperm_immotile_percent",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "sperm_nonprogressive_motility",
+        "implemented": true,
+        "test": "Lab sperm_nonprogressive_motility",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "sperm_normal_morphology",
+        "implemented": true,
+        "test": "Lab sperm_normal_morphology",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "sperm_progressive_motility",
+        "implemented": true,
+        "test": "Lab sperm_progressive_motility",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "sperm_total_count",
+        "implemented": true,
+        "test": "Lab sperm_total_count",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "sperm_total_motility",
+        "implemented": true,
+        "test": "Lab sperm_total_motility",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "sperm_vitality",
+        "implemented": true,
+        "test": "Lab sperm_vitality",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "stool_clostridioides_difficile_toxin",
+        "implemented": true,
+        "test": "Lab stool_clostridioides_difficile_toxin",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "stool_collection_duration",
+        "implemented": true,
+        "test": "Lab stool_collection_duration",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "stool_collection_mass",
+        "implemented": true,
+        "test": "Lab stool_collection_mass",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "stool_helicobacter_pylori_antigen",
+        "implemented": true,
+        "test": "Lab stool_helicobacter_pylori_antigen",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "stool_hemoglobin_fit",
+        "implemented": true,
+        "test": "Lab stool_hemoglobin_fit",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "stool_occult_blood_guaiac",
+        "implemented": true,
+        "test": "Lab stool_occult_blood_guaiac",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "stool_ova_parasites",
+        "implemented": true,
+        "test": "Lab stool_ova_parasites",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "stool_ph",
+        "implemented": true,
+        "test": "Lab stool_ph",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "stool_rbc",
+        "implemented": true,
+        "test": "Lab stool_rbc",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "stool_reducing_substances",
+        "implemented": true,
+        "test": "Lab stool_reducing_substances",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "stool_wbc",
+        "implemented": true,
+        "test": "Lab stool_wbc",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "syphilis_treponemal_antibody",
+        "implemented": true,
+        "test": "Lab syphilis_treponemal_antibody",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "tacrolimus",
+        "implemented": true,
+        "test": "Lab tacrolimus",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "testosterone_bioavailable",
+        "implemented": true,
+        "test": "Lab testosterone_bioavailable",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "testosterone_free",
+        "implemented": true,
+        "test": "Lab testosterone_free",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "testosterone_total",
+        "implemented": true,
+        "test": "Lab testosterone_total",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "thrombin_time",
+        "implemented": true,
+        "test": "Lab thrombin_time",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "thyroglobulin",
+        "implemented": true,
+        "test": "Lab thyroglobulin",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "thyroglobulin_antibodies",
+        "implemented": true,
+        "test": "Lab thyroglobulin_antibodies",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "thyroid_stimulating_immunoglobulin",
+        "implemented": true,
+        "test": "Lab thyroid_stimulating_immunoglobulin",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "tibc",
+        "implemented": true,
+        "test": "Lab tibc",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "tissue_transglutaminase_iga",
+        "implemented": true,
+        "test": "Lab tissue_transglutaminase_iga",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "tissue_transglutaminase_igg",
+        "implemented": true,
+        "test": "Lab tissue_transglutaminase_igg",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "total_cholesterol",
+        "implemented": true,
+        "test": "Lab total_cholesterol",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "total_cholesterol_hdl_ratio",
+        "implemented": true,
+        "test": "Lab total_cholesterol_hdl_ratio",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "total_protein",
+        "implemented": true,
+        "test": "Lab total_protein",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "total_t3",
+        "implemented": true,
+        "test": "Lab total_t3",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "total_t4",
+        "implemented": true,
+        "test": "Lab total_t4",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "tpo_antibodies",
+        "implemented": true,
+        "test": "Lab tpo_antibodies",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "transferrin",
+        "implemented": true,
+        "test": "Lab transferrin",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "transferrin_saturation",
+        "implemented": true,
+        "test": "Lab transferrin_saturation",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "triglyceride_hdl_ratio",
+        "implemented": true,
+        "test": "Lab triglyceride_hdl_ratio",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "triglycerides",
+        "implemented": true,
+        "test": "Lab triglycerides",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "troponin_i",
+        "implemented": true,
+        "test": "Lab troponin_i",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "troponin_t",
+        "implemented": true,
+        "test": "Lab troponin_t",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "tsh",
+        "implemented": true,
+        "test": "Lab tsh",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "tsh_receptor_antibodies",
+        "implemented": true,
+        "test": "Lab tsh_receptor_antibodies",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "uibc",
+        "implemented": true,
+        "test": "Lab uibc",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urea",
+        "implemented": true,
+        "test": "Lab urea",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "uric_acid",
+        "implemented": true,
+        "test": "Lab uric_acid",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_albumin",
+        "implemented": true,
+        "test": "Lab urine_albumin",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_albumin_creatinine_ratio",
+        "implemented": true,
+        "test": "Lab urine_albumin_creatinine_ratio",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_albumin_excretion_rate",
+        "implemented": true,
+        "test": "Lab urine_albumin_excretion_rate",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_bacteria",
+        "implemented": true,
+        "test": "Lab urine_bacteria",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_bilirubin",
+        "implemented": true,
+        "test": "Lab urine_bilirubin",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_blood",
+        "implemented": true,
+        "test": "Lab urine_blood",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_calcium_24h",
+        "implemented": true,
+        "test": "Lab urine_calcium_24h",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_calcium_concentration",
+        "implemented": true,
+        "test": "Lab urine_calcium_concentration",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_clarity",
+        "implemented": true,
+        "test": "Lab urine_clarity",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_collection_duration",
+        "implemented": true,
+        "test": "Lab urine_collection_duration",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_collection_volume",
+        "implemented": true,
+        "test": "Lab urine_collection_volume",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_color",
+        "implemented": true,
+        "test": "Lab urine_color",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_cortisol_free_24h",
+        "implemented": true,
+        "test": "Lab urine_cortisol_free_24h",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_creatinine",
+        "implemented": true,
+        "test": "Lab urine_creatinine",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_creatinine_24h",
+        "implemented": true,
+        "test": "Lab urine_creatinine_24h",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_crystals",
+        "implemented": true,
+        "test": "Lab urine_crystals",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_glucose",
+        "implemented": true,
+        "test": "Lab urine_glucose",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_granular_casts",
+        "implemented": true,
+        "test": "Lab urine_granular_casts",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_hyaline_casts",
+        "implemented": true,
+        "test": "Lab urine_hyaline_casts",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_ketones",
+        "implemented": true,
+        "test": "Lab urine_ketones",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_leukocyte_esterase",
+        "implemented": true,
+        "test": "Lab urine_leukocyte_esterase",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_mucus",
+        "implemented": true,
+        "test": "Lab urine_mucus",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_nitrite",
+        "implemented": true,
+        "test": "Lab urine_nitrite",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_osmolality",
+        "implemented": true,
+        "test": "Lab urine_osmolality",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_ph",
+        "implemented": true,
+        "test": "Lab urine_ph",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_phosphate_24h",
+        "implemented": true,
+        "test": "Lab urine_phosphate_24h",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_phosphate_concentration",
+        "implemented": true,
+        "test": "Lab urine_phosphate_concentration",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_potassium_24h",
+        "implemented": true,
+        "test": "Lab urine_potassium_24h",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_potassium_concentration",
+        "implemented": true,
+        "test": "Lab urine_potassium_concentration",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_protein",
+        "implemented": true,
+        "test": "Lab urine_protein",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_protein_24h",
+        "implemented": true,
+        "test": "Lab urine_protein_24h",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_protein_concentration",
+        "implemented": true,
+        "test": "Lab urine_protein_concentration",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_protein_creatinine_ratio",
+        "implemented": true,
+        "test": "Lab urine_protein_creatinine_ratio",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_rbc",
+        "implemented": true,
+        "test": "Lab urine_rbc",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_rbc_casts",
+        "implemented": true,
+        "test": "Lab urine_rbc_casts",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_renal_epithelial_cells",
+        "implemented": true,
+        "test": "Lab urine_renal_epithelial_cells",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_sodium_24h",
+        "implemented": true,
+        "test": "Lab urine_sodium_24h",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_sodium_concentration",
+        "implemented": true,
+        "test": "Lab urine_sodium_concentration",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_specific_gravity",
+        "implemented": true,
+        "test": "Lab urine_specific_gravity",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_squamous_epithelial_cells",
+        "implemented": true,
+        "test": "Lab urine_squamous_epithelial_cells",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_transitional_epithelial_cells",
+        "implemented": true,
+        "test": "Lab urine_transitional_epithelial_cells",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_urea_nitrogen_24h",
+        "implemented": true,
+        "test": "Lab urine_urea_nitrogen_24h",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_uric_acid_24h",
+        "implemented": true,
+        "test": "Lab urine_uric_acid_24h",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_uric_acid_concentration",
+        "implemented": true,
+        "test": "Lab urine_uric_acid_concentration",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_urobilinogen",
+        "implemented": true,
+        "test": "Lab urine_urobilinogen",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_waxy_casts",
+        "implemented": true,
+        "test": "Lab urine_waxy_casts",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_wbc",
+        "implemented": true,
+        "test": "Lab urine_wbc",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_wbc_casts",
+        "implemented": true,
+        "test": "Lab urine_wbc_casts",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "urine_yeast",
+        "implemented": true,
+        "test": "Lab urine_yeast",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "valproic_acid_free",
+        "implemented": true,
+        "test": "Lab valproic_acid_free",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "valproic_acid_total",
+        "implemented": true,
+        "test": "Lab valproic_acid_total",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "vancomycin",
+        "implemented": true,
+        "test": "Lab vancomycin",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "vitamin_a_retinol",
+        "implemented": true,
+        "test": "Lab vitamin_a_retinol",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "vitamin_b12",
+        "implemented": true,
+        "test": "Lab vitamin_b12",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "vitamin_b1_thiamine",
+        "implemented": true,
+        "test": "Lab vitamin_b1_thiamine",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "vitamin_b1_thiamine_diphosphate",
+        "implemented": true,
+        "test": "Lab vitamin_b1_thiamine_diphosphate",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "vitamin_b2_riboflavin",
+        "implemented": true,
+        "test": "Lab vitamin_b2_riboflavin",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "vitamin_b6_pyridoxal_phosphate",
+        "implemented": true,
+        "test": "Lab vitamin_b6_pyridoxal_phosphate",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "vitamin_c",
+        "implemented": true,
+        "test": "Lab vitamin_c",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "vitamin_d_1_25_dihydroxy",
+        "implemented": true,
+        "test": "Lab vitamin_d_1_25_dihydroxy",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "vitamin_d_25_oh_d2",
+        "implemented": true,
+        "test": "Lab vitamin_d_25_oh_d2",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "vitamin_d_25_oh_d3",
+        "implemented": true,
+        "test": "Lab vitamin_d_25_oh_d3",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "vitamin_d_25_oh_total",
+        "implemented": true,
+        "test": "Lab vitamin_d_25_oh_total",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "vitamin_e_alpha_tocopherol",
+        "implemented": true,
+        "test": "Lab vitamin_e_alpha_tocopherol",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "vitamin_e_gamma_tocopherol",
+        "implemented": true,
+        "test": "Lab vitamin_e_gamma_tocopherol",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "vitamin_k1",
+        "implemented": true,
+        "test": "Lab vitamin_k1",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "vldl_cholesterol",
+        "implemented": true,
+        "test": "Lab vldl_cholesterol",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "wbc_count",
+        "implemented": true,
+        "test": "Lab wbc_count",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "wbc_morphology",
+        "implemented": true,
+        "test": "Lab wbc_morphology",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      },
+      {
+        "key": "zinc",
+        "implemented": true,
+        "test": "Lab zinc",
+        "integration_group": "All 424 analytes, overlapping panels, typed uncommon results and corrections round-trip through REST/MCP"
+      }
+    ],
+    "measurements": [
+      {
+        "key": "weight",
+        "implemented": true,
+        "test": "Measurement weight",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "height",
+        "implemented": true,
+        "test": "Measurement height",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "waist_circumference",
+        "implemented": true,
+        "test": "Measurement waist_circumference",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "hip_circumference",
+        "implemented": true,
+        "test": "Measurement hip_circumference",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "chest_circumference",
+        "implemented": true,
+        "test": "Measurement chest_circumference",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "neck_circumference",
+        "implemented": true,
+        "test": "Measurement neck_circumference",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "upper_arm_circumference",
+        "implemented": true,
+        "test": "Measurement upper_arm_circumference",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "thigh_circumference",
+        "implemented": true,
+        "test": "Measurement thigh_circumference",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "calf_circumference",
+        "implemented": true,
+        "test": "Measurement calf_circumference",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "body_fat_percent",
+        "implemented": true,
+        "test": "Measurement body_fat_percent",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "fat_mass",
+        "implemented": true,
+        "test": "Measurement fat_mass",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "lean_mass",
+        "implemented": true,
+        "test": "Measurement lean_mass",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "fat_free_mass",
+        "implemented": true,
+        "test": "Measurement fat_free_mass",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "skeletal_muscle_mass",
+        "implemented": true,
+        "test": "Measurement skeletal_muscle_mass",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "appendicular_lean_mass",
+        "implemented": true,
+        "test": "Measurement appendicular_lean_mass",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "body_water_percent",
+        "implemented": true,
+        "test": "Measurement body_water_percent",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "total_body_water",
+        "implemented": true,
+        "test": "Measurement total_body_water",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "intracellular_water",
+        "implemented": true,
+        "test": "Measurement intracellular_water",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "extracellular_water",
+        "implemented": true,
+        "test": "Measurement extracellular_water",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "extracellular_total_water_ratio",
+        "implemented": true,
+        "test": "Measurement extracellular_total_water_ratio",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "visceral_fat_area",
+        "implemented": true,
+        "test": "Measurement visceral_fat_area",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "visceral_fat_level",
+        "implemented": true,
+        "test": "Measurement visceral_fat_level",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "segmental_fat_mass",
+        "implemented": true,
+        "test": "Measurement segmental_fat_mass",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "segmental_lean_mass",
+        "implemented": true,
+        "test": "Measurement segmental_lean_mass",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "segmental_body_fat_percent",
+        "implemented": true,
+        "test": "Measurement segmental_body_fat_percent",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "phase_angle",
+        "implemented": true,
+        "test": "Measurement phase_angle",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "skinfold_thickness",
+        "implemented": true,
+        "test": "Measurement skinfold_thickness",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "bmi",
+        "implemented": true,
+        "test": "Measurement bmi",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "waist_hip_ratio",
+        "implemented": true,
+        "test": "Measurement waist_hip_ratio",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "waist_height_ratio",
+        "implemented": true,
+        "test": "Measurement waist_height_ratio",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "fat_mass_index",
+        "implemented": true,
+        "test": "Measurement fat_mass_index",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "fat_free_mass_index",
+        "implemented": true,
+        "test": "Measurement fat_free_mass_index",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "appendicular_lean_mass_index",
+        "implemented": true,
+        "test": "Measurement appendicular_lean_mass_index",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "body_surface_area",
+        "implemented": true,
+        "test": "Measurement body_surface_area",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "blood_pressure",
+        "implemented": true,
+        "test": "Measurement blood_pressure",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "heart_rate",
+        "implemented": true,
+        "test": "Measurement heart_rate",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "heart_rate_recovery",
+        "implemented": true,
+        "test": "Measurement heart_rate_recovery",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "hrv_sdnn",
+        "implemented": true,
+        "test": "Measurement hrv_sdnn",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "hrv_rmssd",
+        "implemented": true,
+        "test": "Measurement hrv_rmssd",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "hrv_pnn50",
+        "implemented": true,
+        "test": "Measurement hrv_pnn50",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "pulse_pressure",
+        "implemented": true,
+        "test": "Measurement pulse_pressure",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "mean_arterial_pressure",
+        "implemented": true,
+        "test": "Measurement mean_arterial_pressure",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "pulse_wave_velocity",
+        "implemented": true,
+        "test": "Measurement pulse_wave_velocity",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "ankle_brachial_index",
+        "implemented": true,
+        "test": "Measurement ankle_brachial_index",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "pr_interval",
+        "implemented": true,
+        "test": "Measurement pr_interval",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "qrs_duration",
+        "implemented": true,
+        "test": "Measurement qrs_duration",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "qt_interval",
+        "implemented": true,
+        "test": "Measurement qt_interval",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "qtc_interval",
+        "implemented": true,
+        "test": "Measurement qtc_interval",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "p_axis",
+        "implemented": true,
+        "test": "Measurement p_axis",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "qrs_axis",
+        "implemented": true,
+        "test": "Measurement qrs_axis",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "t_axis",
+        "implemented": true,
+        "test": "Measurement t_axis",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "atrial_fibrillation_burden",
+        "implemented": true,
+        "test": "Measurement atrial_fibrillation_burden",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "premature_ventricular_contraction_count",
+        "implemented": true,
+        "test": "Measurement premature_ventricular_contraction_count",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "left_ventricular_ejection_fraction",
+        "implemented": true,
+        "test": "Measurement left_ventricular_ejection_fraction",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "global_longitudinal_strain",
+        "implemented": true,
+        "test": "Measurement global_longitudinal_strain",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "oxygen_saturation",
+        "implemented": true,
+        "test": "Measurement oxygen_saturation",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "respiratory_rate",
+        "implemented": true,
+        "test": "Measurement respiratory_rate",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "body_temperature",
+        "implemented": true,
+        "test": "Measurement body_temperature",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "skin_temperature",
+        "implemented": true,
+        "test": "Measurement skin_temperature",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "skin_temperature_deviation",
+        "implemented": true,
+        "test": "Measurement skin_temperature_deviation",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "peripheral_perfusion_index",
+        "implemented": true,
+        "test": "Measurement peripheral_perfusion_index",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "peak_expiratory_flow",
+        "implemented": true,
+        "test": "Measurement peak_expiratory_flow",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "fev1",
+        "implemented": true,
+        "test": "Measurement fev1",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "fvc",
+        "implemented": true,
+        "test": "Measurement fvc",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "fev1_fvc_ratio",
+        "implemented": true,
+        "test": "Measurement fev1_fvc_ratio",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "fev1_vc_ratio",
+        "implemented": true,
+        "test": "Measurement fev1_vc_ratio",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "fef25_75",
+        "implemented": true,
+        "test": "Measurement fef25_75",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "slow_vital_capacity",
+        "implemented": true,
+        "test": "Measurement slow_vital_capacity",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "total_lung_capacity",
+        "implemented": true,
+        "test": "Measurement total_lung_capacity",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "residual_volume",
+        "implemented": true,
+        "test": "Measurement residual_volume",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "functional_residual_capacity",
+        "implemented": true,
+        "test": "Measurement functional_residual_capacity",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "diffusing_capacity_co",
+        "implemented": true,
+        "test": "Measurement diffusing_capacity_co",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "carbon_monoxide_transfer_coefficient",
+        "implemented": true,
+        "test": "Measurement carbon_monoxide_transfer_coefficient",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "fractional_exhaled_nitric_oxide",
+        "implemented": true,
+        "test": "Measurement fractional_exhaled_nitric_oxide",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "blood_glucose",
+        "implemented": true,
+        "test": "Measurement blood_glucose",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "interstitial_glucose",
+        "implemented": true,
+        "test": "Measurement interstitial_glucose",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "blood_beta_hydroxybutyrate",
+        "implemented": true,
+        "test": "Measurement blood_beta_hydroxybutyrate",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "blood_ketones",
+        "implemented": true,
+        "test": "Measurement blood_ketones",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "breath_acetone",
+        "implemented": true,
+        "test": "Measurement breath_acetone",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "vo2_max_absolute",
+        "implemented": true,
+        "test": "Measurement vo2_max_absolute",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "vo2_max_relative",
+        "implemented": true,
+        "test": "Measurement vo2_max_relative",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "ventilatory_threshold_oxygen_uptake",
+        "implemented": true,
+        "test": "Measurement ventilatory_threshold_oxygen_uptake",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "ventilatory_threshold_heart_rate",
+        "implemented": true,
+        "test": "Measurement ventilatory_threshold_heart_rate",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "ventilatory_threshold_power",
+        "implemented": true,
+        "test": "Measurement ventilatory_threshold_power",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "grip_strength",
+        "implemented": true,
+        "test": "Measurement grip_strength",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "gait_speed",
+        "implemented": true,
+        "test": "Measurement gait_speed",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "six_minute_walk_distance",
+        "implemented": true,
+        "test": "Measurement six_minute_walk_distance",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "timed_up_and_go_duration",
+        "implemented": true,
+        "test": "Measurement timed_up_and_go_duration",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "sit_to_stand_repetitions",
+        "implemented": true,
+        "test": "Measurement sit_to_stand_repetitions",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "sit_to_stand_duration",
+        "implemented": true,
+        "test": "Measurement sit_to_stand_duration",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "single_leg_stance_duration",
+        "implemented": true,
+        "test": "Measurement single_leg_stance_duration",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "bone_mineral_density_areal",
+        "implemented": true,
+        "test": "Measurement bone_mineral_density_areal",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "bone_mineral_content",
+        "implemented": true,
+        "test": "Measurement bone_mineral_content",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "bone_density_t_score",
+        "implemented": true,
+        "test": "Measurement bone_density_t_score",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "bone_density_z_score",
+        "implemented": true,
+        "test": "Measurement bone_density_z_score",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "visual_acuity_snellen",
+        "implemented": true,
+        "test": "Measurement visual_acuity_snellen",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "visual_acuity_logmar",
+        "implemented": true,
+        "test": "Measurement visual_acuity_logmar",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "intraocular_pressure",
+        "implemented": true,
+        "test": "Measurement intraocular_pressure",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "spherical_refraction",
+        "implemented": true,
+        "test": "Measurement spherical_refraction",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "cylindrical_refraction",
+        "implemented": true,
+        "test": "Measurement cylindrical_refraction",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "refraction_axis",
+        "implemented": true,
+        "test": "Measurement refraction_axis",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "hearing_threshold",
+        "implemented": true,
+        "test": "Measurement hearing_threshold",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "cgm_summary",
+        "implemented": true,
+        "test": "Measurement cgm_summary",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "ambulatory_bp_summary",
+        "implemented": true,
+        "test": "Measurement ambulatory_bp_summary",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "spirometry_summary",
+        "implemented": true,
+        "test": "Measurement spirometry_summary",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "body_composition_summary",
+        "implemented": true,
+        "test": "Measurement body_composition_summary",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "dxa_summary",
+        "implemented": true,
+        "test": "Measurement dxa_summary",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "ecg_summary",
+        "implemented": true,
+        "test": "Measurement ecg_summary",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "echocardiography_summary",
+        "implemented": true,
+        "test": "Measurement echocardiography_summary",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      },
+      {
+        "key": "functional_test_summary",
+        "implemented": true,
+        "test": "Measurement functional_test_summary",
+        "integration_group": "All 110 measurement keys accept both transports, corrections and component projections"
+      }
+    ]
+  },
+  "record_types": [
+    "measurement",
+    "nutrition",
+    "hydration",
+    "activity",
+    "sleep",
+    "checkin",
+    "intake",
+    "lab_result"
+  ],
+  "operation_parity": [
+    {
+      "tool": "health_get_context",
+      "method": "GET",
+      "path": "/v1/context",
+      "shared_domain_service": true
+    },
+    {
+      "tool": "health_get_daily_summary",
+      "method": "GET",
+      "path": "/v1/days/{date}",
+      "shared_domain_service": true
+    },
+    {
+      "tool": "health_get_trends",
+      "method": "GET",
+      "path": "/v1/trends",
+      "shared_domain_service": true
+    },
+    {
+      "tool": "health_list_records",
+      "method": "GET",
+      "path": "/v1/records",
+      "shared_domain_service": true
+    },
+    {
+      "tool": "health_get_record",
+      "method": "GET",
+      "path": "/v1/records/{id}",
+      "shared_domain_service": true
+    },
+    {
+      "tool": "health_get_catalog",
+      "method": "GET",
+      "path": "/v1/catalog",
+      "shared_domain_service": true
+    },
+    {
+      "tool": "health_log_measurements",
+      "method": "POST",
+      "path": "/v1/measurements",
+      "shared_domain_service": true
+    },
+    {
+      "tool": "health_log_nutrition",
+      "method": "POST",
+      "path": "/v1/nutrition",
+      "shared_domain_service": true
+    },
+    {
+      "tool": "health_log_hydration",
+      "method": "POST",
+      "path": "/v1/hydration",
+      "shared_domain_service": true
+    },
+    {
+      "tool": "health_log_activity",
+      "method": "POST",
+      "path": "/v1/activities",
+      "shared_domain_service": true
+    },
+    {
+      "tool": "health_log_sleep",
+      "method": "POST",
+      "path": "/v1/sleep",
+      "shared_domain_service": true
+    },
+    {
+      "tool": "health_log_checkin",
+      "method": "POST",
+      "path": "/v1/checkins",
+      "shared_domain_service": true
+    },
+    {
+      "tool": "health_log_intake",
+      "method": "POST",
+      "path": "/v1/intakes",
+      "shared_domain_service": true
+    },
+    {
+      "tool": "health_log_lab_results",
+      "method": "POST",
+      "path": "/v1/lab-results",
+      "shared_domain_service": true
+    },
+    {
+      "tool": "health_correct_record",
+      "method": "POST",
+      "path": "/v1/records/{id}/corrections",
+      "shared_domain_service": true
+    },
+    {
+      "tool": "health_void_record",
+      "method": "POST",
+      "path": "/v1/records/{id}/voids",
+      "shared_domain_service": true
+    }
+  ],
+  "test_evidence": "docs/verification-report.json contains the captured executed run; npm run test:integration regenerates .test-artifacts/verification.json.",
+  "intentionally_unsupported_calculations": [
+    "clinical diagnoses",
+    "nutrient estimation",
+    "IU or elemental-moiety inference",
+    "laboratory unit normalization",
+    "interval arithmetic",
+    "proprietary scores",
+    "predictions"
+  ],
+  "remaining_unsupported_required_branches": []
+}

@@ -1,0 +1,6 @@
+$kind: http-request
+id: 3f256d9a-7996-5808-80f7-16241e391480
+method: GET
+url: "{{baseUrl}}/healthz"
+headers:
+  Accept: application/json

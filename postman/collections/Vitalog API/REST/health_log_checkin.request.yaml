@@ -1,0 +1,34 @@
+$kind: http-request
+id: c845b614-9f20-5150-878e-f9152f713670
+description: Save one supplied checkin observation. Actual recorded events only.
+  Use health_get_catalog for exact fields and units; do not infer missing
+  values.
+method: POST
+url: "{{baseUrl}}/v1/checkins"
+headers:
+  Accept: application/json
+  Content-Type: application/json
+  Idempotency-Key: "{{idempotencyKey}}"
+body:
+  type: json
+  content: |-
+    {
+      "occurred_on": "2026-09-10",
+      "timezone": "Asia/Kolkata",
+      "provenance": {
+        "source_type": "manual",
+        "value_kind": "reported"
+      },
+      "data": {
+        "ratings": {
+          "energy": {
+            "value": 7,
+            "scale": "reported_energy",
+            "lower": 0,
+            "upper": 10,
+            "meaning": "Higher means more energy"
+          }
+        }
+      }
+    }
+order: 12000
