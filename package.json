@@ -33,8 +33,9 @@
     "verify": "npm run typecheck && npm run build:web && npm run test && npm run docs:check && npm run towbar:check && npm run plugin:package && npm run format:check",
     "operator:export": "node --env-file-if-exists=.env --import tsx scripts/export.ts",
     "operator:erase": "node --env-file-if-exists=.env --import tsx scripts/erase.ts",
-    "build:api": "tsc -p tsconfig.build.json",
-    "start:web": "npm run start --workspace @vitalog/web"
+    "build:api": "tsc --noCheck -p tsconfig.build.json",
+    "start:web": "npm run start --workspace @vitalog/web",
+    "test:build-budget": "tsx scripts/build-budget-verification.ts"
   },
   "dependencies": {
     "@hono/node-server": "2.1.3",
