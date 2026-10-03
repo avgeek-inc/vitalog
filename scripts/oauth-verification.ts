@@ -281,6 +281,7 @@ try {
         ["code_challenge_method", "plain", "invalid_request"],
         ["scope", "health:admin", "invalid_scope"],
         ["unexpected", "value", "invalid_request"],
+        ["__proto__", "value", "invalid_request"],
       ]) {
         const params = new URLSearchParams(baseline);
         params.set(field!, value!);
@@ -774,6 +775,10 @@ try {
       );
       assert.equal(
         (await exchange(grant, { unused: "value" })).response.status,
+        400,
+      );
+      assert.equal(
+        (await exchange(grant, { ["__proto__"]: "value" })).response.status,
         400,
       );
       assert.equal(

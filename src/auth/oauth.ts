@@ -59,7 +59,7 @@ class OAuthError extends Error {
   }
 }
 function parameters(search: URLSearchParams) {
-  const output: Record<string, string> = {};
+  const output: Record<string, string> = Object.create(null);
   for (const [name, value] of search) {
     if (Object.hasOwn(output, name))
       throw new OAuthError("invalid_request", "Use each parameter once");
