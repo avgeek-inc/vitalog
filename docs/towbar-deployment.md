@@ -1,53 +1,55 @@
 # Deploy with Towbar
 
-The repository declares a `production` environment in [towbar.yml](../towbar.yml), a [PostgreSQL datastore](../.towbar/datastores/vitalog-postgres.datastore.yml), and a [Vitalog Dockerfile service](../.towbar/services/vitalog.service.yml). Both workloads and the image build target **Praveen Apps**, `13.204.184.47`. Vitalog's public hostname is **vitalog.praveent.com**.
+The repository declares a production environment in [towbar.yml](../towbar.yml), the existing [PostgreSQL datastore](../.towbar/datastores/vitalog-postgres.datastore.yml), the [Hono API](../.towbar/services/vitalog.service.yml), and a separate [Next.js UI](../.towbar/services/vitalog-web.service.yml). All three workloads and image builds target **Praveen Apps**, `13.204.184.47`.
 
-The server is an ARM64 `t4g.small` with two CPUs and about 2 GiB of RAM. The API has a 512 MiB limit and PostgreSQL has a 256 MiB limit, each capped at 0.5 CPU. Image builds use one CPU and 512 MiB. PostgreSQL uses 64 MiB shared buffers, up to 30 connections, 4 MiB work memory and 32 MiB maintenance memory. Vitalog's pool has five connections. Check live server capacity before deployment or increasing these limits.
+| Service            | Public address                     | Build                         | Runtime limit    |
+| ------------------ | ---------------------------------- | ----------------------------- | ---------------- |
+| Vitalog UI         | `https://vitalog.praveent.com`     | `apps/web/Dockerfile`         | 256 MiB, 0.5 CPU |
+| Vitalog API        | `https://vitalog-api.praveent.com` | `Dockerfile`                  | 512 MiB, 0.5 CPU |
+| Vitalog PostgreSQL | Private network only               | Pinned PostgreSQL 17.11 image | 256 MiB, 0.5 CPU |
 
-## Connect and configure
+Builds run one at a time: the API build has 512 MiB and the Next.js build has 768 MiB. The API retains its manifest ID `vitalog` and private network alias; PostgreSQL retains `vitalog-postgres`, its existing workload and persistent volume. The UI has no database connection and requires no private API alias. PostgreSQL uses 64 MiB shared buffers and at most 30 connections; the API pool uses five.
 
-1. Merge the Towbar configuration into `main`, connect the private GitHub repository in Towbar, and map `production` to `main`.
-2. Sync the repository. This creates desired configuration; it does not start either workload. Both files disable automatic deployment so the database can be initialized before the API.
-3. Save the following production runtime values under **Vitalog PostgreSQL → Settings → Secrets**:
+## Runtime configuration
 
-| Key                 | Value                                                         |
-| ------------------- | ------------------------------------------------------------- |
-| `POSTGRES_USER`     | `vitalog`                                                     |
-| `POSTGRES_DB`       | `vitalog`                                                     |
-| `POSTGRES_PASSWORD` | A new password supplied through the operator's secret manager |
+Keep existing API `AUTH_KEY`, `ROOT_EMAIL`, `ROOT_PASSWORD` and `DATABASE_URL` values. Update only public routing configuration, and add the two non-sensitive origins to the UI. The UI has no root credentials, primary token or database password.
 
-Save these production runtime values under **Vitalog → Settings → Secrets**:
+| API runtime key   | Value                                                         |
+| ----------------- | ------------------------------------------------------------- |
+| `AUTH_KEY`        | Existing operator-created primary token                       |
+| `ROOT_EMAIL`      | Existing root email                                           |
+| `ROOT_PASSWORD`   | Existing root password                                        |
+| `DATABASE_URL`    | Existing private PostgreSQL URL using `vitalog-postgres:5432` |
+| `ALLOWED_HOSTS`   | `vitalog-api.praveent.com,127.0.0.1:3000,vitalog:3000`        |
+| `PUBLIC_BASE_URL` | `https://vitalog-api.praveent.com`                            |
+| `UI_BASE_URL`     | `https://vitalog.praveent.com`                                |
 
-| Key             | Value                                                                                                 |
-| --------------- | ----------------------------------------------------------------------------------------------------- |
-| `AUTH_KEY`      | An operator-created secret from at least 32 random bytes, using the encoding documented in the README |
-| `ROOT_EMAIL`    | The email used to authenticate API-key generation                                                     |
-| `ROOT_PASSWORD` | A distinct root password of at least 15 non-padding characters and at most 256 UTF-8 bytes            |
-| `DATABASE_URL`  | `postgresql://vitalog:<URL-encoded password>@vitalog-postgres:5432/vitalog`                           |
-| `ALLOWED_HOSTS` | `vitalog.praveent.com,127.0.0.1:3000,vitalog:3000`                                                    |
+| UI runtime key | Value                              |
+| -------------- | ---------------------------------- |
+| `API_BASE_URL` | `https://vitalog-api.praveent.com` |
+| `UI_BASE_URL`  | `https://vitalog.praveent.com`     |
 
-The password in `DATABASE_URL` must match the datastore password. URL-encode it; a random hexadecimal password needs no escaping. Commit only the declared key names, never their values. Initialization variables apply only to a new PostgreSQL volume. Changing a saved password later also requires rotating it in PostgreSQL.
+The existing datastore bindings remain `POSTGRES_USER`, `POSTGRES_DB` and `POSTGRES_PASSWORD`. Do not replace the volume or rotate database credentials to perform this split. The application applies forward Drizzle migrations before serving traffic, including the OAuth migrations already in this branch.
 
-The image supplies production mode and port 3000. The default timezone is `Asia/Kolkata`. Forwarded client addresses remain untrusted by default; enable proxy trust only with the exact immediate peer addresses required by the README. The generation page at `/api-keys` accepts its own HTTPS origin without additional configuration. Other browser clients must be explicitly allowed through `ALLOWED_ORIGINS`.
+## Rollout
 
-## Deploy and verify
+1. Merge the verified change and sync the source's production environment on `main`. Inspect the successful immutable sync and confirm it declares all three workloads.
+2. Set the API public origins/host list and UI runtime origins using the current secret-slot revisions. Preserve existing credential bindings.
+3. Deploy the API first. Its successful rollout moves ingress from `vitalog.praveent.com` to `vitalog-api.praveent.com` and removes the old route. The API uses a singleton recreate rollout with authenticated database readiness; expect a brief interruption during this step.
+4. Deploy the UI to claim `vitalog.praveent.com`. Towbar's Cloudflare integration provisions DNS and TLS for both domains. The UI checks `/healthz`, which validates its runtime origin configuration. Its stateless rollout does not require the database.
+5. Inspect both deployment IDs to terminal success. Verify public TLS and `/healthz` on each domain; inspect API OAuth discovery and unauthenticated MCP challenges; render `/api-keys` on the UI. Check both workload runtime states and operational logs.
+6. Update REST clients and upload the rebuilt plugin using `https://vitalog-api.praveent.com/mcp`. Reconnect existing OAuth connections: changing the resource host changes their audience. Existing manual API keys, ledger records and database history are preserved.
 
-1. Deploy **Vitalog PostgreSQL** and wait for engine readiness. Towbar owns the persistent PostgreSQL volume. The datastore has no public domain or SSH-tunnel port.
-2. Deploy **Vitalog**. The existing Dockerfile builds an ARM64 image, runs as UID 1000, and applies the checked-in Drizzle migrations before listening. A migration failure prevents startup.
-3. Wait for Towbar's command readiness check. It calls `/readyz` inside the candidate with the runtime key and an allowed Host header, and fails if PostgreSQL is unavailable. The command contains key names, with values read from the container environment. It does not print credentials.
-4. Towbar's enabled Cloudflare integration manages DNS and TLS for `vitalog.praveent.com`. Public routing exposes the API's port 3000 through the proxy. `/healthz` is the minimal public liveness probe; `/readyz`, `/v1`, `/mcp` and `/openapi.json` require authentication.
-5. Verify HTTPS liveness, authenticated readiness, catalog discovery and an official MCP client connection. A new datastore is empty. Use synthetic writes only in a disposable environment; a production logging request changes the real ledger.
-6. Configure encrypted backup storage, retention and restore drills using the [backup and erasure procedures](../README.md#export-backups-and-erasure) before storing real health data. No backup destination is invented by these manifests.
+The brief gap between API route migration and UI promotion is intentional. A rollback must restore the previous API public configuration and free the UI hostname before an older API release can reclaim it. Rolling back application code does not undo committed Drizzle migrations.
 
-The service uses a recreate rollout for command readiness, with maintenance mode for its stable private network alias. Towbar stops the previous release before replacement. Requests can be briefly interrupted; retry an interrupted mutation with its original idempotency key. Deploying an older image does not reverse database migrations or restore erased records.
-
-## Repository checks
+## Verification
 
 ```sh
 npm run towbar:check
+npm run test:container
 npm run test:towbar
 ```
 
-`towbar:check` uses the pinned [official schemas](../schemas/towbar/README.md), checks environment and network references, and compiles the health command without executing it. Towbar performs the complete infrastructure validation on sync.
+`towbar:check` validates all three manifests against pinned official schemas, domain separation, the UI's credential-free runtime keys, private database network and Dockerfile paths. `test:container` runs production API/UI images as separate non-root containers with read-only filesystems. It verifies real Next.js routes and local assets, script nonces/CSP, absence of API credentials in the UI, exact-origin preflight, generated-key use/revocation, migrated database readiness and REST/MCP durability. `test:towbar` repeats this with the manifests' resource limits, PostgreSQL image/tuning, aliases and readiness command, including database failure and recovery.
 
-`test:towbar` starts disposable local Docker containers with the manifest's runtime limits, PostgreSQL image and tuning, network aliases and readiness command. It verifies REST/MCP durability, the public Host allowlist, database failure and recovery, and operational log privacy. The [checked-in report](towbar-report.json) records 18 passed checks. It does not connect the repository in Towbar, deploy to Praveen Apps, create DNS records or issue a certificate. Fresh reports are written to ignored `.test-artifacts/towbar.json`; CI uploads that report.
+Fresh reports are written to ignored `.test-artifacts/` and uploaded by CI. Historical checked-in container/Towbar reports describe the earlier single-service run; they do not prove this split, a production deployment, DNS/TLS, or a successful ChatGPT account connection.

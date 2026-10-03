@@ -12,6 +12,7 @@ import type { Service } from "./service.js";
 import type { Data } from "./domain/types.js";
 import { hash } from "./domain/canonical.js";
 import { boundedResponse } from "./domain/catalog.js";
+import { oauthChallenge } from "./auth/oauth.js";
 
 const annotations = (operation: (typeof operations)[number]) => ({
   readOnlyHint: !operation.mutation,
@@ -41,7 +42,10 @@ const toolMetadata = operations.map((operation) => ({
   annotations: annotations(operation),
 }));
 
-export function mcpServer(service: Service): McpServer {
+export function mcpServer(
+  service: Service,
+  oauth?: { issuer: string; scopes?: string[] },
+): McpServer {
   const server = new McpServer(
     { name: "vitalog", version: "1.0.0" },
     {
@@ -53,6 +57,26 @@ export function mcpServer(service: Service): McpServer {
     try {
       const operation = operations.find((item) => item.name === name);
       if (!operation) throw new DomainError("NOT_FOUND", "Unknown domain tool");
+      if (
+        oauth?.scopes &&
+        !oauth.scopes.includes(
+          operation.mutation ? "health:write" : "health:read",
+        )
+      )
+        return {
+          isError: true,
+          content: [
+            {
+              type: "text" as const,
+              text: "This connection does not have permission for this operation",
+            },
+          ],
+          _meta: {
+            "mcp/www_authenticate": [
+              oauthChallenge(oauth.issuer, "insufficient_scope"),
+            ],
+          },
+        };
       const output = await service.execute(name, args);
       operation.output.parse(output);
       return {
@@ -79,6 +103,20 @@ export function mcpServer(service: Service): McpServer {
         inputSchema: operation.input,
         outputSchema: operation.output,
         annotations: annotations(operation),
+        ...(oauth
+          ? {
+              _meta: {
+                securitySchemes: [
+                  {
+                    type: "oauth2",
+                    scopes: [
+                      operation.mutation ? "health:write" : "health:read",
+                    ],
+                  },
+                ],
+              },
+            }
+          : {}),
       },
       async (args) => call(operation.name, args as Data),
     );
@@ -88,7 +126,20 @@ export function mcpServer(service: Service): McpServer {
   );
   // Local references preserve complete schemas and avoid duplicating hundreds of nested field definitions.
   server.server.setRequestHandler(ListToolsRequestSchema, async () =>
-    boundedResponse({ tools: toolMetadata }),
+    boundedResponse({
+      tools: toolMetadata.map((tool, index) => {
+        if (!oauth) return tool;
+        const securitySchemes = [
+          {
+            type: "oauth2",
+            scopes: [
+              operations[index]!.mutation ? "health:write" : "health:read",
+            ],
+          },
+        ];
+        return { ...tool, securitySchemes, _meta: { securitySchemes } };
+      }),
+    }),
   );
   return server;
 }
@@ -96,6 +147,7 @@ export async function handleMcp(
   request: Request,
   service: Service,
   config: Config,
+  scopes?: string[],
 ): Promise<Response> {
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
@@ -105,7 +157,10 @@ export async function handleMcp(
     allowedOrigins: config.allowedOrigins,
     maxRequestBodySize: 1024 * 1024,
   });
-  const server = mcpServer(service);
+  const server = mcpServer(
+    service,
+    config.publicBaseUrl ? { issuer: config.publicBaseUrl, scopes } : undefined,
+  );
   await server.connect(transport);
   try {
     return await transport.handleRequest(request);

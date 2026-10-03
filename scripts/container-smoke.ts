@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
+import { get } from "node:http";
 import { resolve } from "node:path";
 import { parse, stringify } from "yaml";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
@@ -22,6 +23,7 @@ type RuntimeManifest = {
 };
 let service: RuntimeManifest | undefined;
 let datastore: RuntimeManifest | undefined;
+let web: RuntimeManifest | undefined;
 let override: string | undefined;
 if (towbar) {
   await import("./validate-towbar.js");
@@ -31,12 +33,19 @@ if (towbar) {
   datastore = parse(
     await readFile(".towbar/datastores/vitalog-postgres.datastore.yml", "utf8"),
   ) as RuntimeManifest;
+  web = parse(
+    await readFile(".towbar/services/vitalog-web.service.yml", "utf8"),
+  ) as RuntimeManifest;
   await mkdir(".test-artifacts", { recursive: true });
   override = resolve(`.test-artifacts/towbar-compose-${process.pid}.yaml`);
   await writeFile(
     override,
     stringify({
       services: {
+        web: {
+          mem_limit: web.container.resources.memory,
+          cpus: web.container.resources.cpus,
+        },
         api: {
           build: { context: resolve(".") },
           mem_limit: service.container.resources.memory,
@@ -79,6 +88,17 @@ const publishedPort = address.port;
 await new Promise<void>((resolve, reject) =>
   reservation.close((error) => (error ? reject(error) : resolve())),
 );
+const uiReservation = createServer();
+await new Promise<void>((resolve) =>
+  uiReservation.listen(0, "127.0.0.1", resolve),
+);
+const uiAddress = uiReservation.address();
+assert(uiAddress && typeof uiAddress === "object");
+const uiPort = uiAddress.port;
+await new Promise<void>((resolve, reject) =>
+  uiReservation.close((error) => (error ? reject(error) : resolve())),
+);
+const uiUrl = `http://127.0.0.1:${uiPort}`;
 const env = {
   ...process.env,
   AUTH_KEY: key,
@@ -86,6 +106,11 @@ const env = {
   ROOT_PASSWORD: randomBytes(32).toString("base64url"),
   POSTGRES_PASSWORD: randomBytes(32).toString("hex"),
   PORT: String(publishedPort),
+  UI_PORT: String(uiPort),
+  UI_BASE_URL: uiUrl,
+  API_BASE_URL: `http://127.0.0.1:${publishedPort}`,
+  PUBLIC_BASE_URL: `http://127.0.0.1:${publishedPort}`,
+  VITALOG_WEB_IMAGE: `${project}-web:local`,
   ALLOWED_HOSTS: [service?.domains?.primary, `127.0.0.1:${publishedPort}`]
     .filter(Boolean)
     .join(","),
@@ -116,31 +141,119 @@ try {
   const port = compose(["port", "api", "3000"]).split(":").at(-1)!;
   const url = `http://127.0.0.1:${port}`;
   const headers = { Authorization: `Bearer ${key}` };
-  const page = await fetch(url + "/api-keys");
-  assert.equal(page.status, 200);
-  assert.equal(page.headers.get("cache-control"), "no-store");
-  const pageHtml = await page.text();
-  const pageAssets = [
-    ...pageHtml.matchAll(/(?:src|href)="(\/api-key-ui\/assets\/[^"\s]+)"/g),
-  ];
-  assert(pageAssets.some(([, path]) => path!.endsWith(".js")));
-  assert(pageAssets.some(([, path]) => path!.endsWith(".css")));
-  for (const [, path] of pageAssets) {
-    const asset = await fetch(url + path, { headers: { Origin: url } });
-    assert.equal(asset.status, 200);
-    assert.match(
-      asset.headers.get("content-type")!,
-      path!.endsWith(".css") ? /text\/css/ : /javascript/,
-    );
-    await asset.text();
+  const oldPage = await fetch(url + "/api-keys", { redirect: "manual" });
+  assert.equal(oldPage.status, 302);
+  assert.equal(oldPage.headers.get("location"), uiUrl + "/api-keys");
+  for (const route of ["/api-keys", "/oauth/authorize"]) {
+    const page = await fetch(uiUrl + route);
+    assert.equal(page.status, 200);
+    assert.match(page.headers.get("cache-control")!, /no-store/);
+    const csp = page.headers.get("content-security-policy")!;
+    assert.match(csp, /script-src 'self' 'nonce-/);
+    assert.match(csp, /form-action 'none'/);
+    assert.match(csp, /frame-ancestors 'none'/);
+    assert(csp.includes(env.API_BASE_URL));
+    const nonce = /'nonce-([^']+)'/.exec(csp)![1];
+    const html = await page.text();
+    assert(html.includes("/brand/vitalog-mark.png"));
+    assert(html.includes(env.API_BASE_URL));
+    for (const secret of [
+      key,
+      env.ROOT_PASSWORD,
+      env.ROOT_EMAIL,
+      env.POSTGRES_PASSWORD,
+    ])
+      assert(!html.includes(secret));
+    for (const script of html.matchAll(/<script([^>]*)>/g))
+      assert(
+        script[1]!.includes(`nonce="${nonce}"`),
+        "Every script requires the request nonce",
+      );
+    const assets = [
+      ...new Set(
+        [...html.matchAll(/(?:src|href)="(\/_next\/static\/[^"\s]+)"/g)].map(
+          (match) => match[1]!,
+        ),
+      ),
+    ];
+    assert(assets.some((path) => path.endsWith(".js")));
+    assert(assets.some((path) => path.endsWith(".css")));
+    for (const path of assets) {
+      const asset = await fetch(uiUrl + path);
+      assert.equal(asset.status, 200);
+      const content = await asset.text();
+      for (const secret of [
+        key,
+        env.ROOT_PASSWORD,
+        env.ROOT_EMAIL,
+        env.POSTGRES_PASSWORD,
+      ])
+        assert(!content.includes(secret));
+    }
   }
+  const logo = await fetch(uiUrl + "/brand/vitalog-mark.png");
+  assert.equal(logo.status, 200);
+  assert.equal(
+    Buffer.from(await logo.arrayBuffer())
+      .subarray(0, 8)
+      .toString("hex"),
+    "89504e470d0a1a0a",
+  );
+  assert.equal((await fetch(uiUrl + "/v1/catalog")).status, 404);
+  const untrustedHost = await new Promise<number | undefined>(
+    (resolve, reject) => {
+      get(
+        uiUrl + "/api-keys",
+        { headers: { Host: "untrusted.example" } },
+        (response) => {
+          response.resume();
+          resolve(response.statusCode);
+        },
+      ).on("error", reject);
+    },
+  );
+  assert.equal(untrustedHost, 403);
+  assert.equal(compose(["exec", "--no-TTY", "web", "id", "-u"]), "1000");
+  const uiSettings = JSON.parse(
+    docker([
+      "inspect",
+      "--format",
+      "{{json .Config.Env}}",
+      compose(["ps", "--quiet", "web"]),
+    ]),
+  ) as string[];
+  for (const name of [
+    "AUTH_KEY",
+    "ROOT_EMAIL",
+    "ROOT_PASSWORD",
+    "DATABASE_URL",
+  ])
+    assert(!uiSettings.some((value) => value.startsWith(name + "=")));
+  assert.equal(
+    docker([
+      "inspect",
+      "--format",
+      "{{.HostConfig.ReadonlyRootfs}}",
+      compose(["ps", "--quiet", "web"]),
+    ]),
+    "true",
+  );
+  const preflight = await fetch(url + "/auth/api-keys", {
+    method: "OPTIONS",
+    headers: {
+      Origin: uiUrl,
+      "Access-Control-Request-Method": "POST",
+      "Access-Control-Request-Headers": "content-type",
+    },
+  });
+  assert.equal(preflight.status, 204);
+  assert.equal(preflight.headers.get("access-control-allow-origin"), uiUrl);
   const issued = await fetch(url + "/auth/api-keys", {
     method: "POST",
-    headers: { "Content-Type": "application/json", Origin: url },
+    headers: { "Content-Type": "application/json", Origin: uiUrl },
     body: JSON.stringify({
       email: env.ROOT_EMAIL,
       password: env.ROOT_PASSWORD,
-      name: "Container smoke",
     }),
   });
   assert.equal(issued.status, 201);
@@ -188,6 +301,7 @@ try {
     for (const [name, manifest] of [
       ["api", service],
       ["postgres", datastore],
+      ["web", web!],
     ] as const) {
       const settings = JSON.parse(
         docker([
@@ -335,7 +449,10 @@ try {
     image: env.VITALOG_IMAGE,
     postgres_image: datastore?.image ?? "postgres:17.11-bookworm",
     checks: [
-      "fresh Compose service/database startup and automatic migrations",
+      "fresh Compose API/UI/database startup and automatic migrations",
+      "separate Next.js authentication routes, nonce CSP and trusted browser origin",
+      "UI container non-root, read-only and contains no API credentials",
+      "UI compiled assets and logo with no configured secrets",
       "empty database",
       "non-root UID 1000",
       "read-only root filesystem",

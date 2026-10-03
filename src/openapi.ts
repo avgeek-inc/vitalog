@@ -3,6 +3,7 @@ import { operations, restBody } from "./registry/operations.js";
 import { jsonSchema } from "./registry/primitives.js";
 import type { Data } from "./domain/types.js";
 import { keyOperations } from "./auth/contracts.js";
+import { oauthPaths } from "./auth/oauth-docs.js";
 export function openapi(): Data {
   const paths: Data = {};
   for (const operation of operations) {
@@ -200,13 +201,14 @@ export function openapi(): Data {
   }
   paths["/api-keys"] = {
     get: {
-      summary: "Root credential form for generating a 30-day API key",
+      summary: "Redirect to the separate API-key creation UI",
       security: [],
       responses: {
-        "200": {
-          description: "API key generation page",
-          content: { "text/html": { schema: { type: "string" } } },
+        "302": {
+          description: "Redirect to UI_BASE_URL/api-keys",
+          headers: { Location: { schema: { type: "string", format: "uri" } } },
         },
+        "404": { description: "UI_BASE_URL is not configured" },
       },
     },
   };
@@ -240,17 +242,28 @@ export function openapi(): Data {
       title: "Vitalog",
       version: "1.0.0",
       description:
-        "Single-user structured observations with equivalent REST and MCP domain services. Environment AUTH_KEY or revocable 30-day opaque Bearer keys; key management requires AUTH_KEY. No OAuth or JWT.",
+        "Single-user structured observations with equivalent REST and MCP domain services. Environment AUTH_KEY or revocable 30-day opaque Bearer keys; key management requires AUTH_KEY. ChatGPT uses OAuth authorization code with S256 PKCE, issued after root sign-in. OAuth tokens grant MCP access only.",
     },
     servers: [
+      {
+        url: "https://vitalog-api.praveent.com",
+        description: "Production REST and MCP API",
+      },
       {
         url: "http://localhost:3000",
         description: "Loopback development; production requires TLS ingress",
       },
     ],
-    paths,
+    paths: { ...paths, ...oauthPaths },
     components: {
       securitySchemes: {
+        oauthFlowCookie: {
+          type: "apiKey",
+          in: "cookie",
+          name: "__Secure-vitalog-oauth",
+          description:
+            "Signed HttpOnly consent-flow cookie from /oauth/authorize, valid for five minutes. Loopback development uses vitalog-oauth.",
+        },
         staticKey: {
           type: "http",
           scheme: "bearer",

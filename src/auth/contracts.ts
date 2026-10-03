@@ -6,11 +6,9 @@ export const keyCreation = z.strictObject({
     .string()
     .min(1)
     .refine((value) => Buffer.byteLength(value) <= 256),
-  name: z.string().trim().min(1).max(80).optional(),
 });
 export const keyMetadata = z.strictObject({
   id: z.uuid(),
-  name: z.string(),
   token_hint: z.string(),
   created_at: z.iso.datetime(),
   expires_at: z.iso.datetime(),
@@ -53,7 +51,7 @@ export const keyOperations = [
     path: "/v1/api-keys",
     status: "200",
     description:
-      "List generated key metadata, including expiry and revocation status. Requires the environment AUTH_KEY; never returns keys or hashes.",
+      "List generated API keys and OAuth connection metadata, including expiry and revocation status. Requires the environment AUTH_KEY; never returns keys, tokens or hashes.",
     rootOnly: true,
     input: keyListQuery,
     output: keyList,
@@ -64,7 +62,7 @@ export const keyOperations = [
     path: "/v1/api-keys/{id}",
     status: "200",
     description:
-      "Revoke a generated API key by ID. Already revoked keys return their metadata. Requires the environment AUTH_KEY.",
+      "Revoke a generated API key or OAuth connection by ID. Already revoked records return their metadata. Requires the environment AUTH_KEY.",
     rootOnly: true,
     output: keyMetadata,
   },
@@ -74,7 +72,7 @@ export const keyOperations = [
     path: "/v1/api-keys",
     status: "200",
     description:
-      "Revoke all currently unrevoked generated keys, including expired keys. The environment AUTH_KEY is unaffected.",
+      "Revoke all currently unrevoked generated API keys and OAuth connections, including expired records, and cancel pending authorization codes. The environment AUTH_KEY is unaffected.",
     rootOnly: true,
     output: keysRevoked,
   },

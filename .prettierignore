@@ -11,4 +11,6 @@ postman/**/*.yaml
 drizzle/meta/
 dist/
 node_modules/
+.next/
+apps/web/next-env.d.ts
 schemas/towbar/*.json

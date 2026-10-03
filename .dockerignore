@@ -8,5 +8,6 @@ postman
 tests
 coverage
 .test-artifacts
+.next
 *.dump
 *.backup

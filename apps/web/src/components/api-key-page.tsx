@@ -1,3 +1,5 @@
+"use client";
+
 import {
   Button,
   Card,
@@ -7,24 +9,24 @@ import {
   Label,
   TextArea,
   TextField,
+  toast,
 } from "@heroui/react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Brand } from "./brand";
 
 type GeneratedKey = { api_key: string; expires_at: string };
 
 function generationError(status: number) {
-  if (status === 401) return "Check your email and password and try again.";
+  if (status === 401) return "Invalid credentials";
   if (status === 429) return "Too many attempts. Wait a minute and try again.";
   if (status === 503)
     return "Key generation is unavailable. Check the root configuration.";
   return "The key could not be generated. Try again.";
 }
 
-export function ApiKeyPage() {
+export function ApiKeyPage({ apiBaseUrl }: { apiBaseUrl: string }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [error, setError] = useState<string>();
   const [invalidCredentials, setInvalidCredentials] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<GeneratedKey>();
@@ -49,24 +51,18 @@ export function ApiKeyPage() {
     return () => window.removeEventListener("pagehide", clearSecrets);
   }, []);
 
-  function clearError() {
-    setError(undefined);
-    setInvalidCredentials(false);
-  }
-
   async function generate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isSubmitting) return;
-    clearError();
+    setInvalidCredentials(false);
     setIsSubmitting(true);
     try {
-      const response = await fetch("/auth/api-keys", {
+      const response = await fetch(apiBaseUrl + "/auth/api-keys", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email,
           password,
-          ...(name.trim() ? { name: name.trim() } : {}),
         }),
         credentials: "omit",
         cache: "no-store",
@@ -74,13 +70,13 @@ export function ApiKeyPage() {
       });
       if (!response.ok) {
         setInvalidCredentials(response.status === 401);
-        setError(generationError(response.status));
+        toast.danger(generationError(response.status));
         return;
       }
       const data: GeneratedKey = await response.json();
       setResult({ api_key: data.api_key, expires_at: data.expires_at });
     } catch {
-      setError("Unable to connect. Check your connection and try again.");
+      toast.danger("Unable to connect. Check your connection and try again.");
     } finally {
       setPassword("");
       setIsSubmitting(false);
@@ -108,17 +104,17 @@ export function ApiKeyPage() {
   return (
     <main className="key-page">
       <div className="key-page-content">
-        <div className="brand">Vitalog</div>
+        <Brand />
         <Card className="key-card" aria-label="API key generation">
-          <Card.Header className="gap-2">
+          <Card.Header className="key-card-header gap-2">
             <h1 className="page-title">
               {result ? "Your API key is ready" : "Generate an API key"}
             </h1>
-            <Card.Description className="text-base leading-6">
-              {result
-                ? "Copy this key now. It will only be shown once."
-                : "Sign in with your root credentials to create a key valid for 30 days."}
-            </Card.Description>
+            {result ? (
+              <Card.Description className="text-base leading-6">
+                Copy this key now. It will only be shown once.
+              </Card.Description>
+            ) : null}
           </Card.Header>
           <Card.Content>
             {result ? (
@@ -171,7 +167,7 @@ export function ApiKeyPage() {
             ) : (
               <Form
                 className="grid gap-5"
-                action="/auth/api-keys"
+                action={apiBaseUrl + "/auth/api-keys"}
                 method="post"
                 onSubmit={generate}
                 aria-busy={isSubmitting}
@@ -186,15 +182,11 @@ export function ApiKeyPage() {
                   value={email}
                   onChange={(value) => {
                     setEmail(value);
-                    clearError();
+                    setInvalidCredentials(false);
                   }}
                 >
                   <Label>Root email</Label>
-                  <Input
-                    variant="secondary"
-                    maxLength={254}
-                    aria-describedby={error ? "form-error" : undefined}
-                  />
+                  <Input variant="secondary" maxLength={254} />
                   {!isSubmitting ? <FieldError /> : null}
                 </TextField>
                 <TextField
@@ -207,7 +199,7 @@ export function ApiKeyPage() {
                   value={password}
                   onChange={(value) => {
                     setPassword(value);
-                    clearError();
+                    setInvalidCredentials(false);
                   }}
                 >
                   <Label>Root password</Label>
@@ -215,39 +207,9 @@ export function ApiKeyPage() {
                     ref={passwordInput}
                     variant="secondary"
                     maxLength={256}
-                    aria-describedby={error ? "form-error" : undefined}
                   />
                   {!isSubmitting ? <FieldError /> : null}
                 </TextField>
-                <TextField
-                  name="name"
-                  autoComplete="off"
-                  isDisabled={isSubmitting}
-                  value={name}
-                  onChange={(value) => {
-                    setName(value);
-                    clearError();
-                  }}
-                >
-                  <Label>
-                    Key name{" "}
-                    <span className="font-normal text-muted">(optional)</span>
-                  </Label>
-                  <Input
-                    variant="secondary"
-                    maxLength={80}
-                    placeholder="For example, personal automation"
-                  />
-                </TextField>
-                {error ? (
-                  <p
-                    id="form-error"
-                    className="text-sm leading-6 text-danger"
-                    role="alert"
-                  >
-                    Error: {error}
-                  </p>
-                ) : null}
                 <Button type="submit" fullWidth isPending={isSubmitting}>
                   {isSubmitting ? "Generating key…" : "Generate API key"}
                 </Button>
@@ -255,10 +217,6 @@ export function ApiKeyPage() {
             )}
           </Card.Content>
         </Card>
-        <p className="page-note">
-          Generated keys can access your health ledger through REST and MCP. Key
-          management requires the primary auth key.
-        </p>
       </div>
     </main>
   );

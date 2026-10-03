@@ -16,6 +16,5 @@ body:
   content: |-
     {
       "email": "{{rootEmail}}",
-      "password": "{{rootPassword}}",
-      "name": "Postman"
+      "password": "{{rootPassword}}"
     }

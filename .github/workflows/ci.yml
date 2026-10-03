@@ -18,6 +18,7 @@ jobs:
       - run: npm run verify
       - run: npm run test:integration
       - run: npm run test:auth
+      - run: npm run test:oauth
       - run: node --import tsx scripts/security-verification.ts
       - run: node --import tsx scripts/summary-verification.ts
       - run: npm run build
@@ -34,5 +35,7 @@ jobs:
             .test-artifacts/container.json
             .test-artifacts/security.json
             .test-artifacts/auth.json
+            .test-artifacts/oauth.json
             .test-artifacts/summary.json
             .test-artifacts/towbar.json
+            dist/vitalog-plugin.zip

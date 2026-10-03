@@ -1,13 +1,12 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { and, count, desc, eq, gt, isNull, sql } from "drizzle-orm";
 import type { Database } from "../db/client.js";
-import { apiKeys } from "../db/schema.js";
+import { apiKeys, oauthCodes } from "../db/schema.js";
 import { DomainError } from "../errors.js";
 
 const digest = (key: string) => createHash("sha256").update(key).digest("hex");
 const projection = {
   id: apiKeys.id,
-  name: apiKeys.name,
   token_hint: apiKeys.tokenHint,
   created_at: apiKeys.createdAt,
   expires_at: apiKeys.expiresAt,
@@ -18,7 +17,6 @@ const projection = {
 };
 type Row = {
   id: string;
-  name: string;
   token_hint: string;
   created_at: Date;
   expires_at: Date;
@@ -36,7 +34,11 @@ export class ApiKeys {
   constructor(private db: Database) {}
 
   async authorized(header: string | undefined): Promise<boolean> {
-    if (!header || !/^Bearer vlk_[A-Za-z0-9_-]{43}$/.test(header)) return false;
+    return !!(await this.findActive(header));
+  }
+
+  async findActive(header: string | undefined) {
+    if (!header || !/^Bearer vlk_[A-Za-z0-9_-]{43}$/.test(header)) return;
     const rows = await this.db
       .select({ id: apiKeys.id })
       .from(apiKeys)
@@ -48,16 +50,15 @@ export class ApiKeys {
         ),
       )
       .limit(1);
-    return rows.length === 1;
+    return rows[0];
   }
 
-  async create(name = "API key") {
+  async create() {
     const key = "vlk_" + randomBytes(32).toString("base64url");
     const rows = await this.db
       .insert(apiKeys)
       .values({
         id: randomUUID(),
-        name,
         tokenDigest: digest(key),
         tokenHint: "vlk_…" + key.slice(-4),
       })
@@ -101,12 +102,15 @@ export class ApiKeys {
   }
 
   async revokeAll() {
-    const result = await this.db.execute<{ revoked_count: number }>(sql`
-      with revoked as (
-        update ${apiKeys} set revoked_at = clock_timestamp()
-        where revoked_at is null returning 1
-      ) select count(*)::integer as revoked_count from revoked
-    `);
-    return result.rows[0]!;
+    return this.db.transaction(async (transaction) => {
+      await transaction.delete(oauthCodes).where(isNull(oauthCodes.consumedAt));
+      const result = await transaction.execute<{ revoked_count: number }>(sql`
+        with revoked as (
+          update ${apiKeys} set revoked_at = clock_timestamp()
+          where revoked_at is null returning 1
+        ) select count(*)::integer as revoked_count from revoked
+      `);
+      return result.rows[0]!;
+    });
   }
 }

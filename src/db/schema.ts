@@ -123,7 +123,6 @@ export const apiKeys = pgTable(
   "api_keys",
   {
     id: uuid("id").primaryKey(),
-    name: text("name").notNull(),
     tokenDigest: text("token_digest").notNull(),
     tokenHint: text("token_hint").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
@@ -141,8 +140,69 @@ export const apiKeys = pgTable(
       "api_key_lifetime",
       sql`${t.expiresAt} = ${t.createdAt} + interval '720 hours'`,
     ),
-    check("api_key_name", sql`length(${t.name}) between 1 and 80`),
     check("api_key_sha256", sql`${t.tokenDigest} ~ '^[0-9a-f]{64}$'`),
+  ],
+);
+export const oauthCodes = pgTable(
+  "oauth_authorization_codes",
+  {
+    codeDigest: text("code_digest").primaryKey(),
+    apiKeyId: uuid("api_key_id").references(() => apiKeys.id, {
+      onDelete: "cascade",
+    }),
+    clientId: text("client_id").notNull(),
+    redirectUri: text("redirect_uri").notNull(),
+    resource: text("resource").notNull(),
+    scopes: text("scopes").array().notNull(),
+    codeChallenge: text("code_challenge").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`statement_timestamp()`),
+    expiresAt: timestamp("expires_at", { withTimezone: true })
+      .notNull()
+      .default(sql`statement_timestamp() + interval '300 seconds'`),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+  },
+  (t) => [
+    index("oauth_code_expiry").on(t.expiresAt),
+    check("oauth_code_sha256", sql`${t.codeDigest} ~ '^[0-9a-f]{64}$'`),
+    check("oauth_code_pkce", sql`${t.codeChallenge} ~ '^[A-Za-z0-9_-]{43}$'`),
+    check(
+      "oauth_code_lifetime",
+      sql`${t.expiresAt} = ${t.createdAt} + interval '300 seconds'`,
+    ),
+    check(
+      "oauth_code_scopes",
+      sql`cardinality(${t.scopes}) > 0 and ${t.scopes} <@ array['health:read', 'health:write']::text[]`,
+    ),
+  ],
+);
+export const oauthTokens = pgTable(
+  "oauth_access_tokens",
+  {
+    tokenDigest: text("token_digest").primaryKey(),
+    apiKeyId: uuid("api_key_id")
+      .notNull()
+      .references(() => apiKeys.id, { onDelete: "cascade" }),
+    resource: text("resource").notNull(),
+    scopes: text("scopes").array().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`statement_timestamp()`),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    index("oauth_token_expiry").on(t.expiresAt),
+    index("oauth_token_key").on(t.apiKeyId),
+    check("oauth_token_sha256", sql`${t.tokenDigest} ~ '^[0-9a-f]{64}$'`),
+    check(
+      "oauth_token_lifetime",
+      sql`${t.expiresAt} > ${t.createdAt} and ${t.expiresAt} <= ${t.createdAt} + interval '720 hours'`,
+    ),
+    check(
+      "oauth_token_scopes",
+      sql`cardinality(${t.scopes}) > 0 and ${t.scopes} <@ array['health:read', 'health:write']::text[]`,
+    ),
   ],
 );
 export const schema = {
@@ -150,4 +210,6 @@ export const schema = {
   revisions,
   idempotencyRequests,
   apiKeys,
+  oauthCodes,
+  oauthTokens,
 };

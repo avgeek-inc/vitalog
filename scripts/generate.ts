@@ -13,6 +13,7 @@ import { recordDescriptor } from "../src/domain/catalog.js";
 import { base, examples } from "../tests/fixtures.js";
 import type { Data } from "../src/domain/types.js";
 import { keyOperations } from "../src/auth/contracts.js";
+import { chatGptClientId, chatGptRedirectUri } from "../src/auth/oauth.js";
 
 const check = process.argv.includes("--check");
 const stableId = (value: string) => {
@@ -161,7 +162,7 @@ await save(
     ],
   }),
 );
-for (const [index, name] of ["REST", "MCP", "API keys"].entries())
+for (const [index, name] of ["REST", "MCP", "API keys", "OAuth"].entries())
   await save(
     `${collectionRoot}/${name}/.resources/definition.yaml`,
     stringify({
@@ -265,7 +266,6 @@ for (const operation of keyOperations) {
       ? json({
           email: "{{rootEmail}}",
           password: "{{rootPassword}}",
-          name: "Postman",
         }).trimEnd()
       : undefined;
   const authentication = operation.rootOnly
@@ -321,6 +321,119 @@ for (const operation of keyOperations) {
       ...(body ? { body: { type: "json", content: body } } : {}),
     }),
   );
+}
+const oauthItems: Data[] = [];
+const oauthVariables = [
+  { key: "oauthCode", value: "", type: "secret", enabled: true },
+  { key: "oauthVerifier", value: "", type: "secret", enabled: true },
+  { key: "oauthCsrf", value: "", type: "secret", enabled: true },
+  { key: "oauthChallenge", value: "", enabled: true },
+  { key: "oauthState", value: "", enabled: true },
+];
+const oauthQuery = Object.entries({
+  response_type: "code",
+  client_id: chatGptClientId,
+  redirect_uri: chatGptRedirectUri,
+  resource: "{{baseUrl}}/mcp",
+  state: "{{oauthState}}",
+  scope: "health:read health:write",
+  code_challenge: "{{oauthChallenge}}",
+  code_challenge_method: "S256",
+})
+  .map(
+    ([key, value]) =>
+      `${key}=${encodeURIComponent(value).replaceAll("%7B", "{").replaceAll("%7D", "}")}`,
+  )
+  .join("&");
+const oauthForm = {
+  grant_type: "authorization_code",
+  code: "{{oauthCode}}",
+  client_id: chatGptClientId,
+  redirect_uri: chatGptRedirectUri,
+  resource: "{{baseUrl}}/mcp",
+  code_verifier: "{{oauthVerifier}}",
+};
+for (const [path, methods] of Object.entries(source.paths as Data)) {
+  for (const [method, descriptor] of Object.entries(methods as Data)) {
+    const operation = descriptor as Data;
+    if (!(operation.tags as string[] | undefined)?.includes("OAuth")) continue;
+    const name = String(operation.operationId);
+    const url =
+      "{{baseUrl}}" +
+      path +
+      (path === "/oauth/authorize" ? "?" + oauthQuery : "");
+    const headers: Record<string, string> = {
+      Accept: path === "/oauth/authorize" ? "text/html" : "application/json",
+    };
+    let nativeBody: Data | undefined;
+    let importedBody: Data | undefined;
+    if (path === "/oauth/approve") {
+      headers["Content-Type"] = "application/json";
+      headers.Origin = "{{uiUrl}}";
+      const content = json({
+        csrf_token: "{{oauthCsrf}}",
+        action: "allow",
+        email: "{{rootEmail}}",
+        password: "{{rootPassword}}",
+      }).trimEnd();
+      nativeBody = { type: "json", content };
+      importedBody = {
+        mode: "raw",
+        raw: content,
+        options: { raw: { language: "json" } },
+      };
+    } else if (path === "/oauth/token") {
+      headers["Content-Type"] = "application/x-www-form-urlencoded";
+      nativeBody = {
+        type: "text",
+        content: Object.entries(oauthForm)
+          .map(
+            ([key, value]) =>
+              `${key}=${encodeURIComponent(value).replaceAll("%7B", "{").replaceAll("%7D", "}")}`,
+          )
+          .join("&"),
+      };
+      importedBody = {
+        mode: "urlencoded",
+        urlencoded: Object.entries(oauthForm).map(([key, value]) => ({
+          key,
+          value,
+          type: "text",
+        })),
+      };
+    }
+    const description = String(operation.description);
+    oauthItems.push({
+      name,
+      request: {
+        method: method.toUpperCase(),
+        url,
+        description,
+        auth: { type: "noauth" },
+        header: Object.entries(headers).map(([key, value]) => ({ key, value })),
+        ...(importedBody ? { body: importedBody } : {}),
+      },
+    });
+    await save(
+      `${collectionRoot}/OAuth/${name}.request.yaml`,
+      stringify({
+        $kind: "http-request",
+        id: stableId(`OAuth:${name}`),
+        method: method.toUpperCase(),
+        url,
+        description,
+        headers,
+        auth: [
+          {
+            id: stableId(`OAuth:${name}:auth`),
+            type: "noauth",
+            name: "OAuth protocol; no inherited key",
+          },
+        ],
+        ...(nativeBody ? { body: nativeBody } : {}),
+      }),
+    );
+  }
 }
 const requests: { name: string; payload: Data; headers?: Data }[] = [
   {
@@ -409,6 +522,7 @@ await save(
       { name: "REST", item: items },
       { name: "MCP", item: mcp },
       { name: "API keys", item: keyItems },
+      { name: "OAuth", item: oauthItems },
     ],
   }),
 );
@@ -417,11 +531,17 @@ await save(
   stringify({
     name: "Vitalog",
     values: [
-      { key: "baseUrl", value: "http://localhost:3000", enabled: true },
+      {
+        key: "baseUrl",
+        value: "https://vitalog-api.praveent.com",
+        enabled: true,
+      },
+      { key: "uiUrl", value: "https://vitalog.praveent.com", enabled: true },
       { key: "authKey", value: "", type: "secret", enabled: true },
       { key: "rootAuthKey", value: "", type: "secret", enabled: true },
       { key: "rootEmail", value: "", type: "secret", enabled: true },
       { key: "rootPassword", value: "", type: "secret", enabled: true },
+      ...oauthVariables,
     ],
   }),
 );
@@ -431,15 +551,20 @@ await save(
     id: stableId("vitalog-environment"),
     name: "Vitalog",
     values: [
-      { key: "baseUrl", value: "http://localhost:3000", enabled: true },
+      {
+        key: "baseUrl",
+        value: "https://vitalog-api.praveent.com",
+        enabled: true,
+      },
       { key: "authKey", value: "", type: "secret", enabled: true },
       { key: "rootAuthKey", value: "", type: "secret", enabled: true },
       { key: "rootEmail", value: "", type: "secret", enabled: true },
       { key: "rootPassword", value: "", type: "secret", enabled: true },
+      ...oauthVariables,
     ],
     _postman_variable_scope: "environment",
   }),
 );
 process.stdout.write(
-  `${check ? "Verified" : "Generated"} OpenAPI, full schemas, coverage and ${items.length + mcp.length + keyItems.length} Postman requests\n`,
+  `${check ? "Verified" : "Generated"} OpenAPI, full schemas, coverage and ${items.length + mcp.length + keyItems.length + oauthItems.length} Postman requests\n`,
 );

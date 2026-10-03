@@ -9,32 +9,40 @@ services:
       AUTH_KEY: ${AUTH_KEY:?Operator-supplied AUTH_KEY is required}
       ROOT_EMAIL: ${ROOT_EMAIL:-}
       ROOT_PASSWORD: ${ROOT_PASSWORD:-}
-      DATABASE_URL: postgresql://vitalog:${POSTGRES_PASSWORD:?Database password is required}@postgres:5432/vitalog
+      DATABASE_URL:
+        postgresql://vitalog:${POSTGRES_PASSWORD:?Database password is
+        required}@postgres:5432/vitalog
       DEFAULT_TIMEZONE: ${DEFAULT_TIMEZONE:-Asia/Kolkata}
       PORT: "3000"
       NODE_ENV: production
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost:3000,127.0.0.1:3000}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
       TRUST_PROXY: ${TRUST_PROXY:-false}
       TRUSTED_PROXY_IPS: ${TRUSTED_PROXY_IPS:-}
       RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-600}
+      UI_BASE_URL: ${UI_BASE_URL:-http://127.0.0.1:3001}
     ports:
-      - "127.0.0.1:${PORT:-3000}:3000"
+      - 127.0.0.1:${PORT:-3000}:3000
     depends_on:
       postgres:
         condition: service_healthy
     read_only: true
     tmpfs:
       - /tmp:size=16m,mode=1777
-    cap_drop: [ALL]
-    security_opt: [no-new-privileges:true]
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
     mem_limit: 512m
     cpus: 1
     pids_limit: 128
     stop_grace_period: 35s
     logging:
       driver: json-file
-      options: { max-size: "10m", max-file: "3" }
+      options:
+        max-size: 10m
+        max-file: "3"
   postgres:
     image: postgres:17.11-bookworm
     restart: unless-stopped
@@ -45,7 +53,9 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: [CMD-SHELL, "pg_isready -h 127.0.0.1 -U vitalog -d vitalog"]
+      test:
+        - CMD-SHELL
+        - pg_isready -h 127.0.0.1 -U vitalog -d vitalog
       interval: 5s
       timeout: 5s
       retries: 10
@@ -53,6 +63,37 @@ services:
     cpus: 1
     logging:
       driver: json-file
-      options: { max-size: "10m", max-file: "3" }
+      options:
+        max-size: 10m
+        max-file: "3"
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    image: ${VITALOG_WEB_IMAGE:-vitalog-web:local}
+    init: true
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      API_BASE_URL: ${API_BASE_URL:-http://127.0.0.1:3000}
+      UI_BASE_URL: ${UI_BASE_URL:-http://127.0.0.1:3001}
+    ports:
+      - 127.0.0.1:${UI_PORT:-3001}:3000
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 128
+    stop_grace_period: 35s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
 volumes:
-  postgres_data:
+  postgres_data: null

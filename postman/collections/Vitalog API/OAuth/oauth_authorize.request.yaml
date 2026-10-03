@@ -1,0 +1,16 @@
+$kind: http-request
+id: 73992d52-645e-5c7f-8810-8a4bdf2de480
+method: GET
+url: "{{baseUrl}}/oauth/authorize?response_type=code&client_id=https%3A%2F%2Fch\
+  atgpt.com%2Foauth%2Fclient.json&redirect_uri=https%3A%2F%2Fchatgpt.com%2Fconn\
+  ector_platform_oauth_redirect&resource={{baseUrl}}%2Fmcp&state={{oauthState}}\
+  &scope=health%3Aread%20health%3Awrite&code_challenge={{oauthChallenge}}&code_\
+  challenge_method=S256"
+description: Enabled with a canonical public issuer; see docs/chatgpt-plugin.md.
+  Public metadata contains no health records or credentials.
+headers:
+  Accept: text/html
+auth:
+  - id: b720e8a3-4685-50a8-8955-b349f274286f
+    type: noauth
+    name: OAuth protocol; no inherited key

@@ -1,6 +1,6 @@
 # Vitalog
 
-Vitalog stores one person's supplied health observations in PostgreSQL. Hono serves `/v1` REST routes and one `/mcp` endpoint. Both interfaces call the same domain services, validators and transactions.
+Vitalog stores one person's supplied health observations in PostgreSQL. Hono serves `/v1` REST routes and one `/mcp` endpoint at `vitalog-api.praveent.com`. A separate Next.js app serves OAuth consent and API-key creation at `vitalog.praveent.com`. Both interfaces call the same domain services, validators and transactions.
 
 The service has eight record types and sixteen MCP tools. The registry contains 182 nutrient keys, 424 laboratory analyte keys in 30 discovery groups, and 110 measurement/study keys. The database starts empty. All examples and verification fixtures are synthetic.
 
@@ -12,7 +12,7 @@ The service has eight record types and sixteen MCP tools. The registry contains 
 4. Set `ALLOWED_HOSTS` to the exact HTTP host values your ingress forwards, including a port when present. Set `ALLOWED_ORIGINS` only for trusted browser origins. With the default loopback port, `localhost:3000,127.0.0.1:3000` works.
 5. Run `docker compose up --build -d --wait`.
 
-Compose runs the API and PostgreSQL 17.11. It publishes the API on `127.0.0.1:3000` and keeps PostgreSQL on the internal network. The API applies the checked-in Drizzle migrations before listening, runs as UID 1000, and has a read-only root filesystem. Each container has a 512 MiB memory limit and one CPU. The API has a 128-process limit and a 35-second shutdown allowance.
+Compose runs separate API, Next.js UI and PostgreSQL 17.11 containers. It publishes the UI on `127.0.0.1:3001` and the API on `127.0.0.1:3000` and keeps PostgreSQL on the internal network. The API applies the checked-in Drizzle migrations before listening, runs as UID 1000, and has a read-only root filesystem. The API and database each have a 512 MiB memory limit and one CPU; the UI has 256 MiB and 0.5 CPU. The API has a 128-process limit and a 35-second shutdown allowance.
 
 For production, put a TLS ingress in front of the loopback API. Forward its original Host header and configure that host in `ALLOWED_HOSTS`. Prevent direct public access to the container network and PostgreSQL. Keep ingress access logs free of Authorization, query strings containing secrets, request/response bodies and health data. The API rejects its configured key anywhere outside the Authorization header before domain validation, including record text, encoded property names, URLs and idempotency headers. Avoid request-body capture and health payload capture in tracing systems.
 
@@ -22,7 +22,7 @@ The default installation ignores forwarded client addresses. To trust one ingres
 
 ## Run with Towbar
 
-For deployment on Praveen Apps with a managed PostgreSQL datastore and `vitalog.praveent.com`, follow [the Towbar deployment guide](docs/towbar-deployment.md). The version-2 manifests declare both workloads and their private network; runtime credentials are supplied in Towbar.
+For deployment on Praveen Apps with a managed PostgreSQL datastore and `vitalog.praveent.com`, follow [the Towbar deployment guide](docs/towbar-deployment.md). The version-2 manifests declare three workloads, two HTTPS domains and the private database network; runtime credentials are supplied in Towbar.
 
 ## Run from source
 
@@ -36,21 +36,25 @@ npm run dev
 
 The development and migration commands load `.env` if present. `DATABASE_URL` must address PostgreSQL. `DEFAULT_TIMEZONE` defaults to `Asia/Kolkata`; `PORT` defaults to `3000`. A production process uses `npm run build` followed by `npm start` with environment variables supplied by the deployment. Apply migrations before starting it. The Docker entrypoint performs both steps.
 
-The API-key page uses React 19, HeroUI v3 and Tailwind CSS v4, following Towbar's component setup. Vite builds its JavaScript, CSS and Inter font into `dist/web`; Hono serves them from the same origin. `npm run dev` builds the page before starting the API. Run `npm run dev:web` in another terminal to rebuild it as you edit. `npm run build` and the Docker build include both API and UI assets.
+The UI is an independent Next.js 16 app in [apps/web](apps/web), using React 19, HeroUI v3, Tailwind CSS v4 and locally bundled Inter. It follows the Towbar and Mill layout with a red accent, a centered heart mark, and HeroUI alerts. It currently exposes only `/api-keys` and `/oauth/authorize`; the root redirects to API-key creation. There is no vitals dashboard yet.
+
+Run `npm run dev:web` alongside the API. It loads the root `.env` and listens on port 3001. Set `API_BASE_URL` to the browser-accessible API origin and `UI_BASE_URL` to the UI origin. These are runtime settings, so the same UI image works in development and production. The UI never receives `AUTH_KEY`, root credentials or database credentials in its environment. `npm run build:api` and `npm run build:web` build independently; `npm run build` builds both. The API Dockerfile contains no UI bundle; [apps/web/Dockerfile](apps/web/Dockerfile) runs Next.js standalone as a separate non-root service.
+
+The API trusts `UI_BASE_URL` for JSON API-key creation and cookie-backed OAuth request/approval only. Exact-origin CORS, the signed host-only API consent cookie and CSRF checks protect this boundary. OAuth begins at the API, redirects to the UI without carrying credentials or flow state in the URL, then returns a one-use code to ChatGPT. Token exchange stays on the API.
 
 Generate new database migrations with `npm run db:generate`. Apply them with `npm run db:migrate`. The migration runner serializes concurrent migration attempts with a PostgreSQL advisory lock. Keep deployed migration files immutable and add forward migrations for later changes. Never use `drizzle-kit push` as a production upgrade procedure.
 
 ## Authentication
 
-Every `/v1/*`, `/mcp`, `/readyz` and `/openapi.json` request requires an HTTP Bearer key. The environment `AUTH_KEY` has full ledger access and exclusive API-key administration. Generated keys have full ledger access for exactly 30 days unless revoked, and cannot list or revoke keys. MCP initialization, discovery, calls and transport operations all require the same Bearer header. This remains one person's ledger; a key does not create a separate user or datastore.
+Every `/v1/*`, `/mcp`, `/readyz` and `/openapi.json` request requires an HTTP Bearer key. The environment `AUTH_KEY` has full ledger access and exclusive API-key administration. Manually generated `vlk_` keys have full ledger access for exactly 30 days unless revoked, and cannot list or revoke keys. ChatGPT's `vlo_` OAuth tokens authorize only their requested MCP scopes for 30 days. MCP initialization, discovery, calls and transport operations all require the same Bearer header. This remains one person's ledger; a key does not create a separate user or datastore.
 
-Set `ROOT_EMAIL` and `ROOT_PASSWORD` to enable generation at `/api-keys`. The password must contain at least 15 non-padding characters and fit within 256 UTF-8 bytes, and must differ from `AUTH_KEY`. Configure both values together; leaving both empty disables issuance while existing Bearer clients keep working. Root email matching ignores surrounding whitespace and case; password matching is exact. Root credentials are used only for generation, never as ledger HTTP Basic authentication. The API verifies the password using salted scrypt with bounded concurrency and rate limits.
+Set `ROOT_EMAIL` and `ROOT_PASSWORD` to enable generation at `/api-keys` and sign-in for ChatGPT's OAuth connection. The password must contain at least 15 non-padding characters and fit within 256 UTF-8 bytes, and must differ from `AUTH_KEY`. Configure both values together; leaving both empty disables issuance and sign-in while existing Bearer clients keep working. Root email matching ignores surrounding whitespace and case; password matching is exact. Root credentials authenticate issuance and OAuth consent, and cannot authenticate ledger requests directly. The API verifies the password using salted scrypt with bounded concurrency and shared rate limits.
 
 The page submits root credentials to `POST /auth/api-keys` over HTTPS (loopback HTTP is supported for development). It shows the complete token once and clears the password after submission. Tokens use 32 random bytes and are stored only as SHA-256 hashes in PostgreSQL. They are opaque, not JWTs. Every authenticated request checks expiry and revocation using the database clock; a revoke affects subsequent requests, including requests from an existing MCP client. Requests already authenticated may complete.
 
-The primary key manages generated keys through `GET /v1/api-keys`, `DELETE /v1/api-keys/{id}`, and `DELETE /v1/api-keys`. Listing is paginated and returns names, short token hints, timestamps and status, never token values or hashes. Revoke-all leaves `AUTH_KEY` valid and does not prevent new generation with the root credentials. Root email/password cannot revoke keys. There are no key-management MCP tools; the MCP surface remains sixteen tools.
+The primary key manages generated keys and OAuth connection records through `GET /v1/api-keys`, `DELETE /v1/api-keys/{id}`, and `DELETE /v1/api-keys`. Listing is paginated and returns short token hints, timestamps and status, never token values or hashes. Revoke-all also cancels pending OAuth authorization codes; it leaves `AUTH_KEY` valid and does not prevent new issuance with the root credentials. Root email/password cannot revoke keys. There are no key-management MCP tools; the MCP surface remains sixteen tools.
 
-See [API-key setup and contracts](docs/api-keys.md) for request examples and operational behavior. This extends the original specification's authentication exclusions. It does not implement OAuth discovery or authorization; ChatGPT's authenticated MCP integration still requires the separate OAuth flow.
+See [API-key setup and contracts](docs/api-keys.md) for request examples and operational behavior. These features extend the original specification's authentication exclusions. The [ChatGPT plugin](docs/chatgpt-plugin.md) uses OAuth discovery and authorization-code exchange with S256 PKCE. Sign in on Vitalog's consent page with your root email and password; ChatGPT receives its token automatically without requiring the API-key generation page. The token is created only at code exchange and has a revocable management record in the same API-key list.
 
 To rotate `AUTH_KEY`, replace the deployment secret, restart the API, and update each trusted client's private header configuration. Generated keys, database idempotency and history survive rotation. Signed ledger pagination cursors use a digest-derived signing key, so clients restart pagination after key rotation. Changing root credentials affects future issuance and does not revoke generated keys; use the revoke-all API when that is intended.
 
@@ -64,7 +68,9 @@ Start discovery with authenticated `GET /v1/catalog` or `health_get_catalog({})`
 
 The [integration guide](docs/integration.md) describes all REST/MCP mappings, filtering, dates, provenance, result variants, summaries and retries. [OpenAPI JSON](docs/openapi.json), [complete record schemas](docs/record-schemas.json) and [executable examples](docs/examples.json) are generated from the shared definitions.
 
-[Postman instructions](postman/README.md) cover the Native Git workspace layout used by Towbar and the importable v2.1 JSON collection. The collection contains 42 requests across REST, technical endpoints, MCP initialization, tool discovery, all sixteen tools and API-key generation/administration. Secret values are blank in the repository.
+[Postman instructions](postman/README.md) cover the Native Git workspace layout used by Towbar and the importable v2.1 JSON collection. The collection contains 49 requests across REST, technical endpoints, MCP initialization, tool discovery, all sixteen tools, API-key generation/administration and OAuth. Secret values are blank in the repository.
+
+Run `npm run plugin:package` to build `dist/vitalog-plugin.zip` for ChatGPT upload. The [plugin guide](docs/chatgpt-plugin.md) covers deployment and direct root sign-in through OAuth. The connection expires after 30 days and is revoked through the same API-key management APIs. The archive includes the [Vitalog mark](docs/branding.md) and contains no credentials.
 
 ## Verify a change
 
@@ -73,6 +79,7 @@ npm run verify
 npm run test:integration
 npm run test:security
 npm run test:auth
+npm run test:oauth
 npm run test:summaries
 npm run test:container
 npm run test:towbar
@@ -84,7 +91,7 @@ npm audit --omit=dev --audit-level=moderate
 
 [The acceptance traceability](docs/acceptance.md) maps all 76 requirements to implementation and verification. [The coverage report](docs/coverage.json) lists every implemented key and its tests. [The verification report](docs/verification-report.json) records the executed interoperability run, exact SDK/protocol/client versions, and database backup/restore result. [The container report](docs/container-report.json), [security report](docs/security-report.json) and [summary report](docs/summary-report.json) record the additional deployment checks. Current runs write their reports to ignored `.test-artifacts/`; they do not rewrite checked-in evidence automatically.
 
-The GitHub verification workflow runs these checks on pushes and pull requests. A separate tag workflow verifies the repository and publishes `ghcr.io/avgeek-inc/vitalog:<tag>` for a pushed `v*` tag. Publishing an image does not deploy a server. There are no production credentials checked into this repository.
+The GitHub verification workflow runs these checks on pushes and pull requests. A separate tag workflow verifies the repository and publishes `ghcr.io/avgeek-inc/vitalog:<tag>` and `ghcr.io/avgeek-inc/vitalog-web:<tag>` for a pushed `v*` tag. Publishing an image does not deploy a server. There are no production credentials checked into this repository.
 
 ## Export, backups and erasure
 

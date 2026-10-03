@@ -1,7 +1,10 @@
 name: Vitalog
 values:
   - key: baseUrl
-    value: http://localhost:3000
+    value: https://vitalog-api.praveent.com
+    enabled: true
+  - key: uiUrl
+    value: https://vitalog.praveent.com
     enabled: true
   - key: authKey
     value: ""
@@ -18,4 +21,22 @@ values:
   - key: rootPassword
     value: ""
     type: secret
+    enabled: true
+  - key: oauthCode
+    value: ""
+    type: secret
+    enabled: true
+  - key: oauthVerifier
+    value: ""
+    type: secret
+    enabled: true
+  - key: oauthCsrf
+    value: ""
+    type: secret
+    enabled: true
+  - key: oauthChallenge
+    value: ""
+    enabled: true
+  - key: oauthState
+    value: ""
     enabled: true

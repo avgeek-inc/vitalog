@@ -29,6 +29,12 @@ export class Service {
       await this.db.execute(
         sql`select id, token_digest, expires_at, revoked_at from api_keys limit 0`,
       );
+      await this.db.execute(
+        sql`select code_digest, code_challenge, consumed_at from oauth_authorization_codes limit 0`,
+      );
+      await this.db.execute(
+        sql`select token_digest, resource, scopes, expires_at from oauth_access_tokens limit 0`,
+      );
       return true;
     } catch {
       return false;

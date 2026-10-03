@@ -14,6 +14,8 @@ export type Config = {
   timezone: string;
   port: number;
   allowedHosts: string[];
+  publicBaseUrl?: string;
+  uiBaseUrl?: string;
   allowedOrigins: string[];
   trustedProxyIps: string[];
   rateLimit: number;
@@ -57,7 +59,52 @@ export function configuration(env: NodeJS.ProcessEnv = process.env): Config {
     )
   )
     throw new Error("ALLOWED_HOSTS requires exact host[:port] values");
+  const publicOrigins = [
+    ...new Set(
+      allowedHosts
+        .map((host) => new URL(`https://${host}`))
+        .filter(
+          ({ hostname }) =>
+            hostname.includes(".") &&
+            !isIP(hostname) &&
+            !hostname.endsWith(".localhost"),
+        )
+        .map(({ origin }) => origin),
+    ),
+  ];
+  const publicBaseUrl =
+    env.PUBLIC_BASE_URL ||
+    (publicOrigins.length === 1 ? publicOrigins[0] : undefined);
+  if (publicBaseUrl) {
+    const origin = new URL(publicBaseUrl);
+    const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(
+      origin.hostname,
+    );
+    if (
+      origin.origin !== publicBaseUrl ||
+      !allowedHosts.some(
+        (host) => new URL(`${origin.protocol}//${host}`).host === origin.host,
+      ) ||
+      (origin.protocol !== "https:" &&
+        !(origin.protocol === "http:" && loopback))
+    )
+      throw new Error(
+        "PUBLIC_BASE_URL requires an exact HTTPS origin in ALLOWED_HOSTS, or loopback HTTP for development",
+      );
+  }
   const allowedOrigins = split(env.ALLOWED_ORIGINS);
+  const uiBaseUrl = env.UI_BASE_URL || undefined;
+  if (uiBaseUrl) {
+    const url = new URL(uiBaseUrl);
+    const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+    if (
+      url.origin !== uiBaseUrl ||
+      (url.protocol !== "https:" && !(url.protocol === "http:" && loopback))
+    )
+      throw new Error(
+        "UI_BASE_URL requires an exact HTTPS origin, or loopback HTTP for development",
+      );
+  }
   if (
     allowedOrigins.some((origin) => {
       try {
@@ -99,6 +146,8 @@ export function configuration(env: NodeJS.ProcessEnv = process.env): Config {
     timezone,
     port,
     allowedHosts,
+    publicBaseUrl,
+    uiBaseUrl,
     allowedOrigins,
     trustedProxyIps,
     rateLimit,
