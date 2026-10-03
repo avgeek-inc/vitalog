@@ -125,14 +125,22 @@ try {
   ];
   assert(pageAssets.some(([, path]) => path!.endsWith(".js")));
   assert(pageAssets.some(([, path]) => path!.endsWith(".css")));
+  assert(pageAssets.some(([, path]) => path!.endsWith(".png")));
   for (const [, path] of pageAssets) {
     const asset = await fetch(url + path, { headers: { Origin: url } });
     assert.equal(asset.status, 200);
     assert.match(
       asset.headers.get("content-type")!,
-      path!.endsWith(".css") ? /text\/css/ : /javascript/,
+      path!.endsWith(".css")
+        ? /text\/css/
+        : path!.endsWith(".png")
+          ? /image\/png/
+          : /javascript/,
     );
-    await asset.text();
+    const bytes = Buffer.from(await asset.arrayBuffer());
+    assert(bytes.length > 0);
+    if (path!.endsWith(".png"))
+      assert.equal(bytes.subarray(0, 8).toString("hex"), "89504e470d0a1a0a");
   }
   const issued = await fetch(url + "/auth/api-keys", {
     method: "POST",
@@ -140,7 +148,6 @@ try {
     body: JSON.stringify({
       email: env.ROOT_EMAIL,
       password: env.ROOT_PASSWORD,
-      name: "Container smoke",
     }),
   });
   assert.equal(issued.status, 201);

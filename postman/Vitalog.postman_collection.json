@@ -1056,7 +1056,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"{{rootEmail}}\",\n  \"password\": \"{{rootPassword}}\",\n  \"name\": \"Postman\"\n}",
+              "raw": "{\n  \"email\": \"{{rootEmail}}\",\n  \"password\": \"{{rootPassword}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1135,6 +1135,190 @@
                 "value": "application/json"
               }
             ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "OAuth",
+      "item": [
+        {
+          "name": "oauth_resource_metadata",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/.well-known/oauth-protected-resource",
+            "description": "Enabled with a canonical public issuer; see docs/chatgpt-plugin.md. Public metadata contains no health records or credentials.",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "name": "oauth_mcp_resource_metadata",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/.well-known/oauth-protected-resource/mcp",
+            "description": "Enabled with a canonical public issuer; see docs/chatgpt-plugin.md. Public metadata contains no health records or credentials.",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "name": "oauth_issuer_metadata",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/.well-known/oauth-authorization-server",
+            "description": "Enabled with a canonical public issuer; see docs/chatgpt-plugin.md. Public metadata contains no health records or credentials.",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "name": "oauth_authorize",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/oauth/authorize?response_type=code&client_id=https%3A%2F%2Fchatgpt.com%2Foauth%2Fclient.json&redirect_uri=https%3A%2F%2Fchatgpt.com%2Fconnector_platform_oauth_redirect&resource={{baseUrl}}%2Fmcp&state={{oauthState}}&scope=health%3Aread%20health%3Awrite&code_challenge={{oauthChallenge}}&code_challenge_method=S256",
+            "description": "Enabled with a canonical public issuer; see docs/chatgpt-plugin.md. Public metadata contains no health records or credentials.",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/html"
+              }
+            ]
+          }
+        },
+        {
+          "name": "oauth_connection_request",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/oauth/request",
+            "description": "Enabled with a canonical public issuer; see docs/chatgpt-plugin.md. Public metadata contains no health records or credentials.",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "name": "oauth_approve",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/oauth/approve",
+            "description": "Requires the flow cookie, exact same-origin Origin header and matching CSRF token. Allow also requires an active generated API key in Authorization; AUTH_KEY is rejected. Cancel does not need the API key. Returns a validated ChatGPT redirect containing state and iss; approval includes a single-use five-minute code.",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "{{baseUrl}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{oauthApiKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"csrf_token\": \"{{oauthCsrf}}\",\n  \"action\": \"allow\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "oauth_exchange_code",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/oauth/token",
+            "description": "Public ChatGPT CIMD client; S256 PKCE and exact client, callback and MCP resource binding. Form-encoded authorization_code only. No client-secret or refresh grants. Access expires with the underlying key and revocation is checked on every MCP request.",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "authorization_code",
+                  "type": "text"
+                },
+                {
+                  "key": "code",
+                  "value": "{{oauthCode}}",
+                  "type": "text"
+                },
+                {
+                  "key": "client_id",
+                  "value": "https://chatgpt.com/oauth/client.json",
+                  "type": "text"
+                },
+                {
+                  "key": "redirect_uri",
+                  "value": "https://chatgpt.com/connector_platform_oauth_redirect",
+                  "type": "text"
+                },
+                {
+                  "key": "resource",
+                  "value": "{{baseUrl}}/mcp",
+                  "type": "text"
+                },
+                {
+                  "key": "code_verifier",
+                  "value": "{{oauthVerifier}}",
+                  "type": "text"
+                }
+              ]
+            }
           }
         }
       ]

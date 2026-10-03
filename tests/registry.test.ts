@@ -227,15 +227,16 @@ describe("Catalog invariants", () => {
     const text = JSON.stringify(doc);
     expect(text).not.toContain("example-nutrition-event-001");
     for (const term of [
-      "/oauth",
       "/goals",
       "/users",
       "/uploads",
       "/recipes",
       "/catalog/metrics",
     ])
-      expect(text).not.toContain(term);
-    expect(Object.keys(doc.paths as object)).toHaveLength(23);
+      expect(text.includes(term), `Generated interfaces contain ${term}`).toBe(
+        false,
+      );
+    expect(Object.keys(doc.paths as object)).toHaveLength(30);
     expect(catalog({}, cursors).catalog_version).toBe(CATALOG_VERSION);
   });
   test("Oversized responses fail without truncating the requested value", () => {

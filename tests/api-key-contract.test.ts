@@ -139,17 +139,16 @@ describe("Key generation contracts", () => {
       await connection.pool.end();
     }
   });
-  test("Expiry and privileges cannot be chosen in a generation request", () => {
+  test("Key names, expiry and privileges cannot be chosen in a generation request", () => {
     const input = { email: "owner@example.test", password };
     for (const extra of [
       { expires_at: "2099-01-01T00:00:00Z" },
       { validity_days: 365 },
       { admin: true },
+      { name: "Personal automation" },
     ])
       expect(keyCreation.safeParse({ ...input, ...extra }).success).toBe(false);
-    expect(
-      keyCreation.parse({ ...input, name: " Personal automation " }).name,
-    ).toBe("Personal automation");
+    expect(keyCreation.parse(input)).toEqual(input);
   });
   test("Pagination is bounded", () => {
     expect(keyListQuery.parse({})).toEqual({ limit: 50, offset: 0 });

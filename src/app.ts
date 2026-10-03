@@ -17,9 +17,15 @@ import { ApiKeys } from "./auth/keys.js";
 import { RootAuthentication } from "./auth/root.js";
 import { keyCreation, keyId, keyListQuery } from "./auth/contracts.js";
 import { keyPage } from "./auth/page.js";
+import { OAuthStore } from "./auth/oauth-store.js";
+import { oauthChallenge, oauthRoutes } from "./auth/oauth.js";
 
 const deadlineMessage =
   "Request exceeded its deadline; mutations may be retried with the same idempotency key";
+type AppEnvironment = {
+  Bindings: HttpBindings;
+  Variables: { oauthScopes?: string[] };
+};
 
 export function application(
   service: Service,
@@ -28,10 +34,14 @@ export function application(
     process.stdout.write(JSON.stringify(entry) + "\n");
   },
 ) {
-  const app = new Hono<{ Bindings: HttpBindings }>();
+  const app = new Hono<AppEnvironment>();
   const limits = new Map<string, { count: number; reset: number }>();
   const keys = new ApiKeys(service.db);
   const root = new RootAuthentication(config.rootCredentials);
+  const oauthAttempts = new RootAuthentication(undefined);
+  const oauth = config.publicBaseUrl
+    ? new OAuthStore(service.db, config.publicBaseUrl + "/mcp")
+    : undefined;
   app.onError((error, c) => {
     const failure =
       error instanceof HTTPException && error.status === 408
@@ -88,6 +98,8 @@ export function application(
     }
     if (path === "/auth/api-keys" && c.req.method === "POST")
       root.limit(address);
+    if (path === "/oauth/approve" && c.req.method === "POST")
+      oauthAttempts.limit(address);
     if (
       path.startsWith("/v1") ||
       path === "/mcp" ||
@@ -101,11 +113,25 @@ export function application(
       ).length;
       const authorization = c.req.header("authorization");
       const primary = authorized(authorization, config);
+      const grant =
+        !primary && path === "/mcp"
+          ? await oauth?.authenticate(authorization)
+          : undefined;
       if (
         authCount > 1 ||
-        (!primary && !(await keys.authorized(authorization)))
-      )
+        (!primary && !grant && !(await keys.authorized(authorization)))
+      ) {
+        if (path === "/mcp" && config.publicBaseUrl)
+          c.header(
+            "WWW-Authenticate",
+            oauthChallenge(
+              config.publicBaseUrl,
+              authorization ? "invalid_token" : undefined,
+            ),
+          );
         throw new DomainError("UNAUTHORIZED", "Supply a valid HTTP Bearer key");
+      }
+      if (grant) c.set("oauthScopes", grant.scopes);
       if (
         (path === "/v1/api-keys" || path.startsWith("/v1/api-keys/")) &&
         !primary
@@ -136,6 +162,7 @@ export function application(
         if (
           path === "/auth/api-keys" ||
           path === "/api-keys" ||
+          path.startsWith("/oauth/") ||
           path.startsWith("/api-key-ui/assets/")
             ? !sameOrigin
             : !config.allowedOrigins.includes(origin)
@@ -158,6 +185,9 @@ export function application(
     const guard = config.assertCredentialAbsent;
     const generation =
       c.req.path === "/auth/api-keys" && c.req.method === "POST";
+    const tokenExchange =
+      !!oauth && c.req.path === "/oauth/token" && c.req.method === "POST";
+    const authRequest = generation || c.req.path.startsWith("/oauth/");
     guard(c.req.url);
     const url = new URL(c.req.url);
     guard(url.pathname);
@@ -177,14 +207,16 @@ export function application(
     await inspectBody(
       c.req.raw,
       generation ? config.assertAuthKeyAbsent : guard,
-      generation ? 4096 : MAX_REQUEST_BYTES,
-      generation ? "Key generation requests must not exceed 4 KiB" : undefined,
+      authRequest ? 4096 : MAX_REQUEST_BYTES,
+      authRequest ? "Authentication requests must not exceed 4 KiB" : undefined,
     );
     await next();
     try {
       await inspectBody(
         c.res,
-        generation ? config.assertEnvironmentCredentialsAbsent : guard,
+        generation || tokenExchange
+          ? config.assertEnvironmentCredentialsAbsent
+          : guard,
         MAX_RESPONSE_BYTES,
         "Response exceeds the byte limit; narrow the query",
       );
@@ -199,6 +231,7 @@ export function application(
   });
   app.get("/healthz", (c) => c.json({ status: "ok" }));
   app.route("/", keyPage());
+  if (oauth) app.route("/", oauthRoutes(keys, oauth, config));
   app.post("/auth/api-keys", async (c) => {
     if ([...new URL(c.req.url).searchParams].length)
       throw new DomainError(
@@ -219,12 +252,11 @@ export function application(
     if (!parsed.success)
       throw new DomainError(
         "VALIDATION_ERROR",
-        "Supply a valid email, password and optional key name",
+        "Supply a valid email and password",
       );
     config.assertCredentialAbsent(parsed.data.email);
-    if (parsed.data.name) config.assertCredentialAbsent(parsed.data.name);
     await root.verify(parsed.data.email, parsed.data.password);
-    return c.json(await keys.create(parsed.data.name), 201);
+    return c.json(await keys.create(), 201);
   });
   app.get("/v1/api-keys", async (c) => {
     const query = new URL(c.req.url).searchParams;
@@ -249,9 +281,7 @@ export function application(
       );
     return c.json(await keys.list(parsed.data.limit, parsed.data.offset));
   });
-  const noRevocationArguments = async (
-    c: Context<{ Bindings: HttpBindings }>,
-  ) => {
+  const noRevocationArguments = async (c: Context<AppEnvironment>) => {
     if (
       [...new URL(c.req.url).searchParams].length ||
       c.req.header("content-type") ||
@@ -282,7 +312,9 @@ export function application(
   });
   const document = openapi();
   app.get("/openapi.json", (c) => c.json(document));
-  app.all("/mcp", (c) => handleMcp(c.req.raw, service, config));
+  app.all("/mcp", (c) =>
+    handleMcp(c.req.raw, service, config, c.get("oauthScopes")),
+  );
   for (const operation of operations) {
     const path = operation.path.replace(/\{([^}]+)\}/g, ":$1");
     const handler = async (c: Context<{ Bindings: HttpBindings }>) => {

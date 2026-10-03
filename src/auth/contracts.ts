@@ -6,11 +6,9 @@ export const keyCreation = z.strictObject({
     .string()
     .min(1)
     .refine((value) => Buffer.byteLength(value) <= 256),
-  name: z.string().trim().min(1).max(80).optional(),
 });
 export const keyMetadata = z.strictObject({
   id: z.uuid(),
-  name: z.string(),
   token_hint: z.string(),
   created_at: z.iso.datetime(),
   expires_at: z.iso.datetime(),

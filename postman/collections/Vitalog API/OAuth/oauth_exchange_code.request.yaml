@@ -1,0 +1,18 @@
+$kind: http-request
+id: e64c63cf-79be-503c-8301-fb654b29dfe6
+method: POST
+url: "{{baseUrl}}/oauth/token"
+description: Public ChatGPT CIMD client; S256 PKCE and exact client, callback
+  and MCP resource binding. Form-encoded authorization_code only. No
+  client-secret or refresh grants. Access expires with the underlying key and
+  revocation is checked on every MCP request.
+headers:
+  Accept: application/json
+  Content-Type: application/x-www-form-urlencoded
+auth:
+  - id: 4f3e47f3-2a7c-5033-8339-3358d60079c2
+    type: noauth
+    name: OAuth protocol; no inherited key
+body:
+  type: text
+  content: grant_type=authorization_code&code={{oauthCode}}&client_id=https%3A%2F%2Fchatgpt.com%2Foauth%2Fclient.json&redirect_uri=https%3A%2F%2Fchatgpt.com%2Fconnector_platform_oauth_redirect&resource={{baseUrl}}%2Fmcp&code_verifier={{oauthVerifier}}

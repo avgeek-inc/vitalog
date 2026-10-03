@@ -64,7 +64,9 @@ Start discovery with authenticated `GET /v1/catalog` or `health_get_catalog({})`
 
 The [integration guide](docs/integration.md) describes all REST/MCP mappings, filtering, dates, provenance, result variants, summaries and retries. [OpenAPI JSON](docs/openapi.json), [complete record schemas](docs/record-schemas.json) and [executable examples](docs/examples.json) are generated from the shared definitions.
 
-[Postman instructions](postman/README.md) cover the Native Git workspace layout used by Towbar and the importable v2.1 JSON collection. The collection contains 42 requests across REST, technical endpoints, MCP initialization, tool discovery, all sixteen tools and API-key generation/administration. Secret values are blank in the repository.
+[Postman instructions](postman/README.md) cover the Native Git workspace layout used by Towbar and the importable v2.1 JSON collection. The collection contains 49 requests across REST, technical endpoints, MCP initialization, tool discovery, all sixteen tools, API-key generation/administration and OAuth. Secret values are blank in the repository.
+
+Run `npm run plugin:package` to build `dist/vitalog-plugin.zip` for ChatGPT upload. The [plugin guide](docs/chatgpt-plugin.md) covers deployment and linking an existing generated key through OAuth. The connection expires with its key and is revoked through the same API-key management APIs. The archive includes the [Vitalog mark](docs/branding.md) and contains no credentials.
 
 ## Verify a change
 
@@ -73,6 +75,7 @@ npm run verify
 npm run test:integration
 npm run test:security
 npm run test:auth
+npm run test:oauth
 npm run test:summaries
 npm run test:container
 npm run test:towbar

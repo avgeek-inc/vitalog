@@ -38,6 +38,9 @@ body {
 }
 
 .brand {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
   margin-bottom: 1.5rem;
   padding-inline: 0.25rem;
   font-size: 1.125rem;
@@ -77,14 +80,6 @@ body {
 .key-actions {
   display: grid;
   gap: 0.75rem;
-}
-
-.page-note {
-  margin-top: 1.25rem;
-  padding-inline: 0.25rem;
-  color: var(--muted);
-  font-size: 0.8125rem;
-  line-height: 1.65;
 }
 
 @media (width < 40rem) {

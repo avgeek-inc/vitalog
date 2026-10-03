@@ -20,6 +20,7 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import { application } from "../src/app.js";
 import { configuration } from "../src/config.js";
 import { keyCreated, keyList, keyMetadata } from "../src/auth/contracts.js";
+import { ApiKeys } from "../src/auth/keys.js";
 import { database } from "../src/db/client.js";
 import { Service } from "../src/service.js";
 import { object, type Data } from "../src/domain/types.js";
@@ -106,11 +107,11 @@ async function request(
   const text = await response.text();
   return { response, text, body: object(JSON.parse(text)) };
 }
-async function create(name?: string) {
+async function create() {
   const response = await request(
     "/auth/api-keys",
     "POST",
-    { ...credentials, ...(name ? { name } : {}) },
+    credentials,
     undefined,
     { Origin: baseUrl },
   );
@@ -154,7 +155,7 @@ try {
     }
   }
   await check(
-    "Forward migration preserves an existing ledger and requires the key schema for readiness",
+    "Forward migration preserves the ledger, existing key access and revocation while removing key names",
     async () => {
       temporary = await mkdtemp(join(tmpdir(), "vitalog-auth-migration-"));
       await mkdir(join(temporary, "meta"));
@@ -188,8 +189,73 @@ try {
         ).record,
       );
       assert.equal(await previous.ready(), false);
+      const keyJournal = JSON.parse(
+        await readFile("drizzle/meta/_journal.json", "utf8"),
+      );
+      keyJournal.entries = keyJournal.entries.filter(
+        (entry: { idx: number }) => entry.idx < 3,
+      );
+      await writeFile(
+        join(temporary, "meta/_journal.json"),
+        JSON.stringify(keyJournal),
+      );
+      await copyFile(
+        "drizzle/0002_breezy_proteus.sql",
+        join(temporary, "0002_breezy_proteus.sql"),
+      );
+      await migrate(connection!.db, { migrationsFolder: temporary });
+      const existingKeys = [
+        {
+          id: randomUUID(),
+          token: "vlk_" + randomBytes(32).toString("base64url"),
+          revoked: false,
+        },
+        {
+          id: randomUUID(),
+          token: "vlk_" + randomBytes(32).toString("base64url"),
+          revoked: true,
+        },
+      ];
+      for (const existing of existingKeys)
+        await connection!.pool.query(
+          "insert into api_keys (id, name, token_digest, token_hint, revoked_at) values ($1, 'Previous key name', $2, $3, case when $4 then statement_timestamp() else null end)",
+          [
+            existing.id,
+            createHash("sha256").update(existing.token).digest("hex"),
+            "vlk_…" + existing.token.slice(-4),
+            existing.revoked,
+          ],
+        );
+      const before = (
+        await connection!.pool.query(
+          "select id, token_digest, token_hint, created_at, expires_at, revoked_at from api_keys order by id",
+        )
+      ).rows;
       await migrateDatabase(url);
       assert.equal(await previous.ready(), true);
+      assert.deepEqual(
+        (await connection!.pool.query("select * from api_keys order by id"))
+          .rows,
+        before,
+      );
+      const upgradedKeys = new ApiKeys(connection!.db);
+      for (const existing of existingKeys)
+        assert.equal(
+          await upgradedKeys.authorized("Bearer " + existing.token),
+          !existing.revoked,
+        );
+      assert.equal(
+        (
+          await connection!.pool.query(
+            "select count(*)::int count from information_schema.columns where table_schema='public' and table_name='api_keys' and column_name='name'",
+          )
+        ).rows[0].count,
+        0,
+      );
+      await connection!.pool.query(
+        "delete from api_keys where id = any($1::uuid[])",
+        [existingKeys.map((existing) => existing.id)],
+      );
       assert.deepEqual(
         object(
           (await previous.execute("health_get_record", { id: saved.id }))
@@ -223,6 +289,10 @@ try {
         response.headers.get("content-security-policy")!,
         /frame-ancestors 'none'/,
       );
+      assert.match(
+        response.headers.get("content-security-policy")!,
+        /img-src 'self'/,
+      );
       const html = await response.text();
       for (const secret of [primary, rootPassword, rootEmail])
         assert(!html.includes(secret));
@@ -240,7 +310,11 @@ try {
         assert.equal(asset.headers.get("cache-control"), "no-store");
         assert.match(
           asset.headers.get("content-type")!,
-          path!.endsWith(".css") ? /text\/css/ : /javascript/,
+          path!.endsWith(".css")
+            ? /text\/css/
+            : path!.endsWith(".png")
+              ? /image\/png/
+              : /javascript/,
         );
         const content = await asset.text();
         for (const secret of [primary, rootPassword, rootEmail])
@@ -265,14 +339,15 @@ try {
   await check(
     "Root credentials issue a unique 30-day token while PostgreSQL stores only its hash",
     async () => {
-      key = await create("Personal automation");
+      key = await create();
       assert.equal(
         Date.parse(String(key.expires_at)) - Date.parse(String(key.created_at)),
         30 * 24 * 60 * 60 * 1000,
       );
-      const second = await create("Second client");
+      const second = await create();
       assert.notEqual(key.api_key, second.api_key);
       assert.equal(key.status, "active");
+      assert(!Object.hasOwn(key, "name"));
       const stored = (
         await connection!.pool.query("select * from api_keys where id=$1", [
           key.id,
@@ -523,7 +598,7 @@ try {
   await check(
     "Expired keys are rejected by both transports using the database clock",
     async () => {
-      const expired = await create("Expired client");
+      const expired = await create();
       await connection!.pool.query(
         "update api_keys set created_at=statement_timestamp()-interval '720 hours', expires_at=statement_timestamp() where id=$1",
         [expired.id],
@@ -557,7 +632,7 @@ try {
       );
       await start();
       for (const token of tokens) await denied(token);
-      assert.equal((await create("After revoke-all")).status, "active");
+      assert.equal((await create()).status, "active");
     },
   );
   await start();
@@ -568,12 +643,14 @@ try {
         { ...credentials, password: "incorrect-password" },
         { ...credentials, email: "other@example.test" },
         { ...credentials, expires_at: "2099-01-01T00:00:00Z" },
+        { ...credentials, name: "Removed field" },
         { ...credentials, [rootPassword]: "unknown" },
       ]) {
         const response = await request("/auth/api-keys", "POST", body);
         assert([401, 422].includes(response.response.status));
         assert(!response.text.includes(rootPassword));
       }
+      await start();
       const oversized = await request("/auth/api-keys", "POST", {
         padding: "x".repeat(5000),
       });

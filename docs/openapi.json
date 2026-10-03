@@ -3,7 +3,7 @@
   "info": {
     "title": "Vitalog",
     "version": "1.0.0",
-    "description": "Single-user structured observations with equivalent REST and MCP domain services. Environment AUTH_KEY or revocable 30-day opaque Bearer keys; key management requires AUTH_KEY. No OAuth or JWT."
+    "description": "Single-user structured observations with equivalent REST and MCP domain services. Environment AUTH_KEY or revocable 30-day opaque Bearer keys; key management requires AUTH_KEY. ChatGPT uses OAuth authorization code with S256 PKCE, linked to an existing generated key. OAuth tokens grant MCP access only."
   },
   "servers": [
     {
@@ -229712,11 +229712,6 @@
                     "writeOnly": true,
                     "maxLength": 256,
                     "description": "ROOT_PASSWORD; at most 256 UTF-8 bytes. Used only for this request."
-                  },
-                  "name": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 80
                   }
                 },
                 "required": [
@@ -229741,9 +229736,6 @@
                       "type": "string",
                       "format": "uuid",
                       "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                    },
-                    "name": {
-                      "type": "string"
                     },
                     "token_hint": {
                       "type": "string"
@@ -229785,7 +229777,6 @@
                   },
                   "required": [
                     "id",
-                    "name",
                     "token_hint",
                     "created_at",
                     "expires_at",
@@ -229924,9 +229915,6 @@
                             "format": "uuid",
                             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
                           },
-                          "name": {
-                            "type": "string"
-                          },
                           "token_hint": {
                             "type": "string"
                           },
@@ -229963,7 +229951,6 @@
                         },
                         "required": [
                           "id",
-                          "name",
                           "token_hint",
                           "created_at",
                           "expires_at",
@@ -230217,9 +230204,6 @@
                       "format": "uuid",
                       "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
                     },
-                    "name": {
-                      "type": "string"
-                    },
                     "token_hint": {
                       "type": "string"
                     },
@@ -230256,7 +230240,6 @@
                   },
                   "required": [
                     "id",
-                    "name",
                     "token_hint",
                     "created_at",
                     "expires_at",
@@ -230418,10 +230401,697 @@
           }
         }
       }
+    },
+    "/.well-known/oauth-protected-resource": {
+      "get": {
+        "tags": [
+          "OAuth"
+        ],
+        "security": [],
+        "description": "Enabled with a canonical public issuer; see docs/chatgpt-plugin.md. Public metadata contains no health records or credentials.",
+        "operationId": "oauth_resource_metadata",
+        "summary": "Discover the protected MCP resource",
+        "responses": {
+          "200": {
+            "description": "RFC 9728 protected resource metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "resource",
+                    "authorization_servers",
+                    "scopes_supported",
+                    "bearer_methods_supported",
+                    "resource_name"
+                  ],
+                  "properties": {
+                    "resource": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "authorization_servers": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "scopes_supported": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "bearer_methods_supported": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "resource_name": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/.well-known/oauth-protected-resource/mcp": {
+      "get": {
+        "tags": [
+          "OAuth"
+        ],
+        "security": [],
+        "description": "Enabled with a canonical public issuer; see docs/chatgpt-plugin.md. Public metadata contains no health records or credentials.",
+        "operationId": "oauth_mcp_resource_metadata",
+        "summary": "Discover the path-specific MCP resource",
+        "responses": {
+          "200": {
+            "description": "RFC 9728 protected resource metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "resource",
+                    "authorization_servers",
+                    "scopes_supported",
+                    "bearer_methods_supported",
+                    "resource_name"
+                  ],
+                  "properties": {
+                    "resource": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "authorization_servers": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "scopes_supported": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "bearer_methods_supported": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "resource_name": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/.well-known/oauth-authorization-server": {
+      "get": {
+        "tags": [
+          "OAuth"
+        ],
+        "security": [],
+        "description": "Enabled with a canonical public issuer; see docs/chatgpt-plugin.md. Public metadata contains no health records or credentials.",
+        "operationId": "oauth_issuer_metadata",
+        "summary": "Discover the OAuth issuer",
+        "responses": {
+          "200": {
+            "description": "RFC 8414 authorization server metadata",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "issuer",
+                    "authorization_response_iss_parameter_supported",
+                    "authorization_endpoint",
+                    "token_endpoint",
+                    "response_types_supported",
+                    "grant_types_supported",
+                    "client_id_metadata_document_supported",
+                    "token_endpoint_auth_methods_supported",
+                    "code_challenge_methods_supported",
+                    "scopes_supported"
+                  ],
+                  "properties": {
+                    "issuer": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "authorization_response_iss_parameter_supported": {
+                      "const": true
+                    },
+                    "authorization_endpoint": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "token_endpoint": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "response_types_supported": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "grant_types_supported": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "client_id_metadata_document_supported": {
+                      "const": true
+                    },
+                    "token_endpoint_auth_methods_supported": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "code_challenge_methods_supported": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "scopes_supported": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oauth/authorize": {
+      "get": {
+        "tags": [
+          "OAuth"
+        ],
+        "security": [],
+        "description": "Enabled with a canonical public issuer; see docs/chatgpt-plugin.md. Public metadata contains no health records or credentials.",
+        "operationId": "oauth_authorize",
+        "summary": "Open ChatGPT's authorization and consent page",
+        "parameters": [
+          {
+            "name": "response_type",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "code"
+            }
+          },
+          {
+            "name": "client_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "https://chatgpt.com/oauth/client.json"
+            }
+          },
+          {
+            "name": "redirect_uri",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "https://chatgpt.com/connector_platform_oauth_redirect"
+            }
+          },
+          {
+            "name": "resource",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "code_challenge",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{43}$"
+            }
+          },
+          {
+            "name": "code_challenge_method",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "const": "S256"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "HeroUI consent form; establishes a signed HttpOnly flow cookie with a five-minute lifetime",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "OAuth protocol error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "error",
+                    "error_description"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "error_description": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "OAuth protocol error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "error",
+                    "error_description"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "error_description": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oauth/request": {
+      "get": {
+        "tags": [
+          "OAuth"
+        ],
+        "security": [
+          {
+            "oauthFlowCookie": []
+          }
+        ],
+        "description": "Enabled with a canonical public issuer; see docs/chatgpt-plugin.md. Public metadata contains no health records or credentials.",
+        "operationId": "oauth_connection_request",
+        "summary": "Read the current browser's consent request",
+        "responses": {
+          "200": {
+            "description": "Private consent request and CSRF token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "client_name",
+                    "scopes",
+                    "csrf_token"
+                  ],
+                  "properties": {
+                    "client_name": {
+                      "const": "ChatGPT"
+                    },
+                    "scopes": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "csrf_token": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9_-]{43}$"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "OAuth protocol error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "error",
+                    "error_description"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "error_description": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/oauth/approve": {
+      "post": {
+        "tags": [
+          "OAuth"
+        ],
+        "security": [
+          {
+            "oauthFlowCookie": []
+          }
+        ],
+        "description": "Requires the flow cookie, exact same-origin Origin header and matching CSRF token. Allow also requires an active generated API key in Authorization; AUTH_KEY is rejected. Cancel does not need the API key. Returns a validated ChatGPT redirect containing state and iss; approval includes a single-use five-minute code.",
+        "operationId": "oauth_approve",
+        "summary": "Approve or cancel ChatGPT access",
+        "parameters": [
+          {
+            "name": "Origin",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            }
+          },
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Bearer generated API key, required for action=allow"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "csrf_token": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_-]{43}$"
+                  },
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "allow",
+                      "deny"
+                    ]
+                  }
+                },
+                "required": [
+                  "csrf_token",
+                  "action"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ChatGPT callback URL; no API key is returned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "redirect_to"
+                  ],
+                  "properties": {
+                    "redirect_to": {
+                      "type": "string",
+                      "format": "uri"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "OAuth protocol error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "error",
+                    "error_description"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "error_description": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "OAuth protocol error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "error",
+                    "error_description"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "error_description": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Origin rejected"
+          },
+          "413": {
+            "description": "Request exceeds 4 KiB"
+          },
+          "429": {
+            "description": "Approval rate exceeded; Retry-After: 60"
+          }
+        }
+      }
+    },
+    "/oauth/token": {
+      "post": {
+        "tags": [
+          "OAuth"
+        ],
+        "security": [],
+        "description": "Public ChatGPT CIMD client; S256 PKCE and exact client, callback and MCP resource binding. Form-encoded authorization_code only. No client-secret or refresh grants. Access expires with the underlying key and revocation is checked on every MCP request.",
+        "operationId": "oauth_exchange_code",
+        "summary": "Exchange a PKCE authorization code for an MCP access token",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "grant_type": {
+                    "type": "string",
+                    "const": "authorization_code"
+                  },
+                  "code": {
+                    "type": "string",
+                    "pattern": "^voc_[A-Za-z0-9_-]{43}$"
+                  },
+                  "client_id": {
+                    "type": "string",
+                    "const": "https://chatgpt.com/oauth/client.json"
+                  },
+                  "redirect_uri": {
+                    "type": "string",
+                    "const": "https://chatgpt.com/connector_platform_oauth_redirect"
+                  },
+                  "resource": {
+                    "type": "string",
+                    "maxLength": 512
+                  },
+                  "code_verifier": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9._~-]{43,128}$"
+                  }
+                },
+                "required": [
+                  "grant_type",
+                  "code",
+                  "client_id",
+                  "redirect_uri",
+                  "resource",
+                  "code_verifier"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Opaque access token; store privately. Cache-Control: no-store",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "access_token",
+                    "token_type",
+                    "expires_in",
+                    "scope"
+                  ],
+                  "properties": {
+                    "access_token": {
+                      "type": "string",
+                      "pattern": "^vlo_[A-Za-z0-9_-]{43}$",
+                      "writeOnly": true
+                    },
+                    "token_type": {
+                      "const": "Bearer"
+                    },
+                    "expires_in": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 2592000
+                    },
+                    "scope": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "OAuth protocol error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "error",
+                    "error_description"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "error_description": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request exceeds 4 KiB"
+          },
+          "422": {
+            "description": "Credentials outside their supported header are rejected"
+          }
+        }
+      }
     }
   },
   "components": {
     "securitySchemes": {
+      "oauthFlowCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "__Secure-vitalog-oauth",
+        "description": "Signed HttpOnly consent-flow cookie from /oauth/authorize, valid for five minutes. Loopback development uses vitalog-oauth."
+      },
       "staticKey": {
         "type": "http",
         "scheme": "bearer",

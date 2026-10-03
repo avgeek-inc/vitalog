@@ -1,0 +1,30 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "vitalog",
+  "version": "1.0.0",
+  "description": "Log and retrieve your personal health observations through Vitalog.",
+  "author": { "name": "AvGeek Inc." },
+  "homepage": "https://vitalog.praveent.com/api-keys",
+  "repository": "https://github.com/avgeek-inc/vitalog",
+  "keywords": ["health", "ledger", "observations"],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Vitalog",
+        "shortDescription": "Your personal health ledger",
+        "longDescription": "Save supplied health observations, retrieve records, and review daily summaries and trends from your Vitalog ledger.",
+        "developerName": "AvGeek Inc.",
+        "category": "Productivity",
+        "capabilities": ["Read", "Write"],
+        "websiteURL": "https://vitalog.praveent.com/api-keys",
+        "defaultPrompt": [
+          "Log the health observations I provide in Vitalog.",
+          "Show my Vitalog summary for today."
+        ],
+        "brandColor": "#C95745",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      }
+    }
+  }
+}

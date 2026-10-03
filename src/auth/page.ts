@@ -11,7 +11,9 @@ const webRoot = fileURLToPath(
 );
 
 export const keyPageCsp =
-  "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; connect-src 'self'; form-action 'none'; frame-ancestors 'none'; base-uri 'none'";
+  "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; connect-src 'self'; form-action 'none'; frame-ancestors 'none'; base-uri 'none'";
+
+export const pageDocument = serveStatic({ path: join(webRoot, "index.html") });
 
 export function keyPage() {
   const page = new Hono();
@@ -22,12 +24,12 @@ export function keyPage() {
       c.header("Referrer-Policy", "no-referrer");
       await next();
     },
-    serveStatic({ path: join(webRoot, "index.html") }),
+    pageDocument,
   );
   page.get(
     "/api-key-ui/assets/:file",
     async (c, next) => {
-      if (!/^[\w-]+\.(?:js|css|woff2)$/.test(c.req.param("file")))
+      if (!/^[\w-]+\.(?:js|css|woff2|png)$/.test(c.req.param("file")))
         return c.notFound();
       await next();
     },

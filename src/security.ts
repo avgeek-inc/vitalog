@@ -12,7 +12,7 @@ export function credentialGuard(
   return (value) => {
     if (
       secrets.some((secret) => value.includes(secret)) ||
-      (generatedKeys && /vlk_[A-Za-z0-9_-]{43}/.test(value))
+      (generatedKeys && /v(?:lk|lo)_[A-Za-z0-9_-]{43}/.test(value))
     )
       throw new DomainError(
         "VALIDATION_ERROR",

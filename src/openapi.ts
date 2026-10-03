@@ -3,6 +3,7 @@ import { operations, restBody } from "./registry/operations.js";
 import { jsonSchema } from "./registry/primitives.js";
 import type { Data } from "./domain/types.js";
 import { keyOperations } from "./auth/contracts.js";
+import { oauthPaths } from "./auth/oauth-docs.js";
 export function openapi(): Data {
   const paths: Data = {};
   for (const operation of operations) {
@@ -240,7 +241,7 @@ export function openapi(): Data {
       title: "Vitalog",
       version: "1.0.0",
       description:
-        "Single-user structured observations with equivalent REST and MCP domain services. Environment AUTH_KEY or revocable 30-day opaque Bearer keys; key management requires AUTH_KEY. No OAuth or JWT.",
+        "Single-user structured observations with equivalent REST and MCP domain services. Environment AUTH_KEY or revocable 30-day opaque Bearer keys; key management requires AUTH_KEY. ChatGPT uses OAuth authorization code with S256 PKCE, linked to an existing generated key. OAuth tokens grant MCP access only.",
     },
     servers: [
       {
@@ -248,9 +249,16 @@ export function openapi(): Data {
         description: "Loopback development; production requires TLS ingress",
       },
     ],
-    paths,
+    paths: { ...paths, ...oauthPaths },
     components: {
       securitySchemes: {
+        oauthFlowCookie: {
+          type: "apiKey",
+          in: "cookie",
+          name: "__Secure-vitalog-oauth",
+          description:
+            "Signed HttpOnly consent-flow cookie from /oauth/authorize, valid for five minutes. Loopback development uses vitalog-oauth.",
+        },
         staticKey: {
           type: "http",
           scheme: "bearer",

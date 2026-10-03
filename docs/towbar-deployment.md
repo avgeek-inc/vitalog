@@ -30,6 +30,8 @@ The password in `DATABASE_URL` must match the datastore password. URL-encode it;
 
 The image supplies production mode and port 3000. The default timezone is `Asia/Kolkata`. Forwarded client addresses remain untrusted by default; enable proxy trust only with the exact immediate peer addresses required by the README. The generation page at `/api-keys` accepts its own HTTPS origin without additional configuration. Other browser clients must be explicitly allowed through `ALLOWED_ORIGINS`.
 
+The host list above also infers the OAuth issuer `https://vitalog.praveent.com` for the [ChatGPT plugin](chatgpt-plugin.md), without another production secret. The image needs outbound HTTPS access to ChatGPT's published client metadata document. OAuth exposes only discovery and the consent protocol publicly; ledger tools require authorization. After deployment, check `/.well-known/oauth-authorization-server` and `/.well-known/oauth-protected-resource/mcp`, then link the uploaded plugin with a generated key.
+
 ## Deploy and verify
 
 1. Deploy **Vitalog PostgreSQL** and wait for engine readiness. Towbar owns the persistent PostgreSQL volume. The datastore has no public domain or SSH-tunnel port.
@@ -40,6 +42,8 @@ The image supplies production mode and port 3000. The default timezone is `Asia/
 6. Configure encrypted backup storage, retention and restore drills using the [backup and erasure procedures](../README.md#export-backups-and-erasure) before storing real health data. No backup destination is invented by these manifests.
 
 The service uses a recreate rollout for command readiness, with maintenance mode for its stable private network alias. Towbar stops the previous release before replacement. Requests can be briefly interrupted; retry an interrupted mutation with its original idempotency key. Deploying an older image does not reverse database migrations or restore erased records.
+
+Migration `0003_remove_api_key_names` removes the old names while preserving key IDs, hashes, expiry and revocation. Images from before this change still expect that column; a rollback to those images requires a compatible schema restoration. Migration `0004_chatgpt_oauth` adds the authorization tables used by the plugin.
 
 ## Repository checks
 

@@ -9,6 +9,7 @@ import {
   TextField,
 } from "@heroui/react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Brand } from "./brand";
 
 type GeneratedKey = { api_key: string; expires_at: string };
 
@@ -23,7 +24,6 @@ function generationError(status: number) {
 export function ApiKeyPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
   const [error, setError] = useState<string>();
   const [invalidCredentials, setInvalidCredentials] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -66,7 +66,6 @@ export function ApiKeyPage() {
         body: JSON.stringify({
           email,
           password,
-          ...(name.trim() ? { name: name.trim() } : {}),
         }),
         credentials: "omit",
         cache: "no-store",
@@ -108,17 +107,17 @@ export function ApiKeyPage() {
   return (
     <main className="key-page">
       <div className="key-page-content">
-        <div className="brand">Vitalog</div>
+        <Brand />
         <Card className="key-card" aria-label="API key generation">
           <Card.Header className="gap-2">
             <h1 className="page-title">
               {result ? "Your API key is ready" : "Generate an API key"}
             </h1>
-            <Card.Description className="text-base leading-6">
-              {result
-                ? "Copy this key now. It will only be shown once."
-                : "Sign in with your root credentials to create a key valid for 30 days."}
-            </Card.Description>
+            {result ? (
+              <Card.Description className="text-base leading-6">
+                Copy this key now. It will only be shown once.
+              </Card.Description>
+            ) : null}
           </Card.Header>
           <Card.Content>
             {result ? (
@@ -219,26 +218,6 @@ export function ApiKeyPage() {
                   />
                   {!isSubmitting ? <FieldError /> : null}
                 </TextField>
-                <TextField
-                  name="name"
-                  autoComplete="off"
-                  isDisabled={isSubmitting}
-                  value={name}
-                  onChange={(value) => {
-                    setName(value);
-                    clearError();
-                  }}
-                >
-                  <Label>
-                    Key name{" "}
-                    <span className="font-normal text-muted">(optional)</span>
-                  </Label>
-                  <Input
-                    variant="secondary"
-                    maxLength={80}
-                    placeholder="For example, personal automation"
-                  />
-                </TextField>
                 {error ? (
                   <p
                     id="form-error"
@@ -255,10 +234,6 @@ export function ApiKeyPage() {
             )}
           </Card.Content>
         </Card>
-        <p className="page-note">
-          Generated keys can access your health ledger through REST and MCP. Key
-          management requires the primary auth key.
-        </p>
       </div>
     </main>
   );

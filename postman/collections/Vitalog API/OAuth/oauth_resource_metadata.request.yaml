@@ -1,0 +1,12 @@
+$kind: http-request
+id: 34ad4b7e-f4b6-561e-8eb6-ab2988783bc6
+method: GET
+url: "{{baseUrl}}/.well-known/oauth-protected-resource"
+description: Enabled with a canonical public issuer; see docs/chatgpt-plugin.md.
+  Public metadata contains no health records or credentials.
+headers:
+  Accept: application/json
+auth:
+  - id: 5a4b6758-efc4-5956-8bff-94533a4b35c8
+    type: noauth
+    name: OAuth protocol; no inherited key

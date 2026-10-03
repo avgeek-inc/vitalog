@@ -14,6 +14,7 @@ export type Config = {
   timezone: string;
   port: number;
   allowedHosts: string[];
+  publicBaseUrl?: string;
   allowedOrigins: string[];
   trustedProxyIps: string[];
   rateLimit: number;
@@ -57,6 +58,32 @@ export function configuration(env: NodeJS.ProcessEnv = process.env): Config {
     )
   )
     throw new Error("ALLOWED_HOSTS requires exact host[:port] values");
+  const publicHosts = allowedHosts.filter((host) => {
+    const hostname = new URL(`https://${host}`).hostname;
+    return (
+      hostname.includes(".") &&
+      !isIP(hostname) &&
+      !hostname.endsWith(".localhost")
+    );
+  });
+  const publicBaseUrl =
+    env.PUBLIC_BASE_URL ||
+    (publicHosts.length === 1 ? `https://${publicHosts[0]}` : undefined);
+  if (publicBaseUrl) {
+    const origin = new URL(publicBaseUrl);
+    const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(
+      origin.hostname,
+    );
+    if (
+      origin.origin !== publicBaseUrl ||
+      !allowedHosts.includes(origin.host) ||
+      (origin.protocol !== "https:" &&
+        !(origin.protocol === "http:" && loopback))
+    )
+      throw new Error(
+        "PUBLIC_BASE_URL requires an exact HTTPS origin in ALLOWED_HOSTS, or loopback HTTP for development",
+      );
+  }
   const allowedOrigins = split(env.ALLOWED_ORIGINS);
   if (
     allowedOrigins.some((origin) => {
@@ -99,6 +126,7 @@ export function configuration(env: NodeJS.ProcessEnv = process.env): Config {
     timezone,
     port,
     allowedHosts,
+    publicBaseUrl,
     allowedOrigins,
     trustedProxyIps,
     rateLimit,
