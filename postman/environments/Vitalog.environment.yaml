@@ -22,6 +22,15 @@ values:
     value: ""
     type: secret
     enabled: true
+  - key: oauthClientId
+    value: https://app.example.com/oauth/client.json
+    enabled: true
+  - key: oauthClientName
+    value: Example MCP client
+    enabled: true
+  - key: oauthRedirectUri
+    value: http://127.0.0.1:3002/callback
+    enabled: true
   - key: oauthCode
     value: ""
     type: secret

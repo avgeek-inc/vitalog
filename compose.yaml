@@ -9,6 +9,7 @@ services:
       AUTH_KEY: ${AUTH_KEY:?Operator-supplied AUTH_KEY is required}
       ROOT_EMAIL: ${ROOT_EMAIL:-}
       ROOT_PASSWORD: ${ROOT_PASSWORD:-}
+      OAUTH_CLIENTS: ${OAUTH_CLIENTS:-[]}
       DATABASE_URL:
         postgresql://vitalog:${POSTGRES_PASSWORD:?Database password is
         required}@postgres:5432/vitalog

@@ -18,6 +18,10 @@ import { RootAuthentication } from "./auth/root.js";
 import { keyCreation, keyId, keyListQuery } from "./auth/contracts.js";
 import { OAuthStore } from "./auth/oauth-store.js";
 import { oauthChallenge, oauthRoutes } from "./auth/oauth.js";
+import {
+  OAuthClients,
+  type ClientMetadataFetcher,
+} from "./auth/oauth-clients.js";
 
 const deadlineMessage =
   "Request exceeded its deadline; mutations may be retried with the same idempotency key";
@@ -32,9 +36,14 @@ export function application(
   log = (entry: Data) => {
     process.stdout.write(JSON.stringify(entry) + "\n");
   },
+  dependencies: { clientMetadataFetcher?: ClientMetadataFetcher } = {},
 ) {
   const app = new Hono<AppEnvironment>();
   const limits = new Map<string, { count: number; reset: number }>();
+  const registrationLimits = new Map<
+    string,
+    { count: number; reset: number }
+  >();
   const keys = new ApiKeys(service.db);
   const root = new RootAuthentication(config.rootCredentials);
   const oauth = config.publicBaseUrl
@@ -71,6 +80,22 @@ export function application(
   );
   app.use("*", async (c, next) => {
     const path = c.req.path;
+    const protocolOrigin = c.req.header("origin");
+    if (
+      protocolOrigin &&
+      config.allowedOrigins.includes(protocolOrigin) &&
+      (path === "/mcp" ||
+        path === "/oauth/token" ||
+        path === "/oauth/register" ||
+        path.startsWith("/.well-known/oauth-"))
+    ) {
+      c.header("Access-Control-Allow-Origin", protocolOrigin);
+      c.header(
+        "Access-Control-Expose-Headers",
+        "WWW-Authenticate, MCP-Protocol-Version",
+      );
+      c.header("Vary", "Origin");
+    }
     const remote = c.env?.incoming?.socket.remoteAddress ?? "local-test";
     let address = remote;
     if (config.trustedProxyIps.includes(remote)) {
@@ -94,16 +119,41 @@ export function application(
       c.header("Retry-After", "60");
       throw new DomainError("RATE_LIMITED", "Request rate exceeded");
     }
+    if (path === "/oauth/register" && c.req.method === "POST") {
+      for (const [key, value] of registrationLimits)
+        if (value.reset <= now) registrationLimits.delete(key);
+      if (registrationLimits.size >= 10_000 && !registrationLimits.has(address))
+        throw new DomainError(
+          "RATE_LIMITED",
+          "Client registration capacity exceeded",
+        );
+      const registration = registrationLimits.get(address) ?? {
+        count: 0,
+        reset: now + 60_000,
+      };
+      registration.count++;
+      registrationLimits.set(address, registration);
+      if (registration.count > 10)
+        throw new DomainError(
+          "RATE_LIMITED",
+          "Client registration rate exceeded",
+        );
+    }
     if (
       c.req.method === "POST" &&
       (path === "/auth/api-keys" || path === "/oauth/approve")
     )
       root.limit(address);
+    const mcpPreflight =
+      path === "/mcp" &&
+      c.req.method === "OPTIONS" &&
+      config.allowedOrigins.includes(c.req.header("origin") ?? "");
     if (
-      path.startsWith("/v1") ||
-      path === "/mcp" ||
-      path === "/openapi.json" ||
-      path === "/readyz"
+      !mcpPreflight &&
+      (path.startsWith("/v1") ||
+        path === "/mcp" ||
+        path === "/openapi.json" ||
+        path === "/readyz")
     ) {
       const raw = c.env?.incoming?.rawHeaders ?? [];
       const authCount = raw.filter(
@@ -166,11 +216,13 @@ export function application(
         const permitted =
           uiRequest && config.uiBaseUrl
             ? origin === config.uiBaseUrl
-            : path === "/api-keys" ||
-                path.startsWith("/oauth/") ||
-                path === "/auth/api-keys"
-              ? sameOrigin
-              : config.allowedOrigins.includes(origin);
+            : path === "/oauth/token" || path === "/oauth/register"
+              ? sameOrigin || config.allowedOrigins.includes(origin)
+              : path === "/api-keys" ||
+                  path.startsWith("/oauth/") ||
+                  path === "/auth/api-keys"
+                ? sameOrigin
+                : config.allowedOrigins.includes(origin);
         if (!permitted)
           throw new DomainError("FORBIDDEN", "Origin is not permitted");
       }
@@ -203,6 +255,59 @@ export function application(
           throw new DomainError("FORBIDDEN", "Preflight is not permitted");
         c.header("Access-Control-Allow-Methods", method);
         c.header("Access-Control-Allow-Headers", "Content-Type");
+        return c.body(null, 204);
+      }
+    }
+    await next();
+  });
+  app.use("*", async (c, next) => {
+    const path = c.req.path;
+    const protocol =
+      path === "/mcp" ||
+      path === "/oauth/token" ||
+      path === "/oauth/register" ||
+      path.startsWith("/.well-known/oauth-");
+    const origin = c.req.header("origin");
+    if (protocol && origin && config.allowedOrigins.includes(origin)) {
+      c.header("Access-Control-Allow-Origin", origin);
+      c.header("Vary", "Origin");
+      c.header(
+        "Access-Control-Expose-Headers",
+        "WWW-Authenticate, MCP-Protocol-Version",
+      );
+      if (c.req.method === "OPTIONS") {
+        const methods =
+          path === "/mcp"
+            ? ["GET", "POST", "DELETE"]
+            : path.startsWith("/.well-known/")
+              ? ["GET"]
+              : ["POST"];
+        const headers = (c.req.header("access-control-request-headers") ?? "")
+          .split(",")
+          .map((value) => value.trim().toLowerCase())
+          .filter(Boolean);
+        if (
+          !methods.includes(
+            c.req.header("access-control-request-method") ?? "",
+          ) ||
+          headers.some(
+            (value) =>
+              ![
+                "authorization",
+                "content-type",
+                "mcp-protocol-version",
+                "accept",
+                "last-event-id",
+              ].includes(value),
+          ) ||
+          [...new URL(c.req.url).searchParams].length
+        )
+          throw new DomainError("FORBIDDEN", "Preflight is not permitted");
+        c.header("Access-Control-Allow-Methods", methods.join(", "));
+        c.header(
+          "Access-Control-Allow-Headers",
+          "Authorization, Content-Type, MCP-Protocol-Version, Accept, Last-Event-ID",
+        );
         return c.body(null, 204);
       }
     }
@@ -245,7 +350,11 @@ export function application(
     }
     await inspectBody(
       c.req.raw,
-      rootSignIn ? config.assertAuthKeyAbsent : guard,
+      rootSignIn
+        ? config.assertAuthKeyAbsent
+        : tokenExchange
+          ? config.assertPrimaryCredentialsAbsent
+          : guard,
       authRequest ? 4096 : MAX_REQUEST_BYTES,
       authRequest ? "Authentication requests must not exceed 4 KiB" : undefined,
     );
@@ -253,7 +362,9 @@ export function application(
     try {
       await inspectBody(
         c.res,
-        generation || tokenExchange
+        generation ||
+          tokenExchange ||
+          (c.req.path === "/oauth/register" && c.req.method === "POST")
           ? config.assertEnvironmentCredentialsAbsent
           : guard,
         MAX_RESPONSE_BYTES,
@@ -274,7 +385,21 @@ export function application(
       ? c.redirect(config.uiBaseUrl + "/api-keys", 302)
       : c.notFound(),
   );
-  if (oauth) app.route("/", oauthRoutes(root, oauth, config));
+  if (oauth)
+    app.route(
+      "/",
+      oauthRoutes(
+        root,
+        oauth,
+        config,
+        new OAuthClients(
+          service.db,
+          config.oauthClients,
+          config.assertCredentialAbsent,
+          dependencies.clientMetadataFetcher,
+        ),
+      ),
+    );
   app.post("/auth/api-keys", async (c) => {
     if ([...new URL(c.req.url).searchParams].length)
       throw new DomainError(

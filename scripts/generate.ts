@@ -13,7 +13,6 @@ import { recordDescriptor } from "../src/domain/catalog.js";
 import { base, examples } from "../tests/fixtures.js";
 import type { Data } from "../src/domain/types.js";
 import { keyOperations } from "../src/auth/contracts.js";
-import { chatGptClientId, chatGptRedirectUri } from "../src/auth/oauth.js";
 
 const check = process.argv.includes("--check");
 const stableId = (value: string) => {
@@ -324,6 +323,17 @@ for (const operation of keyOperations) {
 }
 const oauthItems: Data[] = [];
 const oauthVariables = [
+  {
+    key: "oauthClientId",
+    value: "https://app.example.com/oauth/client.json",
+    enabled: true,
+  },
+  { key: "oauthClientName", value: "Example MCP client", enabled: true },
+  {
+    key: "oauthRedirectUri",
+    value: "http://127.0.0.1:3002/callback",
+    enabled: true,
+  },
   { key: "oauthCode", value: "", type: "secret", enabled: true },
   { key: "oauthVerifier", value: "", type: "secret", enabled: true },
   { key: "oauthCsrf", value: "", type: "secret", enabled: true },
@@ -332,8 +342,8 @@ const oauthVariables = [
 ];
 const oauthQuery = Object.entries({
   response_type: "code",
-  client_id: chatGptClientId,
-  redirect_uri: chatGptRedirectUri,
+  client_id: "{{oauthClientId}}",
+  redirect_uri: "{{oauthRedirectUri}}",
   resource: "{{baseUrl}}/mcp",
   state: "{{oauthState}}",
   scope: "health:read health:write",
@@ -348,8 +358,8 @@ const oauthQuery = Object.entries({
 const oauthForm = {
   grant_type: "authorization_code",
   code: "{{oauthCode}}",
-  client_id: chatGptClientId,
-  redirect_uri: chatGptRedirectUri,
+  client_id: "{{oauthClientId}}",
+  redirect_uri: "{{oauthRedirectUri}}",
   resource: "{{baseUrl}}/mcp",
   code_verifier: "{{oauthVerifier}}",
 };
@@ -367,7 +377,24 @@ for (const [path, methods] of Object.entries(source.paths as Data)) {
     };
     let nativeBody: Data | undefined;
     let importedBody: Data | undefined;
-    if (path === "/oauth/approve") {
+    if (path === "/oauth/register") {
+      headers["Content-Type"] = "application/json";
+      const content = json({
+        client_name: "{{oauthClientName}}",
+        application_type: "native",
+        redirect_uris: ["{{oauthRedirectUri}}"],
+        token_endpoint_auth_method: "none",
+        grant_types: ["authorization_code"],
+        response_types: ["code"],
+        scope: "health:read health:write",
+      }).trimEnd();
+      nativeBody = { type: "json", content };
+      importedBody = {
+        mode: "raw",
+        raw: content,
+        options: { raw: { language: "json" } },
+      };
+    } else if (path === "/oauth/approve") {
       headers["Content-Type"] = "application/json";
       headers.Origin = "{{uiUrl}}";
       const content = json({

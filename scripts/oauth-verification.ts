@@ -1,15 +1,24 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
+import { generateKeyPair, exportJWK, SignJWT } from "jose";
+import { assertionType } from "../src/auth/oauth-assertions.js";
 import { mkdir, writeFile } from "node:fs/promises";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
+import {
+  auth,
+  type OAuthClientProvider,
+} from "@modelcontextprotocol/sdk/client/auth.js";
+import type {
+  OAuthClientInformationMixed,
+  OAuthTokens,
+} from "@modelcontextprotocol/sdk/shared/auth.js";
 import { application } from "../src/app.js";
 import { configuration } from "../src/config.js";
 import { database } from "../src/db/client.js";
 import { Service } from "../src/service.js";
 import { ApiKeys } from "../src/auth/keys.js";
-import { chatGptClientId, chatGptRedirectUri } from "../src/auth/oauth.js";
 import { OAuthStore, pkceChallenge } from "../src/auth/oauth-store.js";
 import { object, type Data } from "../src/domain/types.js";
 import { examples } from "../tests/fixtures.js";
@@ -27,6 +36,7 @@ const uiOrigin = "http://127.0.0.1:3001";
 const logs: Data[] = [];
 const checks: { name: string; status: "passed" }[] = [];
 const tokens: string[] = [];
+const clientSecrets: string[] = [];
 const docker = (args: string[]) =>
   execFileSync("docker", args, {
     encoding: "utf8",
@@ -35,26 +45,56 @@ const docker = (args: string[]) =>
 let connection: ReturnType<typeof database> | undefined;
 let app: ReturnType<typeof application>;
 let keys: ApiKeys;
-const nativeFetch = globalThis.fetch;
+const chatGptClientId = "https://chatgpt.com/oauth/client.json";
+const chatGptRedirectUri =
+  "https://chatgpt.com/connector_platform_oauth_redirect";
+const alternateId = "https://alternate.example.test/oauth/client.json";
+const alternateCallback = "https://alternate.example.test/callback";
+const metadataFixtures = new Map<
+  string,
+  { body: string; cacheControl?: string }
+>([
+  [
+    alternateId,
+    {
+      body: JSON.stringify({
+        client_id: alternateId,
+        client_name: "Alternate MCP client",
+        redirect_uris: [alternateCallback],
+        token_endpoint_auth_method: "none",
+      }),
+    },
+  ],
+]);
 let metadataMode: "valid" | "wrong-callback" | "oversized" = "valid";
 let clientFetches = 0;
-globalThis.fetch = async (input, init) => {
+const clientMetadataFetcher = async (input: string) => {
+  if (metadataFixtures.has(input)) {
+    clientFetches++;
+    return metadataFixtures.get(input)!;
+  }
   if (input === chatGptClientId) {
     clientFetches++;
-    return Response.json({
-      client_id: chatGptClientId,
-      redirect_uris: [
-        metadataMode === "wrong-callback"
-          ? "https://untrusted.example/callback"
-          : chatGptRedirectUri,
-      ],
-      token_endpoint_auth_methods_supported: ["none"],
-      ...(metadataMode === "oversized" ? { padding: "x".repeat(9000) } : {}),
-    });
+    return {
+      body: JSON.stringify({
+        client_id: chatGptClientId,
+        client_name: "ChatGPT",
+        redirect_uris: [
+          metadataMode === "wrong-callback"
+            ? "https://untrusted.example/callback"
+            : chatGptRedirectUri,
+        ],
+        token_endpoint_auth_method: "none",
+        ...(metadataMode === "oversized" ? { padding: "x".repeat(9000) } : {}),
+      }),
+    };
   }
-  return nativeFetch(input, init);
+  throw new Error("Unknown metadata fixture");
 };
-function restart(rootConfigured = true) {
+function restart(
+  rootConfigured = true,
+  overrides: Record<string, string> = {},
+) {
   const config = configuration({
     AUTH_KEY: primary,
     DATABASE_URL: connection!.pool.options.connectionString,
@@ -65,6 +105,7 @@ function restart(rootConfigured = true) {
     ...(rootConfigured
       ? { ROOT_EMAIL: login.email, ROOT_PASSWORD: login.password }
       : {}),
+    ...overrides,
   });
   app = application(
     new Service(
@@ -74,6 +115,7 @@ function restart(rootConfigured = true) {
     ),
     config,
     (entry) => logs.push(entry),
+    { clientMetadataFetcher },
   );
 }
 async function request(path: string, init?: RequestInit) {
@@ -145,13 +187,16 @@ async function approve(
     ...extra,
   });
 }
-async function code(scope?: string) {
-  const flow = await begin(scope);
+async function code(scope?: string, extras: Record<string, string> = {}) {
+  const flow = await begin(scope, extras);
   const result = await approve(flow);
   assert.equal(result.response.status, 200);
   const redirect = new URL(String(result.body.redirect_to));
-  assert.equal(redirect.origin + redirect.pathname, chatGptRedirectUri);
-  assert.equal(redirect.searchParams.get("state"), flow.state);
+  const target = new URL(redirect);
+  for (const parameter of ["code", "state", "iss"])
+    target.searchParams.delete(parameter);
+  assert.equal(target.href, new URL(flow.params.get("redirect_uri")!).href);
+  assert.equal(redirect.searchParams.get("state"), flow.params.get("state"));
   assert.equal(redirect.searchParams.get("iss"), origin);
   assert.equal(result.response.headers.get("cache-control"), "no-store");
   assert(!result.text.includes(login.password));
@@ -199,8 +244,8 @@ async function exchange(
     body: new URLSearchParams({
       grant_type: "authorization_code",
       code: grant.code,
-      client_id: chatGptClientId,
-      redirect_uri: chatGptRedirectUri,
+      client_id: grant.params.get("client_id")!,
+      redirect_uri: grant.params.get("redirect_uri")!,
       resource: origin + "/mcp",
       code_verifier: grant.verifier,
       ...extras,
@@ -213,6 +258,17 @@ async function token(scope?: string) {
   assert.equal(issued.body.token_type, "Bearer");
   tokens.push(String(issued.body.access_token));
   return issued.body;
+}
+async function registerClient(metadata: Data) {
+  const result = await json("/oauth/register", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(metadata),
+  });
+  assert.equal(result.response.status, 201);
+  if (result.body.client_secret)
+    clientSecrets.push(String(result.body.client_secret));
+  return result.body;
 }
 async function client(token: string) {
   const instance = new Client({
@@ -419,8 +475,6 @@ try {
         ["resource", "https://untrusted.example/mcp", "invalid_target"],
         ["code_challenge_method", "plain", "invalid_request"],
         ["scope", "health:admin", "invalid_scope"],
-        ["unexpected", "value", "invalid_request"],
-        ["__proto__", "value", "invalid_request"],
       ]) {
         const params = new URLSearchParams(baseline);
         params.set(field!, value!);
@@ -450,6 +504,15 @@ try {
       assert.equal(redirect.searchParams.get("state"), baseline.get("state"));
       assert.equal(redirect.searchParams.get("iss"), origin);
       assert.equal(clientFetches, before);
+      for (const field of ["unexpected", "__proto__"]) {
+        const params = new URLSearchParams(baseline);
+        params.set(field, "value");
+        const accepted = await request("/oauth/authorize?" + params);
+        assert.equal(
+          accepted.headers.get("location"),
+          uiOrigin + "/oauth/authorize",
+        );
+      }
     },
   );
   await check(
@@ -714,15 +777,46 @@ try {
           ).isError,
           undefined,
         );
-        const rejected = await instance.callTool({
-          name: "health_log_hydration",
-          arguments: {
-            ...examples.hydration,
-            idempotency_key: randomBytes(16).toString("hex"),
+        await assert.rejects(
+          () =>
+            instance.callTool({
+              name: "health_log_hydration",
+              arguments: {
+                ...examples.hydration,
+                idempotency_key: randomBytes(16).toString("hex"),
+              },
+            }),
+          (error: unknown) => {
+            assert.equal(object(error).code, 403);
+            return true;
           },
+        );
+        const denied = await request("/mcp", {
+          method: "POST",
+          headers: {
+            Authorization: "Bearer " + issued.access_token,
+            "Content-Type": "application/json",
+            Accept: "application/json, text/event-stream",
+          },
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "tools/call",
+            params: {
+              name: "health_log_hydration",
+              arguments: examples.hydration,
+            },
+          }),
         });
-        assert.equal(rejected.isError, true);
-        assert(JSON.stringify(rejected._meta).includes("insufficient_scope"));
+        assert.equal(denied.status, 403);
+        assert.match(
+          denied.headers.get("www-authenticate")!,
+          /scope="health:write"/,
+        );
+        assert.match(
+          denied.headers.get("www-authenticate")!,
+          /error="insufficient_scope"/,
+        );
         assert.equal(
           (
             await connection!.pool.query(
@@ -955,7 +1049,7 @@ try {
     },
   );
   await check(
-    "Approval attempts are bounded and token requests reject unknown parameters, client credentials and oversized bodies",
+    "Approval attempts are bounded and token requests ignore extensions while rejecting unsupported grants and oversized bodies",
     async () => {
       const flow = await begin();
       for (let attempt = 0; attempt < 5; attempt++)
@@ -976,14 +1070,11 @@ try {
         (await exchange(grant, { client_secret: primary })).response.status,
         422,
       );
-      assert.equal(
-        (await exchange(grant, { unused: "value" })).response.status,
-        400,
-      );
-      assert.equal(
-        (await exchange(grant, { ["__proto__"]: "value" })).response.status,
-        400,
-      );
+      for (const field of ["unused", "__proto__"]) {
+        const accepted = await exchange(await code(), { [field]: "value" });
+        assert.equal(accepted.response.status, 200);
+        tokens.push(String(accepted.body.access_token));
+      }
       assert.equal(
         (
           await request("/oauth/token", {
@@ -1056,18 +1147,915 @@ try {
           code_challenge_method: "S256",
         });
         const response = await request("/oauth/authorize?" + params);
-        assert.equal(response.status, 302);
-        const redirect = new URL(response.headers.get("location")!);
-        assert.equal(redirect.origin + redirect.pathname, chatGptRedirectUri);
+        assert.equal(response.status, 400);
+        assert.equal(response.headers.get("location"), null);
         assert.equal(
-          redirect.searchParams.get("error"),
-          "temporarily_unavailable",
+          (await response.json()).error,
+          mode === "wrong-callback" ? "invalid_request" : "invalid_client",
         );
-        assert.equal(redirect.searchParams.get("state"), "synthetic-state");
-        assert.equal(redirect.searchParams.get("iss"), origin);
-        assert(!redirect.searchParams.has("code"));
       }
       metadataMode = "valid";
+    },
+  );
+  await check(
+    "A non-ChatGPT CIMD client owns its consent name, callback and code exchange",
+    async () => {
+      const flow = await begin("health:read", {
+        client_id: alternateId,
+        redirect_uri: alternateCallback,
+        client_name: "Ignored impersonation",
+      });
+      const context = await json("/oauth/request", {
+        headers: { Cookie: flow.cookie },
+      });
+      assert.equal(context.body.client_name, "Alternate MCP client");
+      assert.equal(context.body.client_id, alternateId);
+      assert.equal(context.body.redirect_uri, alternateCallback);
+      const grant = await code("health:read", {
+        client_id: alternateId,
+        redirect_uri: alternateCallback,
+      });
+      assert.equal(
+        (
+          await exchange(grant, {
+            client_id: chatGptClientId,
+            redirect_uri: chatGptRedirectUri,
+          })
+        ).body.error,
+        "invalid_grant",
+      );
+      assert.equal(
+        (await exchange(grant, { redirect_uri: alternateCallback + "/other" }))
+          .body.error,
+        "invalid_grant",
+      );
+      const issued = await exchange(grant);
+      assert.equal(issued.response.status, 200);
+      tokens.push(String(issued.body.access_token));
+      const instance = await client(String(issued.body.access_token));
+      try {
+        await instance.listTools();
+        await instance.callTool({ name: "health_get_catalog", arguments: {} });
+      } finally {
+        await instance.close();
+      }
+      const bad = new URLSearchParams(flow.params);
+      bad.set("redirect_uri", chatGptRedirectUri);
+      const denied = await request("/oauth/authorize?" + bad);
+      assert.equal(denied.status, 400);
+      assert.equal(denied.headers.get("location"), null);
+    },
+  );
+  await check(
+    "CIMD caching is bounded per client, honors no-store, and never caches malformed metadata",
+    async () => {
+      const before = clientFetches;
+      await begin();
+      await begin();
+      await begin("health:read", {
+        client_id: alternateId,
+        redirect_uri: alternateCallback,
+      });
+      assert.equal(clientFetches, before + 2);
+      const id = "https://cache.example.test/client.json";
+      const body = JSON.stringify({
+        client_id: id,
+        client_name: "Cache client",
+        redirect_uris: [alternateCallback],
+        token_endpoint_auth_method: "none",
+      });
+      metadataFixtures.set(id, { body, cacheControl: "no-store" });
+      const start = clientFetches;
+      await begin("health:read", {
+        client_id: id,
+        redirect_uri: alternateCallback,
+      });
+      await begin("health:read", {
+        client_id: id,
+        redirect_uri: alternateCallback,
+      });
+      assert.equal(clientFetches, start + 2);
+      const invalidId = "https://invalid.example.test/client.json";
+      metadataFixtures.set(invalidId, { body });
+      const invalid = new URLSearchParams((await begin()).params);
+      invalid.set("client_id", invalidId);
+      invalid.set("redirect_uri", alternateCallback);
+      const invalidStart = clientFetches;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const result = await request("/oauth/authorize?" + invalid);
+        assert.equal(result.status, 400);
+        assert.equal(result.headers.get("location"), null);
+      }
+      assert.equal(clientFetches, invalidStart + 2);
+      metadataFixtures.delete(id);
+      metadataFixtures.delete(invalidId);
+    },
+  );
+  await check(
+    "Dynamic public clients survive restart without receiving ledger access at registration",
+    async () => {
+      const before = (await keys.list(100, 0)).total;
+      const registered = await registerClient({
+        client_name: "MCP Inspector",
+        redirect_uris: ["http://127.0.0.1:6274/oauth/callback"],
+        token_endpoint_auth_method: "none",
+      });
+      assert.match(String(registered.client_id), /^vcl_[A-Za-z0-9_-]{43}$/);
+      assert.equal(registered.client_secret, undefined);
+      assert.equal((await keys.list(100, 0)).total, before);
+      restart();
+      const extras = {
+        client_id: String(registered.client_id),
+        redirect_uri: "http://127.0.0.1:49152/oauth/callback",
+      };
+      const flow = await begin("health:read", extras);
+      assert.equal(
+        (await json("/oauth/request", { headers: { Cookie: flow.cookie } }))
+          .body.client_name,
+        "MCP Inspector",
+      );
+      const grant = await code("health:read", extras);
+      assert.equal(
+        (
+          await exchange(grant, {
+            redirect_uri: "http://127.0.0.1:6274/oauth/callback",
+          })
+        ).body.error,
+        "invalid_grant",
+      );
+      const issued = await exchange(grant);
+      assert.equal(issued.response.status, 200);
+      tokens.push(String(issued.body.access_token));
+      const cancelled = await approve(
+        await begin("health:read", extras),
+        undefined,
+        "deny",
+      );
+      const callback = new URL(String(cancelled.body.redirect_to));
+      assert.equal(callback.host, "127.0.0.1:49152");
+      assert.equal(callback.searchParams.get("error"), "access_denied");
+    },
+  );
+  await check(
+    "Registration retains application type, negotiates SDK grant capabilities and reclaims abandoned clients",
+    async () => {
+      const before = (await keys.list(100, 0)).total;
+      const web = await registerClient({
+        client_name: "Web client",
+        application_type: "web",
+        redirect_uris: [alternateCallback],
+        token_endpoint_auth_method: "none",
+        grant_types: ["authorization_code", "refresh_token"],
+      });
+      assert.equal(web.application_type, "web");
+      assert.deepEqual(web.grant_types, ["authorization_code"]);
+      for (const redirect of [
+        "http://127.0.0.1/callback",
+        "https://localhost/callback",
+        "com.example.client:/callback",
+        "not-a-uri",
+      ]) {
+        const result = await json("/oauth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            application_type: "web",
+            redirect_uris: [redirect],
+            token_endpoint_auth_method: "none",
+          }),
+        });
+        assert.equal(result.response.status, 400);
+        assert.equal(result.body.error, "invalid_redirect_uri");
+      }
+      const native = await registerClient({
+        client_name: "Native client",
+        application_type: "native",
+        redirect_uris: ["com.example.client:/callback"],
+        token_endpoint_auth_method: "none",
+      });
+      assert.equal(native.application_type, "native");
+      const nativeExtras = {
+        client_id: String(native.client_id),
+        redirect_uri: "com.example.client:/callback",
+      };
+      const nativeGrant = await code("health:read", nativeExtras);
+      const nativeToken = await exchange(nativeGrant);
+      assert.equal(nativeToken.response.status, 200);
+      const expiredFlow = await begin("health:read", {
+        client_id: String(web.client_id),
+        redirect_uri: alternateCallback,
+      });
+      await connection!.pool.query(
+        "update oauth_clients set created_at=statement_timestamp()-interval '61 minutes' where client_id=any($1)",
+        [[String(web.client_id), String(native.client_id)]],
+      );
+      assert.equal(
+        (await request("/oauth/authorize?" + expiredFlow.params)).status,
+        400,
+      );
+      const failedApproval = await approve(expiredFlow, {
+        ...login,
+        password: "incorrect-password",
+      });
+      assert.equal(failedApproval.response.status, 401);
+      assert.equal((await approve(expiredFlow)).response.status, 400);
+      const available = await registerClient({
+        client_name: "Replacement",
+        redirect_uris: [alternateCallback],
+        token_endpoint_auth_method: "none",
+      });
+      assert(available.client_id);
+      assert.equal(
+        (
+          await connection!.pool.query(
+            "select client_id from oauth_clients where client_id=$1",
+            [String(web.client_id)],
+          )
+        ).rowCount,
+        0,
+      );
+      assert.equal(
+        (
+          await connection!.pool.query(
+            "select approved_at from oauth_clients where client_id=$1",
+            [String(native.client_id)],
+          )
+        ).rowCount,
+        1,
+      );
+      restart();
+      await begin("health:read", nativeExtras);
+      const sdkClient = await client(String(nativeToken.body.access_token));
+      try {
+        assert.equal((await sdkClient.listTools()).tools.length, 16);
+      } finally {
+        await sdkClient.close();
+      }
+      assert.equal((await keys.list(100, 0)).total, before + 1);
+    },
+  );
+  await check(
+    "Confidential registrations hash secrets, enforce the declared authentication method and preserve code binding",
+    async () => {
+      for (const method of [
+        "client_secret_basic",
+        "client_secret_post",
+      ] as const) {
+        const registered = await registerClient({
+          client_name: "Confidential client",
+          redirect_uris: [alternateCallback],
+          token_endpoint_auth_method: method,
+        });
+        const id = String(registered.client_id);
+        const secret = String(registered.client_secret);
+        assert.equal(registered.client_secret_expires_at, 0);
+        const row = (
+          await connection!.pool.query(
+            "select * from oauth_clients where client_id=$1",
+            [id],
+          )
+        ).rows[0];
+        assert.equal(
+          row.client_secret_digest,
+          createHash("sha256").update(secret).digest("hex"),
+        );
+        assert(!JSON.stringify(row).includes(secret));
+        const grant = await code(undefined, {
+          client_id: id,
+          redirect_uri: alternateCallback,
+        });
+        assert.equal((await exchange(grant)).response.status, 401);
+        assert.equal(
+          (await exchange(grant, { client_secret: "incorrect-client-secret" }))
+            .response.status,
+          401,
+        );
+        let issued: Awaited<ReturnType<typeof json>>;
+        if (method === "client_secret_post")
+          issued = await exchange(grant, { client_secret: secret });
+        else {
+          const form = new URLSearchParams({
+            grant_type: "authorization_code",
+            code: grant.code,
+            redirect_uri: alternateCallback,
+            resource: origin + "/mcp",
+            code_verifier: grant.verifier,
+          });
+          const Authorization =
+            "Basic " +
+            Buffer.from(
+              encodeURIComponent(id) + ":" + encodeURIComponent(secret),
+            ).toString("base64");
+          issued = await json("/oauth/token", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+              Authorization,
+            },
+            body: form.toString(),
+          });
+        }
+        assert.equal(issued.response.status, 200);
+        tokens.push(String(issued.body.access_token));
+        assert.equal((await request("/healthz?secret=" + secret)).status, 422);
+        restart();
+      }
+    },
+  );
+  await check(
+    "Configured clients support scopes, native callbacks and confidential secrets without exposing configuration",
+    async () => {
+      const secret = "vcs_" + randomBytes(32).toString("base64url");
+      clientSecrets.push(secret);
+      restart(true, {
+        OAUTH_CLIENTS: JSON.stringify([
+          {
+            client_id: "configured-native",
+            client_name: "Configured native client",
+            redirect_uris: ["com.example.vitalog-client:/callback"],
+            token_endpoint_auth_method: "client_secret_post",
+            client_secret: secret,
+            scope: "health:read",
+          },
+        ]),
+      });
+      const extras = {
+        client_id: "configured-native",
+        redirect_uri: "com.example.vitalog-client:/callback",
+      };
+      const grant = await code("health:read", extras);
+      const issued = await exchange(grant, { client_secret: secret });
+      assert.equal(issued.response.status, 200);
+      tokens.push(String(issued.body.access_token));
+      const params = new URLSearchParams(grant.params);
+      params.set("scope", "health:write");
+      const denied = await request("/oauth/authorize?" + params);
+      assert.equal(denied.status, 302);
+      assert.equal(
+        new URL(denied.headers.get("location")!).searchParams.get("error"),
+        "invalid_scope",
+      );
+      assert.equal((await request("/healthz?secret=" + secret)).status, 422);
+      assert(
+        !JSON.stringify(
+          (await json("/.well-known/oauth-authorization-server")).body,
+        ).includes(secret),
+      );
+    },
+  );
+  await check(
+    "Optional state and canonical resource casing follow OAuth and native callback rules",
+    async () => {
+      const baseline = await begin("health:read", {
+        client_id: alternateId,
+        redirect_uri: alternateCallback,
+      });
+      const params = new URLSearchParams(baseline.params);
+      params.delete("state");
+      params.set("resource", "HTTP://127.0.0.1:3000/mcp");
+      const response = await request("/oauth/authorize?" + params);
+      assert.equal(response.status, 302);
+      const cookie = response.headers.get("set-cookie")!.split(";")[0]!;
+      const context = await json("/oauth/request", {
+        headers: { Cookie: cookie },
+      });
+      const allowed = await approve({
+        ...baseline,
+        cookie,
+        csrf: String(context.body.csrf_token),
+        params,
+      });
+      const callback = new URL(String(allowed.body.redirect_to));
+      assert.equal(callback.searchParams.has("state"), false);
+      assert.equal(callback.searchParams.get("iss"), origin);
+      const issued = await exchange(
+        { ...baseline, params, code: callback.searchParams.get("code")! },
+        { resource: "HTTP://127.0.0.1:3000/mcp" },
+      );
+      assert.equal(issued.response.status, 200);
+      tokens.push(String(issued.body.access_token));
+    },
+  );
+  await check(
+    "Explicit browser origins can discover and use OAuth while consent remains restricted to the UI",
+    async () => {
+      const browser = "http://localhost:6274";
+      restart(true, { ALLOWED_ORIGINS: browser });
+      const challenge = await request("/mcp", { headers: { Origin: browser } });
+      assert.equal(challenge.status, 401);
+      assert.equal(
+        challenge.headers.get("access-control-allow-origin"),
+        browser,
+      );
+      assert.match(
+        challenge.headers.get("access-control-expose-headers")!,
+        /WWW-Authenticate/,
+      );
+      for (const path of ["/mcp", "/oauth/register", "/oauth/token"]) {
+        const result = await request(path, {
+          method: "OPTIONS",
+          headers: {
+            Origin: browser,
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers":
+              "authorization, content-type, mcp-protocol-version",
+          },
+        });
+        assert.equal(result.status, 204);
+        assert.equal(
+          result.headers.get("access-control-allow-credentials"),
+          null,
+        );
+      }
+      const denied = await request("/oauth/register", {
+        method: "OPTIONS",
+        headers: {
+          Origin: "https://untrusted.example",
+          "Access-Control-Request-Method": "POST",
+        },
+      });
+      assert.equal(denied.status, 403);
+      const flow = await begin();
+      assert.equal(
+        (
+          await approve(flow, login, "allow", {
+            headers: {
+              Origin: browser,
+              Cookie: flow.cookie,
+              "Content-Type": "application/json",
+            },
+          })
+        ).response.status,
+        403,
+      );
+    },
+  );
+  await check(
+    "The official MCP OAuth client completes CIMD and dynamic registration without ChatGPT assumptions",
+    async () => {
+      for (const discovery of ["cimd", "dcr"] as const) {
+        const redirectUrl =
+          discovery === "cimd"
+            ? alternateCallback
+            : "http://127.0.0.1:49153/callback";
+        let information: OAuthClientInformationMixed | undefined;
+        let saved: OAuthTokens | undefined;
+        let verifier: string | undefined;
+        let authorizationUrl: URL | undefined;
+        const provider: OAuthClientProvider = {
+          redirectUrl,
+          ...(discovery === "cimd" ? { clientMetadataUrl: alternateId } : {}),
+          clientMetadata: {
+            client_name: "SDK MCP client",
+            redirect_uris: [redirectUrl],
+            token_endpoint_auth_method: "none",
+          },
+          state: () => randomBytes(32).toString("base64url"),
+          clientInformation: () => information,
+          saveClientInformation: (value) => {
+            information = value;
+          },
+          tokens: () => saved,
+          saveTokens: (value) => {
+            saved = value;
+          },
+          redirectToAuthorization: (value) => {
+            authorizationUrl = value;
+          },
+          saveCodeVerifier: (value) => {
+            verifier = value;
+          },
+          codeVerifier: () => {
+            assert(verifier);
+            return verifier;
+          },
+        };
+        const fetchFn = async (input: string | URL, init?: RequestInit) => {
+          const headers = new Headers(init?.headers);
+          headers.set("Host", new URL(input).host);
+          return app.request(new Request(input, { ...init, headers }));
+        };
+        assert.equal(
+          await auth(provider, { serverUrl: origin + "/mcp", fetchFn }),
+          "REDIRECT",
+        );
+        assert(authorizationUrl);
+        assert(information);
+        assert.equal(information.client_id === chatGptClientId, false);
+        const response = await request(
+          authorizationUrl.pathname + authorizationUrl.search,
+        );
+        assert.equal(response.status, 302);
+        const cookie = response.headers.get("set-cookie")!.split(";")[0]!;
+        const context = await json("/oauth/request", {
+          headers: { Cookie: cookie },
+        });
+        const flow: Flow = {
+          cookie,
+          csrf: String(context.body.csrf_token),
+          verifier: verifier!,
+          state: authorizationUrl.searchParams.get("state")!,
+          params: authorizationUrl.searchParams,
+        };
+        const approved = await approve(flow);
+        assert.equal(approved.response.status, 200);
+        const callback = new URL(String(approved.body.redirect_to));
+        assert.equal(callback.searchParams.get("iss"), origin);
+        assert.equal(
+          await auth(provider, {
+            serverUrl: origin + "/mcp",
+            authorizationCode: callback.searchParams.get("code")!,
+            fetchFn,
+          }),
+          "AUTHORIZED",
+        );
+        assert(saved);
+        tokens.push(saved.access_token);
+        const instance = new Client({
+          name: "vitalog-standard-oauth-client",
+          version: "1.0.0",
+        });
+        await instance.connect(
+          new StreamableHTTPClientTransport(new URL(origin + "/mcp"), {
+            authProvider: provider,
+            fetch: fetchFn,
+          }),
+        );
+        try {
+          assert.equal((await instance.listTools()).tools.length, 16);
+          await instance.callTool({
+            name: "health_get_catalog",
+            arguments: {},
+          });
+        } finally {
+          await instance.close();
+        }
+      }
+    },
+  );
+  await check(
+    "Registration rejects invalid metadata and enforces its own rate limit",
+    async () => {
+      for (const body of [
+        { redirect_uris: ["javascript:alert(1)"] },
+        { redirect_uris: ["http://remote.example/callback"] },
+        {
+          redirect_uris: [alternateCallback],
+          grant_types: ["client_credentials"],
+        },
+        {
+          redirect_uris: [alternateCallback],
+          token_endpoint_auth_method: "private_key_jwt",
+        },
+      ]) {
+        const denied = await json("/oauth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        assert.equal(denied.response.status, 400);
+        assert(!denied.body.client_id);
+      }
+      restart();
+      for (let count = 0; count < 10; count++)
+        await registerClient({
+          client_name: "Rate-limited client",
+          redirect_uris: [alternateCallback],
+          token_endpoint_auth_method: "none",
+        });
+      const denied = await request("/oauth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ redirect_uris: [alternateCallback] }),
+      });
+      assert.equal(denied.status, 429);
+      assert.equal(denied.headers.get("retry-after"), "60");
+    },
+  );
+  await check(
+    "Private-key JWT clients verify public keys, issuer, audience, expiry and persistent replay protection",
+    async () => {
+      const pair = await generateKeyPair("RS256");
+      const wrongPair = await generateKeyPair("RS256");
+      const jwks = {
+        keys: [
+          {
+            ...(await exportJWK(pair.publicKey)),
+            kid: "signing-one",
+            use: "sig",
+            alg: "RS256",
+          },
+        ],
+      };
+      const id = "https://jwt.example.test/oauth/client.json";
+      const jwksUrl = "https://jwt.example.test/oauth/jwks.json";
+      const metadata = {
+        client_id: id,
+        client_name: "Signed MCP client",
+        redirect_uris: [alternateCallback],
+        token_endpoint_auth_method: "private_key_jwt",
+        token_endpoint_auth_signing_alg: "RS256",
+        jwks_uri: jwksUrl,
+        grant_types: ["authorization_code", "refresh_token"],
+        response_types: ["code"],
+      };
+      metadataFixtures.set(id, { body: JSON.stringify(metadata) });
+      metadataFixtures.set(jwksUrl, { body: JSON.stringify(jwks) });
+      const assertion = (
+        claims: Data = {},
+        key = pair.privateKey,
+        algorithm = "RS256",
+      ) =>
+        new SignJWT({
+          iss: id,
+          sub: id,
+          aud: origin + "/oauth/token",
+          iat: Math.floor(Date.now() / 1000),
+          exp: Math.floor(Date.now() / 1000) + 120,
+          jti: randomBytes(32).toString("base64url"),
+          ...claims,
+        })
+          .setProtectedHeader({ alg: algorithm, kid: "signing-one" })
+          .sign(key);
+      const extras = { client_id: id, redirect_uri: alternateCallback };
+      const grant = await code("health:read", extras);
+      assert.equal((await exchange(grant)).response.status, 401);
+      for (const claims of [
+        { iss: alternateId },
+        { sub: alternateId },
+        { aud: "https://untrusted.example/token" },
+        { exp: Math.floor(Date.now() / 1000) - 1 },
+        { exp: Math.floor(Date.now() / 1000) + 3600 },
+        { iat: Math.floor(Date.now() / 1000) + 30 },
+        { jti: "" },
+      ])
+        assert.equal(
+          (
+            await exchange(grant, {
+              client_assertion_type: assertionType,
+              client_assertion: await assertion(claims),
+            })
+          ).response.status,
+          401,
+        );
+      assert.equal(
+        (
+          await exchange(grant, {
+            client_assertion_type: assertionType,
+            client_assertion: await assertion({}, wrongPair.privateKey),
+          })
+        ).response.status,
+        401,
+      );
+      const valid = await assertion();
+      assert.equal(
+        (await exchange(grant, { client_assertion: valid })).response.status,
+        400,
+      );
+      assert.equal(
+        (
+          await exchange(grant, {
+            client_assertion_type: assertionType,
+            client_assertion: valid,
+            client_secret: "wrong-secret",
+          })
+        ).response.status,
+        400,
+      );
+      const issued = await exchange(grant, {
+        client_assertion_type: assertionType,
+        client_assertion: valid,
+      });
+      assert.equal(issued.response.status, 200);
+      tokens.push(String(issued.body.access_token));
+      restart();
+      const second = await code("health:read", extras);
+      assert.equal(
+        (
+          await exchange(second, {
+            client_assertion_type: assertionType,
+            client_assertion: valid,
+          })
+        ).response.status,
+        401,
+      );
+      const sdkClient = await client(String(issued.body.access_token));
+      try {
+        assert.equal((await sdkClient.listTools()).tools.length, 16);
+      } finally {
+        await sdkClient.close();
+      }
+      for (const input of [
+        { ...metadata, jwks_uri: "https://127.0.0.1/jwks.json" },
+        {
+          ...metadata,
+          jwks_uri: undefined,
+          jwks: { keys: [{ ...jwks.keys[0], d: "private-key" }] },
+        },
+      ]) {
+        metadataFixtures.set(id, { body: JSON.stringify(input) });
+        restart();
+        assert.equal(
+          (
+            await request(
+              "/oauth/authorize?" + new URLSearchParams(grant.params),
+            )
+          ).status,
+          400,
+        );
+      }
+      metadataFixtures.set(id, { body: JSON.stringify(metadata) });
+      const registered = await registerClient({
+        client_name: "Registered signed client",
+        redirect_uris: [alternateCallback],
+        token_endpoint_auth_method: "private_key_jwt",
+        jwks,
+      });
+      assert.equal(registered.client_secret, undefined);
+      const registeredId = String(registered.client_id);
+      const registeredGrant = await code("health:read", {
+        client_id: registeredId,
+        redirect_uri: alternateCallback,
+      });
+      const signed = await assertion({
+        iss: registeredId,
+        sub: registeredId,
+        aud: origin,
+        iat: undefined,
+      });
+      assert.equal(
+        (
+          await exchange(registeredGrant, {
+            client_id: alternateId,
+            client_assertion_type: assertionType,
+            client_assertion: signed,
+          })
+        ).response.status,
+        401,
+      );
+      assert.equal(
+        (
+          await json("/oauth/token", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({
+              grant_type: "authorization_code",
+              code: registeredGrant.code,
+              redirect_uri: alternateCallback,
+              resource: origin + "/mcp",
+              code_verifier: registeredGrant.verifier,
+              client_assertion_type: assertionType,
+              client_assertion: signed,
+            }),
+          })
+        ).response.status,
+        200,
+      );
+      restart();
+      const concurrent = await Promise.all([
+        code("health:read", extras),
+        code("health:read", extras),
+      ]);
+      const oneAssertion = await assertion();
+      const results = await Promise.all(
+        concurrent.map((grant) =>
+          exchange(grant, {
+            client_assertion_type: assertionType,
+            client_assertion: oneAssertion,
+          }),
+        ),
+      );
+      assert.deepEqual(
+        results.map((result) => result.response.status).sort(),
+        [200, 401],
+      );
+      for (const algorithm of ["PS256", "ES256"] as const) {
+        restart();
+        const pair = await generateKeyPair(algorithm);
+        const registered = await registerClient({
+          client_name: "Signed client",
+          redirect_uris: [alternateCallback],
+          token_endpoint_auth_method: "private_key_jwt",
+          token_endpoint_auth_signing_alg: algorithm,
+          jwks: {
+            keys: [
+              {
+                ...(await exportJWK(pair.publicKey)),
+                alg: algorithm,
+                kid: "one",
+              },
+            ],
+          },
+        });
+        const id = String(registered.client_id);
+        const grant = await code("health:read", {
+          client_id: id,
+          redirect_uri: alternateCallback,
+        });
+        const signed = await new SignJWT({
+          iss: id,
+          sub: id,
+          aud: origin,
+          iat: Math.floor(Date.now() / 1000),
+          exp: Math.floor(Date.now() / 1000) + 120,
+          jti: randomBytes(32).toString("base64url"),
+        })
+          .setProtectedHeader({ alg: algorithm, kid: "one" })
+          .sign(pair.privateKey);
+        assert.equal(
+          (
+            await exchange(grant, {
+              client_assertion_type: assertionType,
+              client_assertion: signed,
+            })
+          ).response.status,
+          200,
+        );
+      }
+      metadataFixtures.delete(id);
+      metadataFixtures.delete(jwksUrl);
+    },
+  );
+  await check(
+    "Concurrent registrations share a persistent capacity limit and never overwrite clients",
+    async () => {
+      const before = (
+        await connection!.pool.query(
+          "select count(*)::int count from oauth_clients",
+        )
+      ).rows[0].count;
+      const metadata = JSON.stringify({
+        client_name: "Capacity fixture",
+        redirect_uris: [alternateCallback],
+        token_endpoint_auth_method: "none",
+        grant_types: ["authorization_code"],
+        response_types: ["code"],
+        scope: "health:read",
+      });
+      await connection!.pool.query(
+        "insert into oauth_clients(client_id,metadata) select 'vcl_capacity'||lpad(n::text,35,'0'), $1::jsonb from generate_series(1,$2::int) n",
+        [metadata, 999 - before],
+      );
+      try {
+        const results = await Promise.all(
+          [1, 2].map(() =>
+            request("/oauth/register", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                redirect_uris: [alternateCallback],
+                token_endpoint_auth_method: "none",
+              }),
+            }),
+          ),
+        );
+        assert.deepEqual(
+          results.map((value) => value.status).sort(),
+          [201, 503],
+        );
+        assert.equal(
+          (
+            await connection!.pool.query(
+              "select count(*)::int count from oauth_clients",
+            )
+          ).rows[0].count,
+          1000,
+        );
+        assert.equal(
+          (await request("/oauth/authorize?" + (await begin()).params)).status,
+          302,
+        );
+        await connection!.pool.query(
+          "update oauth_clients set created_at=statement_timestamp()-interval '61 minutes' where client_id like 'vcl_capacity%'",
+        );
+        assert(
+          (
+            await registerClient({
+              redirect_uris: [alternateCallback],
+              token_endpoint_auth_method: "none",
+            })
+          ).client_id,
+        );
+        assert.equal(
+          (
+            await connection!.pool.query(
+              "select count(*)::int count from oauth_clients where client_id like 'vcl_capacity%'",
+            )
+          ).rows[0].count,
+          0,
+        );
+        assert(
+          (
+            await connection!.pool.query(
+              "select count(*)::int count from oauth_clients",
+            )
+          ).rows[0].count < 1000,
+        );
+      } finally {
+        await connection!.pool.query(
+          "delete from oauth_clients where client_id like 'vcl_capacity%'",
+        );
+      }
     },
   );
   await check(
@@ -1080,6 +2068,7 @@ try {
         login.email,
         login.password,
         ...tokens,
+        ...clientSecrets,
       ])
         assert(!serialized.includes(secret));
       assert(
@@ -1099,7 +2088,7 @@ try {
         status: "passed",
         database: "disposable-postgresql-17",
         client_metadata:
-          "deterministic fixture matching the published ChatGPT CIMD contract",
+          "deterministic CIMD fixtures plus official SDK discovery, registration, PKCE exchange and MCP calls",
         checks,
       },
       null,
@@ -1107,7 +2096,6 @@ try {
     ) + "\n",
   );
 } finally {
-  globalThis.fetch = nativeFetch;
   await connection?.pool.end();
   try {
     docker(["rm", "-f", container]);

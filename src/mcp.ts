@@ -73,7 +73,9 @@ export function mcpServer(
           ],
           _meta: {
             "mcp/www_authenticate": [
-              oauthChallenge(oauth.issuer, "insufficient_scope"),
+              oauthChallenge(oauth.issuer, "insufficient_scope", [
+                operation.mutation ? "health:write" : "health:read",
+              ]),
             ],
           },
         };
@@ -149,6 +151,50 @@ export async function handleMcp(
   config: Config,
   scopes?: string[],
 ): Promise<Response> {
+  if (scopes && config.publicBaseUrl && request.method === "POST") {
+    let message: unknown;
+    try {
+      message = await request.clone().json();
+    } catch {
+      /* The SDK returns the malformed-message error. */
+    }
+    if (
+      message &&
+      typeof message === "object" &&
+      "method" in message &&
+      message.method === "tools/call" &&
+      "params" in message &&
+      message.params &&
+      typeof message.params === "object" &&
+      "name" in message.params
+    ) {
+      const params = message.params;
+      const operation = operations.find((value) => value.name === params.name);
+      const required = operation?.mutation
+        ? "health:write"
+        : operation
+          ? "health:read"
+          : undefined;
+      if (required && !scopes.includes(required))
+        return Response.json(
+          {
+            error: "insufficient_scope",
+            error_description:
+              "This connection does not have permission for this operation",
+          },
+          {
+            status: 403,
+            headers: {
+              "WWW-Authenticate": oauthChallenge(
+                config.publicBaseUrl,
+                "insufficient_scope",
+                [required],
+              ),
+            },
+          },
+        );
+    }
+  }
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
     enableJsonResponse: true,

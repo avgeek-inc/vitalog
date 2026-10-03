@@ -155,7 +155,15 @@ describe("OAuth configuration and discovery", () => {
       expect(metadata.resource).toBe("https://vitalog-api.praveent.com/mcp");
       expect(metadata.authorization_servers).toEqual([issuer.issuer]);
       expect(issuer.code_challenge_methods_supported).toEqual(["S256"]);
-      expect(issuer.token_endpoint_auth_methods_supported).toEqual(["none"]);
+      expect(issuer.token_endpoint_auth_methods_supported).toEqual([
+        "none",
+        "client_secret_basic",
+        "client_secret_post",
+        "private_key_jwt",
+      ]);
+      expect(issuer.registration_endpoint).toBe(
+        "https://vitalog-api.praveent.com/oauth/register",
+      );
       expect(issuer.client_id_metadata_document_supported).toBe(true);
       expect(issuer.authorization_response_iss_parameter_supported).toBe(true);
       expect(issuer.grant_types_supported).toEqual(["authorization_code"]);

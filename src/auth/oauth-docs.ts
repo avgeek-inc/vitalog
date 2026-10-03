@@ -1,6 +1,7 @@
 import type { Data } from "../domain/types.js";
 import { jsonSchema } from "../registry/primitives.js";
 import { authorization, approvalSchema, exchangeSchema } from "./oauth.js";
+import { registrationSchema } from "./oauth-clients.js";
 
 const response = (schema: Data, description: string) => ({
   description,
@@ -33,10 +34,12 @@ const issuer = jsonObject({
   authorization_response_iss_parameter_supported: { const: true },
   authorization_endpoint: uri,
   token_endpoint: uri,
+  registration_endpoint: uri,
   response_types_supported: strings,
   grant_types_supported: strings,
   client_id_metadata_document_supported: { const: true },
   token_endpoint_auth_methods_supported: strings,
+  token_endpoint_auth_signing_alg_values_supported: strings,
   code_challenge_methods_supported: strings,
   scopes_supported: strings,
 });
@@ -44,9 +47,12 @@ const shared = {
   tags: ["OAuth"],
   security: [],
   description:
-    "Enabled with a canonical public issuer; see docs/chatgpt-plugin.md. Public metadata contains no health records or credentials.",
+    "MCP OAuth authorization with CIMD, pre-registered clients and dynamic registration; see docs/oauth.md. Enabled with a canonical public issuer. Public metadata contains no health records or credentials.",
 };
-const requestModel = jsonSchema(authorization) as Data;
+const requestModel = {
+  ...jsonSchema(authorization),
+  additionalProperties: true,
+} as Data;
 const properties = requestModel.properties as Data;
 
 export const oauthPaths: Data = {
@@ -84,7 +90,7 @@ export const oauthPaths: Data = {
     get: {
       ...shared,
       operationId: "oauth_authorize",
-      summary: "Open ChatGPT's authorization and consent page",
+      summary: "Open the MCP client's authorization and consent page",
       parameters: Object.entries(properties).map(([name, schema]) => ({
         name,
         in: "query",
@@ -94,7 +100,7 @@ export const oauthPaths: Data = {
       responses: {
         "302": {
           description:
-            "Valid request establishes a signed HttpOnly API-host flow cookie and redirects to the separate Next.js consent screen. Authorization errors return only to the exact ChatGPT callback with state and issuer.",
+            "Resolve the client through configuration, persistent registration or its HTTPS metadata document. Validate the requested callback before redirecting. A valid request establishes a signed HttpOnly API-host flow cookie and opens the separate Next.js consent screen. Errors return only to a validated callback with issuer and the supplied state. Unknown clients and unregistered callbacks stay local. S256 PKCE is required; unknown OAuth parameters are ignored.",
           headers: {
             Location: { schema: { type: "string", format: "uri" } },
           },
@@ -112,7 +118,9 @@ export const oauthPaths: Data = {
       responses: {
         "200": response(
           jsonObject({
-            client_name: { const: "ChatGPT" },
+            client_id: { type: "string", maxLength: 512 },
+            client_name: { type: "string", minLength: 1, maxLength: 100 },
+            redirect_uri: uri,
             scopes: strings,
             csrf_token: { type: "string", pattern: "^[A-Za-z0-9_-]{43}$" },
           }),
@@ -126,9 +134,9 @@ export const oauthPaths: Data = {
     post: {
       ...shared,
       operationId: "oauth_approve",
-      summary: "Approve or cancel ChatGPT access",
+      summary: "Approve or cancel an MCP client's access",
       description:
-        "Requires the flow cookie, exact UI_BASE_URL Origin header and matching CSRF token. Allow signs in with ROOT_EMAIL and ROOT_PASSWORD in the JSON body and authorizes the requested scopes. Cancel does not need credentials. Returns a validated ChatGPT redirect containing state and iss; approval includes a single-use five-minute code. No API key or access token is created until code exchange.",
+        "Requires the flow cookie, exact UI_BASE_URL Origin header and matching CSRF token. Allow signs in with ROOT_EMAIL and ROOT_PASSWORD in the JSON body and authorizes the requested scopes. Cancel does not need credentials. Returns the client-bound callback containing iss and the original state when supplied; approval includes a single-use five-minute code. No API key or access token is created until code exchange.",
       security: [{ oauthFlowCookie: [] }],
       parameters: [
         { name: "Origin", in: "header", required: true, schema: uri },
@@ -140,7 +148,7 @@ export const oauthPaths: Data = {
       responses: {
         "200": response(
           jsonObject({ redirect_to: uri }),
-          "ChatGPT callback URL; no API key is returned",
+          "Validated MCP client callback URL; no API key is returned",
         ),
         "400": error,
         "401": response(
@@ -166,12 +174,15 @@ export const oauthPaths: Data = {
       operationId: "oauth_exchange_code",
       summary: "Exchange a PKCE authorization code for an MCP access token",
       description:
-        "Public ChatGPT CIMD client; S256 PKCE and exact client, callback and MCP resource binding. Form-encoded authorization_code only. No client-secret or refresh grants. Atomically consumes the code and creates a scoped 30-day MCP token and its API-key management record. The primary AUTH_KEY can list or revoke this record. Existing grants keep their original expiry. Revocation is checked on every MCP request.",
+        "Authorization-code exchange with S256 PKCE and exact client, consented callback and canonical MCP resource binding. Public clients use client_id without a secret; confidential clients use their declared client_secret_basic, client_secret_post or private_key_jwt method. JWT clients send a signed assertion with registered public keys and a unique jti; replay is blocked across restarts. Basic credentials or a verified assertion identify the client when client_id is omitted from the body. Unknown OAuth parameters are ignored. No refresh or client-credentials grants. Atomically consumes the code and creates a scoped 30-day MCP token and its API-key management record. The primary AUTH_KEY can list or revoke this record. Revocation is checked on every MCP request.",
       requestBody: {
         required: true,
         content: {
           "application/x-www-form-urlencoded": {
-            schema: jsonSchema(exchangeSchema),
+            schema: {
+              ...jsonSchema(exchangeSchema),
+              additionalProperties: true,
+            },
           },
         },
       },
@@ -190,11 +201,71 @@ export const oauthPaths: Data = {
           "Opaque access token; store privately. Cache-Control: no-store",
         ),
         "400": error,
+        "401": error,
         "413": { description: "Request exceeds 4 KiB" },
         "422": {
           description:
             "Credentials outside their supported header are rejected",
         },
+      },
+    },
+  },
+  "/oauth/register": {
+    post: {
+      ...shared,
+      operationId: "oauth_register_client",
+      summary: "Register an OAuth client for MCP compatibility",
+      description:
+        "RFC 7591 dynamic registration for clients without a metadata document or configured client ID. Accepts HTTPS, literal loopback HTTP and reverse-domain native callbacks. Public clients explicitly use token_endpoint_auth_method=none. The default is client_secret_basic; client_secret_post and private_key_jwt are also supported. JWT clients supply exactly one public jwks or HTTPS jwks_uri and receive no symmetric secret. Only authorization_code/code and health:read/health:write scopes are issued. Requests listing authorization_code plus refresh_token are accepted with an authorization_code-only response. Declared web clients require non-loopback HTTPS callbacks; native clients can use loopback or native schemes. Unapproved registrations expire after one hour and are reclaimed before admitting new clients; successful root consent retains the client. Unknown metadata fields are ignored and external logos or client URIs are never fetched. Registration grants no ledger access. Limited to ten registrations per source address per minute and 1,000 persisted clients. Store any returned client secret privately; only its SHA-256 digest is retained.",
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: {
+              ...jsonSchema(registrationSchema),
+              additionalProperties: true,
+            },
+          },
+        },
+      },
+      responses: {
+        "201": response(
+          {
+            type: "object",
+            required: [
+              "client_id",
+              "client_id_issued_at",
+              "client_name",
+              "redirect_uris",
+              "token_endpoint_auth_method",
+              "grant_types",
+              "response_types",
+              "scope",
+            ],
+            properties: {
+              ...(jsonSchema(registrationSchema).properties as Data),
+              grant_types: {
+                type: "array",
+                items: { const: "authorization_code" },
+                minItems: 1,
+                maxItems: 1,
+              },
+              client_id: { type: "string", pattern: "^vcl_[A-Za-z0-9_-]{43}$" },
+              client_id_issued_at: { type: "integer" },
+              client_secret: {
+                type: "string",
+                pattern: "^vcs_[A-Za-z0-9_-]{43}$",
+                writeOnly: true,
+              },
+              client_secret_expires_at: { const: 0 },
+            },
+          },
+          "Persisted client registration; optional client secret is returned once",
+        ),
+        "400": error,
+        "413": { description: "Request exceeds 4 KiB" },
+        "429": { description: "Registration rate exceeded; Retry-After: 60" },
+        "503": error,
       },
     },
   },

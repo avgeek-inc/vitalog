@@ -2,8 +2,9 @@ $kind: http-request
 id: ffb0c356-044f-5ca7-8f65-ccd76d679dd5
 method: GET
 url: "{{baseUrl}}/.well-known/oauth-authorization-server"
-description: Enabled with a canonical public issuer; see docs/chatgpt-plugin.md.
-  Public metadata contains no health records or credentials.
+description: MCP OAuth authorization with CIMD, pre-registered clients and
+  dynamic registration; see docs/oauth.md. Enabled with a canonical public
+  issuer. Public metadata contains no health records or credentials.
 headers:
   Accept: application/json
 auth:

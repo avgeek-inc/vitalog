@@ -1,0 +1,45 @@
+$kind: http-request
+id: df9396a0-09b7-5a9f-8dc4-04bccfb2cdc3
+method: POST
+url: "{{baseUrl}}/oauth/register"
+description: RFC 7591 dynamic registration for clients without a metadata
+  document or configured client ID. Accepts HTTPS, literal loopback HTTP and
+  reverse-domain native callbacks. Public clients explicitly use
+  token_endpoint_auth_method=none. The default is client_secret_basic;
+  client_secret_post and private_key_jwt are also supported. JWT clients supply
+  exactly one public jwks or HTTPS jwks_uri and receive no symmetric secret.
+  Only authorization_code/code and health:read/health:write scopes are issued.
+  Requests listing authorization_code plus refresh_token are accepted with an
+  authorization_code-only response. Declared web clients require non-loopback
+  HTTPS callbacks; native clients can use loopback or native schemes. Unapproved
+  registrations expire after one hour and are reclaimed before admitting new
+  clients; successful root consent retains the client. Unknown metadata fields
+  are ignored and external logos or client URIs are never fetched. Registration
+  grants no ledger access. Limited to ten registrations per source address per
+  minute and 1,000 persisted clients. Store any returned client secret
+  privately; only its SHA-256 digest is retained.
+headers:
+  Accept: application/json
+  Content-Type: application/json
+auth:
+  - id: 6172d42e-621c-5d6b-8ff1-e4b25a3a5c82
+    type: noauth
+    name: OAuth protocol; no inherited key
+body:
+  type: json
+  content: |-
+    {
+      "client_name": "{{oauthClientName}}",
+      "application_type": "native",
+      "redirect_uris": [
+        "{{oauthRedirectUri}}"
+      ],
+      "token_endpoint_auth_method": "none",
+      "grant_types": [
+        "authorization_code"
+      ],
+      "response_types": [
+        "code"
+      ],
+      "scope": "health:read health:write"
+    }

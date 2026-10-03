@@ -12,9 +12,12 @@ import {
 } from "@heroui/react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Brand } from "./brand";
+import { authorizationCallback } from "../lib/oauth";
 
 type ConnectionRequest = {
+  client_id: string;
   client_name: string;
+  redirect_uri: string;
   scopes: string[];
   csrf_token: string;
 };
@@ -28,7 +31,7 @@ export function OAuthPage({ apiBaseUrl }: { apiBaseUrl: string }) {
   const passwordInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    document.title = "Connect ChatGPT · Vitalog";
+    document.title = "Connect to Vitalog";
     const controller = new AbortController();
     async function load() {
       try {
@@ -44,7 +47,7 @@ export function OAuthPage({ apiBaseUrl }: { apiBaseUrl: string }) {
       } catch {
         if (!controller.signal.aborted)
           toast.danger("Connection expired", {
-            description: "Restart the connection from ChatGPT.",
+            description: "Restart the connection from your MCP client.",
             timeout: 0,
           });
       }
@@ -60,6 +63,18 @@ export function OAuthPage({ apiBaseUrl }: { apiBaseUrl: string }) {
       window.removeEventListener("pagehide", clear);
     };
   }, [apiBaseUrl]);
+  const title = connection
+    ? `Connect ${connection.client_name}`
+    : "Connect to Vitalog";
+  useEffect(() => {
+    document.title = `${title} · Vitalog`;
+  }, [title]);
+  const callback = connection ? new URL(connection.redirect_uri) : undefined;
+  let clientHost: string | undefined;
+  try {
+    if (connection?.client_id.startsWith("https://"))
+      clientHost = new URL(connection.client_id).host;
+  } catch {}
 
   async function approve(action: "allow" | "deny") {
     if (!connection || pending) return;
@@ -87,18 +102,19 @@ export function OAuthPage({ apiBaseUrl }: { apiBaseUrl: string }) {
               ? "Too many attempts. Wait a minute and try again."
               : response.status === 503
                 ? "Sign-in is unavailable. Check the root configuration."
-                : "The connection could not be completed. Restart from ChatGPT.",
+                : "The connection could not be completed. Restart from your MCP client.",
         );
         return;
       }
       const result: { redirect_to: string } = await response.json();
-      const redirect = new URL(result.redirect_to);
-      if (
-        redirect.origin !== "https://chatgpt.com" ||
-        redirect.pathname !== "/connector_platform_oauth_redirect"
-      )
-        throw new Error("Invalid callback");
-      window.location.assign(redirect.toString());
+      window.location.assign(
+        authorizationCallback(
+          apiBaseUrl,
+          connection.redirect_uri,
+          result.redirect_to,
+          action,
+        ),
+      );
     } catch {
       toast.danger("Unable to connect. Check your connection and try again.");
     } finally {
@@ -121,13 +137,19 @@ export function OAuthPage({ apiBaseUrl }: { apiBaseUrl: string }) {
     <main className="key-page">
       <div className="key-page-content">
         <Brand />
-        <Card className="key-card" aria-label="Connect ChatGPT">
+        <Card className="key-card" aria-label={title}>
           <Card.Header className="key-card-header gap-2">
-            <h1 className="page-title">Connect ChatGPT</h1>
+            <h1 className="page-title break-words">{title}</h1>
             {connection ? (
-              <Card.Description className="text-base leading-6">
-                Allow ChatGPT to {permission} your health ledger for 30 days.
+              <Card.Description className="text-base leading-6 break-words">
+                Allow {connection.client_name} to {permission} your health
+                ledger for 30 days.
               </Card.Description>
+            ) : null}
+            {clientHost ? (
+              <p className="text-sm leading-5 text-muted break-words">
+                Application: {clientHost}
+              </p>
             ) : null}
           </Card.Header>
           <Card.Content>
@@ -176,8 +198,9 @@ export function OAuthPage({ apiBaseUrl }: { apiBaseUrl: string }) {
                   fullWidth
                   isDisabled={!connection}
                   isPending={pending}
+                  className="h-auto min-h-11 whitespace-normal py-3"
                 >
-                  {pending ? "Connecting…" : "Connect ChatGPT"}
+                  {pending ? "Connecting…" : title}
                 </Button>
                 <Button
                   type="button"
@@ -188,6 +211,11 @@ export function OAuthPage({ apiBaseUrl }: { apiBaseUrl: string }) {
                 >
                   Cancel
                 </Button>
+                {callback ? (
+                  <p className="text-center text-sm leading-5 text-accent break-words underline underline-offset-4">
+                    Return to {callback.host || connection!.redirect_uri}
+                  </p>
+                ) : null}
               </div>
             </Form>
           </Card.Content>

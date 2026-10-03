@@ -3,7 +3,7 @@
   "info": {
     "title": "Vitalog",
     "version": "1.0.0",
-    "description": "Single-user structured observations with equivalent REST and MCP domain services. Environment AUTH_KEY or revocable 30-day opaque Bearer keys; key management requires AUTH_KEY. ChatGPT uses OAuth authorization code with S256 PKCE, issued after root sign-in. OAuth tokens grant MCP access only."
+    "description": "Single-user structured observations with equivalent REST and MCP domain services. Environment AUTH_KEY or revocable 30-day opaque Bearer keys; key management requires AUTH_KEY. MCP clients use OAuth authorization code with S256 PKCE, issued after root sign-in. Clients are resolved through HTTPS metadata, pre-registration or dynamic registration. OAuth tokens grant MCP access only."
   },
   "servers": [
     {
@@ -230416,7 +230416,7 @@
           "OAuth"
         ],
         "security": [],
-        "description": "Enabled with a canonical public issuer; see docs/chatgpt-plugin.md. Public metadata contains no health records or credentials.",
+        "description": "MCP OAuth authorization with CIMD, pre-registered clients and dynamic registration; see docs/oauth.md. Enabled with a canonical public issuer. Public metadata contains no health records or credentials.",
         "operationId": "oauth_resource_metadata",
         "summary": "Discover the protected MCP resource",
         "responses": {
@@ -230474,7 +230474,7 @@
           "OAuth"
         ],
         "security": [],
-        "description": "Enabled with a canonical public issuer; see docs/chatgpt-plugin.md. Public metadata contains no health records or credentials.",
+        "description": "MCP OAuth authorization with CIMD, pre-registered clients and dynamic registration; see docs/oauth.md. Enabled with a canonical public issuer. Public metadata contains no health records or credentials.",
         "operationId": "oauth_mcp_resource_metadata",
         "summary": "Discover the path-specific MCP resource",
         "responses": {
@@ -230532,7 +230532,7 @@
           "OAuth"
         ],
         "security": [],
-        "description": "Enabled with a canonical public issuer; see docs/chatgpt-plugin.md. Public metadata contains no health records or credentials.",
+        "description": "MCP OAuth authorization with CIMD, pre-registered clients and dynamic registration; see docs/oauth.md. Enabled with a canonical public issuer. Public metadata contains no health records or credentials.",
         "operationId": "oauth_issuer_metadata",
         "summary": "Discover the OAuth issuer",
         "responses": {
@@ -230548,10 +230548,12 @@
                     "authorization_response_iss_parameter_supported",
                     "authorization_endpoint",
                     "token_endpoint",
+                    "registration_endpoint",
                     "response_types_supported",
                     "grant_types_supported",
                     "client_id_metadata_document_supported",
                     "token_endpoint_auth_methods_supported",
+                    "token_endpoint_auth_signing_alg_values_supported",
                     "code_challenge_methods_supported",
                     "scopes_supported"
                   ],
@@ -230571,6 +230573,10 @@
                       "type": "string",
                       "format": "uri"
                     },
+                    "registration_endpoint": {
+                      "type": "string",
+                      "format": "uri"
+                    },
                     "response_types_supported": {
                       "type": "array",
                       "items": {
@@ -230587,6 +230593,12 @@
                       "const": true
                     },
                     "token_endpoint_auth_methods_supported": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "token_endpoint_auth_signing_alg_values_supported": {
                       "type": "array",
                       "items": {
                         "type": "string"
@@ -230618,9 +230630,9 @@
           "OAuth"
         ],
         "security": [],
-        "description": "Enabled with a canonical public issuer; see docs/chatgpt-plugin.md. Public metadata contains no health records or credentials.",
+        "description": "MCP OAuth authorization with CIMD, pre-registered clients and dynamic registration; see docs/oauth.md. Enabled with a canonical public issuer. Public metadata contains no health records or credentials.",
         "operationId": "oauth_authorize",
-        "summary": "Open ChatGPT's authorization and consent page",
+        "summary": "Open the MCP client's authorization and consent page",
         "parameters": [
           {
             "name": "response_type",
@@ -230636,8 +230648,7 @@
             "in": "query",
             "required": true,
             "schema": {
-              "type": "string",
-              "const": "https://chatgpt.com/oauth/client.json"
+              "$ref": "#/$defs/__schema0"
             }
           },
           {
@@ -230645,8 +230656,7 @@
             "in": "query",
             "required": true,
             "schema": {
-              "type": "string",
-              "const": "https://chatgpt.com/connector_platform_oauth_redirect"
+              "$ref": "#/$defs/__schema0"
             }
           },
           {
@@ -230679,10 +230689,9 @@
           {
             "name": "state",
             "in": "query",
-            "required": true,
+            "required": false,
             "schema": {
               "type": "string",
-              "minLength": 1,
               "maxLength": 512
             }
           },
@@ -230698,7 +230707,7 @@
         ],
         "responses": {
           "302": {
-            "description": "Valid request establishes a signed HttpOnly API-host flow cookie and redirects to the separate Next.js consent screen. Authorization errors return only to the exact ChatGPT callback with state and issuer.",
+            "description": "Resolve the client through configuration, persistent registration or its HTTPS metadata document. Validate the requested callback before redirecting. A valid request establishes a signed HttpOnly API-host flow cookie and opens the separate Next.js consent screen. Errors return only to a validated callback with issuer and the supplied state. Unknown clients and unregistered callbacks stay local. S256 PKCE is required; unknown OAuth parameters are ignored.",
             "headers": {
               "Location": {
                 "schema": {
@@ -230744,7 +230753,7 @@
             "oauthFlowCookie": []
           }
         ],
-        "description": "Enabled with a canonical public issuer; see docs/chatgpt-plugin.md. Public metadata contains no health records or credentials.",
+        "description": "MCP OAuth authorization with CIMD, pre-registered clients and dynamic registration; see docs/oauth.md. Enabled with a canonical public issuer. Public metadata contains no health records or credentials.",
         "operationId": "oauth_connection_request",
         "summary": "Read the current browser's consent request",
         "responses": {
@@ -230756,13 +230765,25 @@
                   "type": "object",
                   "additionalProperties": false,
                   "required": [
+                    "client_id",
                     "client_name",
+                    "redirect_uri",
                     "scopes",
                     "csrf_token"
                   ],
                   "properties": {
+                    "client_id": {
+                      "type": "string",
+                      "maxLength": 512
+                    },
                     "client_name": {
-                      "const": "ChatGPT"
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    },
+                    "redirect_uri": {
+                      "type": "string",
+                      "format": "uri"
                     },
                     "scopes": {
                       "type": "array",
@@ -230815,9 +230836,9 @@
             "oauthFlowCookie": []
           }
         ],
-        "description": "Requires the flow cookie, exact UI_BASE_URL Origin header and matching CSRF token. Allow signs in with ROOT_EMAIL and ROOT_PASSWORD in the JSON body and authorizes the requested scopes. Cancel does not need credentials. Returns a validated ChatGPT redirect containing state and iss; approval includes a single-use five-minute code. No API key or access token is created until code exchange.",
+        "description": "Requires the flow cookie, exact UI_BASE_URL Origin header and matching CSRF token. Allow signs in with ROOT_EMAIL and ROOT_PASSWORD in the JSON body and authorizes the requested scopes. Cancel does not need credentials. Returns the client-bound callback containing iss and the original state when supplied; approval includes a single-use five-minute code. No API key or access token is created until code exchange.",
         "operationId": "oauth_approve",
-        "summary": "Approve or cancel ChatGPT access",
+        "summary": "Approve or cancel an MCP client's access",
         "parameters": [
           {
             "name": "Origin",
@@ -230895,7 +230916,7 @@
         },
         "responses": {
           "200": {
-            "description": "ChatGPT callback URL; no API key is returned",
+            "description": "Validated MCP client callback URL; no API key is returned",
             "content": {
               "application/json": {
                 "schema": {
@@ -230982,7 +231003,7 @@
           "OAuth"
         ],
         "security": [],
-        "description": "Public ChatGPT CIMD client; S256 PKCE and exact client, callback and MCP resource binding. Form-encoded authorization_code only. No client-secret or refresh grants. Atomically consumes the code and creates a scoped 30-day MCP token and its API-key management record. The primary AUTH_KEY can list or revoke this record. Existing grants keep their original expiry. Revocation is checked on every MCP request.",
+        "description": "Authorization-code exchange with S256 PKCE and exact client, consented callback and canonical MCP resource binding. Public clients use client_id without a secret; confidential clients use their declared client_secret_basic, client_secret_post or private_key_jwt method. JWT clients send a signed assertion with registered public keys and a unique jti; replay is blocked across restarts. Basic credentials or a verified assertion identify the client when client_id is omitted from the body. Unknown OAuth parameters are ignored. No refresh or client-credentials grants. Atomically consumes the code and creates a scoped 30-day MCP token and its API-key management record. The primary AUTH_KEY can list or revoke this record. Revocation is checked on every MCP request.",
         "operationId": "oauth_exchange_code",
         "summary": "Exchange a PKCE authorization code for an MCP access token",
         "requestBody": {
@@ -231002,12 +231023,24 @@
                     "pattern": "^voc_[A-Za-z0-9_-]{43}$"
                   },
                   "client_id": {
+                    "$ref": "#/$defs/__schema0"
+                  },
+                  "client_secret": {
                     "type": "string",
-                    "const": "https://chatgpt.com/oauth/client.json"
+                    "minLength": 1,
+                    "maxLength": 512
+                  },
+                  "client_assertion": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 3072
+                  },
+                  "client_assertion_type": {
+                    "type": "string",
+                    "const": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
                   },
                   "redirect_uri": {
-                    "type": "string",
-                    "const": "https://chatgpt.com/connector_platform_oauth_redirect"
+                    "$ref": "#/$defs/__schema0"
                   },
                   "resource": {
                     "type": "string",
@@ -231021,12 +231054,19 @@
                 "required": [
                   "grant_type",
                   "code",
-                  "client_id",
                   "redirect_uri",
                   "resource",
                   "code_verifier"
                 ],
-                "additionalProperties": false
+                "$defs": {
+                  "__schema0": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 512,
+                    "pattern": "^[^\\s\\u0000-\\u001f\\u007f]+$"
+                  }
+                },
+                "additionalProperties": true
               }
             }
           }
@@ -231090,11 +231130,345 @@
               }
             }
           },
+          "401": {
+            "description": "OAuth protocol error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "error",
+                    "error_description"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "error_description": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
           "413": {
             "description": "Request exceeds 4 KiB"
           },
           "422": {
             "description": "Credentials outside their supported header are rejected"
+          }
+        }
+      }
+    },
+    "/oauth/register": {
+      "post": {
+        "tags": [
+          "OAuth"
+        ],
+        "security": [],
+        "description": "RFC 7591 dynamic registration for clients without a metadata document or configured client ID. Accepts HTTPS, literal loopback HTTP and reverse-domain native callbacks. Public clients explicitly use token_endpoint_auth_method=none. The default is client_secret_basic; client_secret_post and private_key_jwt are also supported. JWT clients supply exactly one public jwks or HTTPS jwks_uri and receive no symmetric secret. Only authorization_code/code and health:read/health:write scopes are issued. Requests listing authorization_code plus refresh_token are accepted with an authorization_code-only response. Declared web clients require non-loopback HTTPS callbacks; native clients can use loopback or native schemes. Unapproved registrations expire after one hour and are reclaimed before admitting new clients; successful root consent retains the client. Unknown metadata fields are ignored and external logos or client URIs are never fetched. Registration grants no ledger access. Limited to ten registrations per source address per minute and 1,000 persisted clients. Store any returned client secret privately; only its SHA-256 digest is retained.",
+        "operationId": "oauth_register_client",
+        "summary": "Register an OAuth client for MCP compatibility",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "client_name": {
+                    "$ref": "#/$defs/__schema0"
+                  },
+                  "application_type": {
+                    "$ref": "#/$defs/__schema1"
+                  },
+                  "redirect_uris": {
+                    "$ref": "#/$defs/__schema2"
+                  },
+                  "token_endpoint_auth_method": {
+                    "$ref": "#/$defs/__schema5"
+                  },
+                  "grant_types": {
+                    "$ref": "#/$defs/__schema6"
+                  },
+                  "response_types": {
+                    "$ref": "#/$defs/__schema8"
+                  },
+                  "scope": {
+                    "$ref": "#/$defs/__schema10"
+                  },
+                  "jwks_uri": {
+                    "$ref": "#/$defs/__schema11"
+                  },
+                  "jwks": {
+                    "$ref": "#/$defs/__schema12"
+                  },
+                  "token_endpoint_auth_signing_alg": {
+                    "$ref": "#/$defs/__schema15"
+                  }
+                },
+                "required": [
+                  "redirect_uris"
+                ],
+                "$defs": {
+                  "__schema0": {
+                    "default": "MCP client",
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100,
+                    "pattern": "^[^\\u0000-\\u001f\\u007f\\u202a-\\u202e\\u2066-\\u2069]+$"
+                  },
+                  "__schema1": {
+                    "type": "string",
+                    "enum": [
+                      "native",
+                      "web"
+                    ]
+                  },
+                  "__schema2": {
+                    "minItems": 1,
+                    "maxItems": 10,
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/__schema3"
+                    }
+                  },
+                  "__schema3": {
+                    "$ref": "#/$defs/__schema4"
+                  },
+                  "__schema4": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 512,
+                    "pattern": "^[^\\s\\u0000-\\u001f\\u007f]+$"
+                  },
+                  "__schema5": {
+                    "default": "client_secret_basic",
+                    "type": "string",
+                    "enum": [
+                      "none",
+                      "client_secret_basic",
+                      "client_secret_post",
+                      "private_key_jwt"
+                    ]
+                  },
+                  "__schema6": {
+                    "default": [
+                      "authorization_code"
+                    ],
+                    "minItems": 1,
+                    "maxItems": 2,
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/__schema7"
+                    }
+                  },
+                  "__schema7": {
+                    "type": "string",
+                    "enum": [
+                      "authorization_code",
+                      "refresh_token"
+                    ]
+                  },
+                  "__schema8": {
+                    "default": [
+                      "code"
+                    ],
+                    "minItems": 1,
+                    "maxItems": 1,
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/__schema9"
+                    }
+                  },
+                  "__schema9": {
+                    "type": "string",
+                    "const": "code"
+                  },
+                  "__schema10": {
+                    "default": "health:read health:write",
+                    "type": "string",
+                    "maxLength": 128
+                  },
+                  "__schema11": {
+                    "$ref": "#/$defs/__schema4"
+                  },
+                  "__schema12": {
+                    "type": "object",
+                    "properties": {
+                      "keys": {
+                        "$ref": "#/$defs/__schema13"
+                      }
+                    },
+                    "required": [
+                      "keys"
+                    ]
+                  },
+                  "__schema13": {
+                    "minItems": 1,
+                    "maxItems": 10,
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/__schema14"
+                    }
+                  },
+                  "__schema14": {
+                    "type": "object",
+                    "properties": {
+                      "kty": {
+                        "type": "string",
+                        "enum": [
+                          "RSA",
+                          "EC"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "kty"
+                    ],
+                    "additionalProperties": {}
+                  },
+                  "__schema15": {
+                    "type": "string",
+                    "enum": [
+                      "RS256",
+                      "PS256",
+                      "ES256"
+                    ]
+                  }
+                },
+                "additionalProperties": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Persisted client registration; optional client secret is returned once",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "client_id",
+                    "client_id_issued_at",
+                    "client_name",
+                    "redirect_uris",
+                    "token_endpoint_auth_method",
+                    "grant_types",
+                    "response_types",
+                    "scope"
+                  ],
+                  "properties": {
+                    "client_name": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "application_type": {
+                      "$ref": "#/$defs/__schema1"
+                    },
+                    "redirect_uris": {
+                      "$ref": "#/$defs/__schema2"
+                    },
+                    "token_endpoint_auth_method": {
+                      "$ref": "#/$defs/__schema5"
+                    },
+                    "grant_types": {
+                      "type": "array",
+                      "items": {
+                        "const": "authorization_code"
+                      },
+                      "minItems": 1,
+                      "maxItems": 1
+                    },
+                    "response_types": {
+                      "$ref": "#/$defs/__schema8"
+                    },
+                    "scope": {
+                      "$ref": "#/$defs/__schema10"
+                    },
+                    "jwks_uri": {
+                      "$ref": "#/$defs/__schema11"
+                    },
+                    "jwks": {
+                      "$ref": "#/$defs/__schema12"
+                    },
+                    "token_endpoint_auth_signing_alg": {
+                      "$ref": "#/$defs/__schema15"
+                    },
+                    "client_id": {
+                      "type": "string",
+                      "pattern": "^vcl_[A-Za-z0-9_-]{43}$"
+                    },
+                    "client_id_issued_at": {
+                      "type": "integer"
+                    },
+                    "client_secret": {
+                      "type": "string",
+                      "pattern": "^vcs_[A-Za-z0-9_-]{43}$",
+                      "writeOnly": true
+                    },
+                    "client_secret_expires_at": {
+                      "const": 0
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "OAuth protocol error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "error",
+                    "error_description"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "error_description": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request exceeds 4 KiB"
+          },
+          "429": {
+            "description": "Registration rate exceeded; Retry-After: 60"
+          },
+          "503": {
+            "description": "OAuth protocol error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "error",
+                    "error_description"
+                  ],
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "error_description": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
