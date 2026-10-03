@@ -2,6 +2,7 @@ import { errorStatuses } from "./errors.js";
 import { operations, restBody } from "./registry/operations.js";
 import { jsonSchema } from "./registry/primitives.js";
 import type { Data } from "./domain/types.js";
+import { keyOperations } from "./auth/contracts.js";
 export function openapi(): Data {
   const paths: Data = {};
   for (const operation of operations) {
@@ -77,7 +78,7 @@ export function openapi(): Data {
         operationId: operation.name,
         summary: operation.description,
         tags: [operation.record_type ?? "Read"],
-        security: [{ staticKey: [] }],
+        security: [{ staticKey: [] }, { apiKey: [] }],
         parameters,
         ...(operation.method === "POST"
           ? {
@@ -98,6 +99,117 @@ export function openapi(): Data {
       },
     };
   }
+  for (const operation of keyOperations) {
+    const responses: Data = {
+      [operation.status]: {
+        description: operation.description,
+        content: {
+          "application/json": { schema: jsonSchema(operation.output) },
+        },
+      },
+    };
+    for (const status of [401, 403, 413, 422, 429, 503, 500])
+      responses[String(status)] = {
+        description: Object.entries(errorStatuses)
+          .filter(([, code]) => code === status)
+          .map(([name]) => name)
+          .join(", "),
+        content: {
+          "application/json": {
+            schema: { $ref: "#/components/schemas/Error" },
+          },
+        },
+      };
+    if (operation.name === "revoke_api_key")
+      responses["404"] = {
+        description: "API key does not exist",
+        content: {
+          "application/json": {
+            schema: { $ref: "#/components/schemas/Error" },
+          },
+        },
+      };
+    const parameters: Data[] =
+      operation.name === "revoke_api_key"
+        ? [
+            {
+              name: "id",
+              in: "path",
+              required: true,
+              schema: { type: "string", format: "uuid" },
+            },
+          ]
+        : operation.name === "list_api_keys"
+          ? [
+              {
+                name: "limit",
+                in: "query",
+                schema: {
+                  type: "integer",
+                  minimum: 1,
+                  maximum: 100,
+                  default: 50,
+                },
+              },
+              {
+                name: "offset",
+                in: "query",
+                schema: {
+                  type: "integer",
+                  minimum: 0,
+                  maximum: 1_000_000,
+                  default: 0,
+                },
+              },
+            ]
+          : [];
+    const body =
+      operation.name === "create_api_key"
+        ? (jsonSchema(operation.input) as Data)
+        : undefined;
+    if (body) {
+      const properties = body.properties as Data;
+      properties.password = {
+        ...(properties.password as Data),
+        format: "password",
+        writeOnly: true,
+        maxLength: 256,
+        description:
+          "ROOT_PASSWORD; at most 256 UTF-8 bytes. Used only for this request.",
+      };
+    }
+    paths[operation.path] = {
+      ...(paths[operation.path] as Data | undefined),
+      [operation.method.toLowerCase()]: {
+        operationId: operation.name,
+        summary: operation.description,
+        tags: ["API keys"],
+        security: operation.rootOnly ? [{ staticKey: [] }] : [],
+        parameters,
+        ...(body
+          ? {
+              requestBody: {
+                required: true,
+                content: { "application/json": { schema: body } },
+              },
+            }
+          : {}),
+        responses,
+      },
+    };
+  }
+  paths["/api-keys"] = {
+    get: {
+      summary: "Root credential form for generating a 30-day API key",
+      security: [],
+      responses: {
+        "200": {
+          description: "API key generation page",
+          content: { "text/html": { schema: { type: "string" } } },
+        },
+      },
+    },
+  };
   paths["/healthz"] = {
     get: {
       summary: "Minimal liveness",
@@ -108,7 +220,7 @@ export function openapi(): Data {
   paths["/readyz"] = {
     get: {
       summary: "Authenticated database and migration readiness",
-      security: [{ staticKey: [] }],
+      security: [{ staticKey: [] }, { apiKey: [] }],
       responses: {
         "200": { description: "Ready" },
         "503": { description: "Unavailable" },
@@ -118,7 +230,7 @@ export function openapi(): Data {
   paths["/openapi.json"] = {
     get: {
       summary: "Authenticated OpenAPI document",
-      security: [{ staticKey: [] }],
+      security: [{ staticKey: [] }, { apiKey: [] }],
       responses: { "200": { description: "OpenAPI 3.1.1" } },
     },
   };
@@ -128,7 +240,7 @@ export function openapi(): Data {
       title: "Vitalog",
       version: "1.0.0",
       description:
-        "Single-user structured observations with equivalent REST and MCP domain services. Opaque static Bearer secret; no OAuth or JWT.",
+        "Single-user structured observations with equivalent REST and MCP domain services. Environment AUTH_KEY or revocable 30-day opaque Bearer keys; key management requires AUTH_KEY. No OAuth or JWT.",
     },
     servers: [
       {
@@ -143,7 +255,13 @@ export function openapi(): Data {
           type: "http",
           scheme: "bearer",
           description:
-            "Operator-supplied AUTH_KEY; opaque static secret, not OAuth or JWT",
+            "Environment AUTH_KEY. Full ledger access and exclusive API-key administration. Not OAuth or JWT.",
+        },
+        apiKey: {
+          type: "http",
+          scheme: "bearer",
+          description:
+            "Generated opaque vlk_ key, valid for exactly 30 days unless revoked. Full ledger access; cannot list or revoke API keys. Not OAuth or JWT.",
         },
       },
       schemas: {

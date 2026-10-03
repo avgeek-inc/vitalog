@@ -21,12 +21,14 @@ Save these production runtime values under **Vitalog → Settings → Secrets**:
 | Key             | Value                                                                                                 |
 | --------------- | ----------------------------------------------------------------------------------------------------- |
 | `AUTH_KEY`      | An operator-created secret from at least 32 random bytes, using the encoding documented in the README |
+| `ROOT_EMAIL`    | The email used to authenticate API-key generation                                                     |
+| `ROOT_PASSWORD` | A distinct root password of at least 15 non-padding characters and at most 256 UTF-8 bytes            |
 | `DATABASE_URL`  | `postgresql://vitalog:<URL-encoded password>@vitalog-postgres:5432/vitalog`                           |
 | `ALLOWED_HOSTS` | `vitalog.praveent.com,127.0.0.1:3000,vitalog:3000`                                                    |
 
 The password in `DATABASE_URL` must match the datastore password. URL-encode it; a random hexadecimal password needs no escaping. Commit only the declared key names, never their values. Initialization variables apply only to a new PostgreSQL volume. Changing a saved password later also requires rotating it in PostgreSQL.
 
-The image supplies production mode and port 3000. The default timezone is `Asia/Kolkata`. Forwarded client addresses remain untrusted by default; enable proxy trust only with the exact immediate peer addresses required by the README. Browser origins are optional and must be explicitly allowed through `ALLOWED_ORIGINS` when using a browser client.
+The image supplies production mode and port 3000. The default timezone is `Asia/Kolkata`. Forwarded client addresses remain untrusted by default; enable proxy trust only with the exact immediate peer addresses required by the README. The generation page at `/api-keys` accepts its own HTTPS origin without additional configuration. Other browser clients must be explicitly allowed through `ALLOWED_ORIGINS`.
 
 ## Deploy and verify
 

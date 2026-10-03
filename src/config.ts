@@ -2,10 +2,14 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { isIP } from "node:net";
 import { validTimezone } from "./domain/validation.js";
 import { credentialGuard, type CredentialGuard } from "./security.js";
+import { rootCredentials, type RootCredentials } from "./auth/root.js";
 
 export type Config = {
   authDigest: Buffer;
   assertCredentialAbsent: CredentialGuard;
+  assertAuthKeyAbsent: CredentialGuard;
+  assertEnvironmentCredentialsAbsent: CredentialGuard;
+  rootCredentials?: RootCredentials;
   databaseUrl: string;
   timezone: string;
   port: number;
@@ -27,6 +31,10 @@ export function configuration(env: NodeJS.ProcessEnv = process.env): Config {
       "AUTH_KEY must be an operator-supplied secret, 43–512 encoded characters, from at least 32 random bytes",
     );
   const databaseUrl = env.DATABASE_URL;
+  const root = rootCredentials(env.ROOT_EMAIL, env.ROOT_PASSWORD);
+  if (env.ROOT_PASSWORD === key)
+    throw new Error("ROOT_PASSWORD must differ from AUTH_KEY");
+  const passwordSecrets = root ? [env.ROOT_PASSWORD!] : [];
   if (!databaseUrl || !/^postgres(?:ql)?:\/\//.test(databaseUrl))
     throw new Error("A PostgreSQL DATABASE_URL is required");
   const timezone = env.DEFAULT_TIMEZONE ?? "Asia/Kolkata";
@@ -79,7 +87,14 @@ export function configuration(env: NodeJS.ProcessEnv = process.env): Config {
     );
   return {
     authDigest: createHash("sha256").update(key).digest(),
-    assertCredentialAbsent: credentialGuard(key),
+    assertCredentialAbsent: credentialGuard(key, passwordSecrets),
+    assertAuthKeyAbsent: credentialGuard(key, [], false),
+    assertEnvironmentCredentialsAbsent: credentialGuard(
+      key,
+      passwordSecrets,
+      false,
+    ),
+    rootCredentials: root,
     databaseUrl,
     timezone,
     port,

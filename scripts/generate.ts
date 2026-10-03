@@ -12,6 +12,7 @@ import {
 import { recordDescriptor } from "../src/domain/catalog.js";
 import { base, examples } from "../tests/fixtures.js";
 import type { Data } from "../src/domain/types.js";
+import { keyOperations } from "../src/auth/contracts.js";
 
 const check = process.argv.includes("--check");
 const stableId = (value: string) => {
@@ -144,18 +145,23 @@ await save(
     id: stableId("Vitalog API"),
     description:
       "Generated from the shared registry and OpenAPI. Set authKey as a local private secret. Examples use synthetic historical observations; writes modify the configured database. Choose a new idempotencyKey for each intentional event and retain it for retries.",
-    variables: { recordId: "", date: base.occurred_on, idempotencyKey: "" },
+    variables: {
+      recordId: "",
+      date: base.occurred_on,
+      idempotencyKey: "",
+      apiKeyId: "",
+    },
     auth: [
       {
         id: stableId("vitalog-bearer"),
         type: "bearer",
-        name: "Operator AUTH_KEY",
+        name: "Ledger Bearer key",
         credentials: { token: "{{authKey}}" },
       },
     ],
   }),
 );
-for (const [index, name] of ["REST", "MCP"].entries())
+for (const [index, name] of ["REST", "MCP", "API keys"].entries())
   await save(
     `${collectionRoot}/${name}/.resources/definition.yaml`,
     stringify({
@@ -248,6 +254,74 @@ for (const [name, path] of [
   );
 }
 const mcp: Data[] = [];
+const keyItems: Data[] = [];
+for (const operation of keyOperations) {
+  const url =
+    "{{baseUrl}}" +
+    operation.path.replace("{id}", "{{apiKeyId}}") +
+    (operation.name === "list_api_keys" ? "?limit=50&offset=0" : "");
+  const body =
+    operation.name === "create_api_key"
+      ? json({
+          email: "{{rootEmail}}",
+          password: "{{rootPassword}}",
+          name: "Postman",
+        }).trimEnd()
+      : undefined;
+  const authentication = operation.rootOnly
+    ? {
+        type: "bearer",
+        bearer: [{ key: "token", value: "{{rootAuthKey}}", type: "string" }],
+      }
+    : { type: "noauth" };
+  const headers = {
+    Accept: "application/json",
+    ...(body ? { "Content-Type": "application/json" } : {}),
+  };
+  keyItems.push({
+    name: operation.name,
+    request: {
+      method: operation.method,
+      url,
+      description: operation.description,
+      auth: authentication,
+      header: Object.entries(headers).map(([key, value]) => ({ key, value })),
+      ...(body
+        ? {
+            body: {
+              mode: "raw",
+              raw: body,
+              options: { raw: { language: "json" } },
+            },
+          }
+        : {}),
+    },
+  });
+  await save(
+    `${collectionRoot}/API keys/${operation.name}.request.yaml`,
+    stringify({
+      $kind: "http-request",
+      id: stableId(`API keys:${operation.name}`),
+      description: operation.description,
+      method: operation.method,
+      url,
+      headers,
+      auth: [
+        {
+          id: stableId(`API keys:${operation.name}:auth`),
+          type: operation.rootOnly ? "bearer" : "noauth",
+          name: operation.rootOnly
+            ? "Primary AUTH_KEY"
+            : "Root credentials in JSON",
+          ...(operation.rootOnly
+            ? { credentials: { token: "{{rootAuthKey}}" } }
+            : {}),
+        },
+      ],
+      ...(body ? { body: { type: "json", content: body } } : {}),
+    }),
+  );
+}
 const requests: { name: string; payload: Data; headers?: Data }[] = [
   {
     name: "Initialize",
@@ -329,10 +403,12 @@ await save(
       { key: "recordId", value: "" },
       { key: "date", value: base.occurred_on },
       { key: "idempotencyKey", value: "" },
+      { key: "apiKeyId", value: "" },
     ],
     item: [
       { name: "REST", item: items },
       { name: "MCP", item: mcp },
+      { name: "API keys", item: keyItems },
     ],
   }),
 );
@@ -343,6 +419,9 @@ await save(
     values: [
       { key: "baseUrl", value: "http://localhost:3000", enabled: true },
       { key: "authKey", value: "", type: "secret", enabled: true },
+      { key: "rootAuthKey", value: "", type: "secret", enabled: true },
+      { key: "rootEmail", value: "", type: "secret", enabled: true },
+      { key: "rootPassword", value: "", type: "secret", enabled: true },
     ],
   }),
 );
@@ -354,10 +433,13 @@ await save(
     values: [
       { key: "baseUrl", value: "http://localhost:3000", enabled: true },
       { key: "authKey", value: "", type: "secret", enabled: true },
+      { key: "rootAuthKey", value: "", type: "secret", enabled: true },
+      { key: "rootEmail", value: "", type: "secret", enabled: true },
+      { key: "rootPassword", value: "", type: "secret", enabled: true },
     ],
     _postman_variable_scope: "environment",
   }),
 );
 process.stdout.write(
-  `${check ? "Verified" : "Generated"} OpenAPI, full schemas, coverage and ${items.length + mcp.length} Postman REST/MCP requests\n`,
+  `${check ? "Verified" : "Generated"} OpenAPI, full schemas, coverage and ${items.length + mcp.length + keyItems.length} Postman requests\n`,
 );

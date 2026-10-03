@@ -7,3 +7,15 @@ values:
     value: ""
     type: secret
     enabled: true
+  - key: rootAuthKey
+    value: ""
+    type: secret
+    enabled: true
+  - key: rootEmail
+    value: ""
+    type: secret
+    enabled: true
+  - key: rootPassword
+    value: ""
+    type: secret
+    enabled: true

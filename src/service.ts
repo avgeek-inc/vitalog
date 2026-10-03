@@ -26,6 +26,9 @@ export class Service {
       await this.db.execute(
         sql`select id, time_context from health_records limit 0`,
       );
+      await this.db.execute(
+        sql`select id, token_digest, expires_at, revoked_at from api_keys limit 0`,
+      );
       return true;
     } catch {
       return false;

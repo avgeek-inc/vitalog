@@ -50,6 +50,8 @@ tls:
 secrets:
   runtime:
     - AUTH_KEY
+    - ROOT_EMAIL
+    - ROOT_PASSWORD
     - DATABASE_URL
     - ALLOWED_HOSTS
 environments:

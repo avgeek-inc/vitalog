@@ -1,0 +1,21 @@
+$kind: http-request
+id: 541bd03c-b799-57ec-87fd-641654d8f9b6
+description: Generate a 30-day API key using ROOT_EMAIL and ROOT_PASSWORD. The
+  complete key is returned once; it cannot manage API keys.
+method: POST
+url: "{{baseUrl}}/auth/api-keys"
+headers:
+  Accept: application/json
+  Content-Type: application/json
+auth:
+  - id: 2ed2837f-608c-5dd5-8c8b-fdc94d6360b2
+    type: noauth
+    name: Root credentials in JSON
+body:
+  type: json
+  content: |-
+    {
+      "email": "{{rootEmail}}",
+      "password": "{{rootPassword}}",
+      "name": "Postman"
+    }

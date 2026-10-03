@@ -36,13 +36,23 @@ npm run dev
 
 The development and migration commands load `.env` if present. `DATABASE_URL` must address PostgreSQL. `DEFAULT_TIMEZONE` defaults to `Asia/Kolkata`; `PORT` defaults to `3000`. A production process uses `npm run build` followed by `npm start` with environment variables supplied by the deployment. Apply migrations before starting it. The Docker entrypoint performs both steps.
 
+The API-key page uses React 19, HeroUI v3 and Tailwind CSS v4, following Towbar's component setup. Vite builds its JavaScript, CSS and Inter font into `dist/web`; Hono serves them from the same origin. `npm run dev` builds the page before starting the API. Run `npm run dev:web` in another terminal to rebuild it as you edit. `npm run build` and the Docker build include both API and UI assets.
+
 Generate new database migrations with `npm run db:generate`. Apply them with `npm run db:migrate`. The migration runner serializes concurrent migration attempts with a PostgreSQL advisory lock. Keep deployed migration files immutable and add forward migrations for later changes. Never use `drizzle-kit push` as a production upgrade procedure.
 
 ## Authentication
 
-Every `/v1/*`, `/mcp`, `/readyz` and `/openapi.json` request requires `Authorization: Bearer <AUTH_KEY>`. MCP initialization, discovery, calls and transport operations all use that same header. This is one opaque static secret. Anyone who holds it can read and change the entire datastore; it does not identify different callers.
+Every `/v1/*`, `/mcp`, `/readyz` and `/openapi.json` request requires an HTTP Bearer key. The environment `AUTH_KEY` has full ledger access and exclusive API-key administration. Generated keys have full ledger access for exactly 30 days unless revoked, and cannot list or revoke keys. MCP initialization, discovery, calls and transport operations all require the same Bearer header. This remains one person's ledger; a key does not create a separate user or datastore.
 
-To rotate the key, replace the deployment secret, restart the API, and update each trusted client's private header configuration. Database idempotency and history survive rotation. Signed pagination cursors use a digest-derived signing key, so clients restart pagination after key rotation.
+Set `ROOT_EMAIL` and `ROOT_PASSWORD` to enable generation at `/api-keys`. The password must contain at least 15 non-padding characters and fit within 256 UTF-8 bytes, and must differ from `AUTH_KEY`. Configure both values together; leaving both empty disables issuance while existing Bearer clients keep working. Root email matching ignores surrounding whitespace and case; password matching is exact. Root credentials are used only for generation, never as ledger HTTP Basic authentication. The API verifies the password using salted scrypt with bounded concurrency and rate limits.
+
+The page submits root credentials to `POST /auth/api-keys` over HTTPS (loopback HTTP is supported for development). It shows the complete token once and clears the password after submission. Tokens use 32 random bytes and are stored only as SHA-256 hashes in PostgreSQL. They are opaque, not JWTs. Every authenticated request checks expiry and revocation using the database clock; a revoke affects subsequent requests, including requests from an existing MCP client. Requests already authenticated may complete.
+
+The primary key manages generated keys through `GET /v1/api-keys`, `DELETE /v1/api-keys/{id}`, and `DELETE /v1/api-keys`. Listing is paginated and returns names, short token hints, timestamps and status, never token values or hashes. Revoke-all leaves `AUTH_KEY` valid and does not prevent new generation with the root credentials. Root email/password cannot revoke keys. There are no key-management MCP tools; the MCP surface remains sixteen tools.
+
+See [API-key setup and contracts](docs/api-keys.md) for request examples and operational behavior. This extends the original specification's authentication exclusions. It does not implement OAuth discovery or authorization; ChatGPT's authenticated MCP integration still requires the separate OAuth flow.
+
+To rotate `AUTH_KEY`, replace the deployment secret, restart the API, and update each trusted client's private header configuration. Generated keys, database idempotency and history survive rotation. Signed ledger pagination cursors use a digest-derived signing key, so clients restart pagination after key rotation. Changing root credentials affects future issuance and does not revoke generated keys; use the revoke-all API when that is intended.
 
 The default request limit is 1 MiB. Domain responses and discovery responses are bounded to 8 MiB. Requests have a 25-second application deadline, a 30-second HTTP request timeout, and a 15-second PostgreSQL statement timeout. If a mutation response is lost or times out, retry with its original idempotency key. A committed write may outlive an interrupted response. `RATE_LIMIT_PER_MINUTE` defaults to 600 per socket/client address. Read queries have explicit record, date and page limits described in [the integration guide](docs/integration.md).
 
@@ -54,7 +64,7 @@ Start discovery with authenticated `GET /v1/catalog` or `health_get_catalog({})`
 
 The [integration guide](docs/integration.md) describes all REST/MCP mappings, filtering, dates, provenance, result variants, summaries and retries. [OpenAPI JSON](docs/openapi.json), [complete record schemas](docs/record-schemas.json) and [executable examples](docs/examples.json) are generated from the shared definitions.
 
-[Postman instructions](postman/README.md) cover the Native Git workspace layout used by Towbar and the importable v2.1 JSON collection. The collection contains 38 requests across REST, technical endpoints, MCP initialization, tool discovery and all sixteen tools. Secret values are blank in the repository.
+[Postman instructions](postman/README.md) cover the Native Git workspace layout used by Towbar and the importable v2.1 JSON collection. The collection contains 42 requests across REST, technical endpoints, MCP initialization, tool discovery, all sixteen tools and API-key generation/administration. Secret values are blank in the repository.
 
 ## Verify a change
 
@@ -62,6 +72,7 @@ The [integration guide](docs/integration.md) describes all REST/MCP mappings, fi
 npm run verify
 npm run test:integration
 npm run test:security
+npm run test:auth
 npm run test:summaries
 npm run test:container
 npm run test:towbar
@@ -73,7 +84,7 @@ npm audit --omit=dev --audit-level=moderate
 
 [The acceptance traceability](docs/acceptance.md) maps all 76 requirements to implementation and verification. [The coverage report](docs/coverage.json) lists every implemented key and its tests. [The verification report](docs/verification-report.json) records the executed interoperability run, exact SDK/protocol/client versions, and database backup/restore result. [The container report](docs/container-report.json), [security report](docs/security-report.json) and [summary report](docs/summary-report.json) record the additional deployment checks. Current runs write their reports to ignored `.test-artifacts/`; they do not rewrite checked-in evidence automatically.
 
-The GitHub verification workflow runs these checks on pushes and pull requests. A separate tag workflow verifies the repository and publishes `ghcr.io/avgeek-inc/vitalog:<tag>` for a pushed `v*` tag. Publishing an image does not deploy a server. There is no production address or account secret checked into this repository.
+The GitHub verification workflow runs these checks on pushes and pull requests. A separate tag workflow verifies the repository and publishes `ghcr.io/avgeek-inc/vitalog:<tag>` for a pushed `v*` tag. Publishing an image does not deploy a server. There are no production credentials checked into this repository.
 
 ## Export, backups and erasure
 

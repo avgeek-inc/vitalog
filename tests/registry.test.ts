@@ -235,7 +235,7 @@ describe("Catalog invariants", () => {
       "/catalog/metrics",
     ])
       expect(text).not.toContain(term);
-    expect(Object.keys(doc.paths as object)).toHaveLength(19);
+    expect(Object.keys(doc.paths as object)).toHaveLength(23);
     expect(catalog({}, cursors).catalog_version).toBe(CATALOG_VERSION);
   });
   test("Oversized responses fail without truncating the requested value", () => {
