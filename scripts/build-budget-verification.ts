@@ -9,6 +9,7 @@ type Profile = {
   deployment: {
     resources: { memory: string; cpus: number };
     dockerfile: string;
+    architecture: "arm64" | "amd64";
   };
 };
 const docker = (args: string[]) =>
@@ -28,6 +29,9 @@ for (const name of ["api", "web"] as const) {
     ),
   ) as Profile;
   const { memory, cpus } = manifest.deployment.resources;
+  const { architecture } = manifest.deployment;
+  assert(["arm64", "amd64"].includes(architecture));
+  const platform = `linux/${architecture}`;
   const dockerfile = await readFile(manifest.deployment.dockerfile, "utf8");
   const image = /^FROM (\S+) AS build$/m.exec(dockerfile)?.[1];
   assert(image, "The budget check needs the production builder image");
@@ -60,7 +64,9 @@ for (const name of ["api", "web"] as const) {
       "create",
       "--name",
       container,
+      `--platform=${platform}`,
       `--memory=${memory}`,
+      `--memory-swap=${memory}`,
       `--cpus=${cpus}`,
       "--workdir",
       "/app",
@@ -92,9 +98,17 @@ for (const name of ["api", "web"] as const) {
     );
     assert.equal(state.OOMKilled, false);
     assert.equal(state.Status, "exited");
-    checks.push({ name, memory, cpus, image, status: "passed" });
+    checks.push({
+      name,
+      memory,
+      cpus,
+      platform,
+      swap: false,
+      image,
+      status: "passed",
+    });
     process.stdout.write(
-      `PASS ${name} production build within ${memory} and ${cpus} CPU\n`,
+      `PASS ${name} ${platform} production build within ${memory} and ${cpus} CPU without swap\n`,
     );
   } finally {
     if (created) docker(["rm", "--force", container]);
