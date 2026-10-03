@@ -8,11 +8,16 @@ description: RFC 7591 dynamic registration for clients without a metadata
   token_endpoint_auth_method=none. The default is client_secret_basic;
   client_secret_post and private_key_jwt are also supported. JWT clients supply
   exactly one public jwks or HTTPS jwks_uri and receive no symmetric secret.
-  Only authorization_code/code and health:read/health:write scopes are
-  supported. Unknown metadata fields are ignored and external logos or client
-  URIs are never fetched. Registration grants no ledger access. Limited to ten
-  registrations per source address per minute and 1,000 persisted clients. Store
-  any returned client secret privately; only its SHA-256 digest is retained.
+  Only authorization_code/code and health:read/health:write scopes are issued.
+  Requests listing authorization_code plus refresh_token are accepted with an
+  authorization_code-only response. Declared web clients require non-loopback
+  HTTPS callbacks; native clients can use loopback or native schemes. Unapproved
+  registrations expire after one hour and are reclaimed before admitting new
+  clients; successful root consent retains the client. Unknown metadata fields
+  are ignored and external logos or client URIs are never fetched. Registration
+  grants no ledger access. Limited to ten registrations per source address per
+  minute and 1,000 persisted clients. Store any returned client secret
+  privately; only its SHA-256 digest is retained.
 headers:
   Accept: application/json
   Content-Type: application/json
@@ -25,6 +30,7 @@ body:
   content: |-
     {
       "client_name": "{{oauthClientName}}",
+      "application_type": "native",
       "redirect_uris": [
         "{{oauthRedirectUri}}"
       ],

@@ -2,7 +2,7 @@ import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { lookup } from "node:dns/promises";
 import { request } from "node:https";
 import { BlockList, isIP } from "node:net";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, or, isNotNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Database } from "../db/client.js";
 import { oauthClients } from "../db/schema.js";
@@ -108,6 +108,8 @@ function validateKeySource(
     jwks?: unknown;
     jwks_uri?: string;
     token_endpoint_auth_signing_alg?: string;
+    application_type?: "native" | "web";
+    redirect_uris: string[];
   },
   context: z.RefinementCtx,
 ) {
@@ -122,10 +124,24 @@ function validateKeySource(
       code: "custom",
       message: "JWT clients require exactly one public JWKS source",
     });
+  if (
+    client.application_type === "web" &&
+    client.redirect_uris.some((value) => {
+      if (!validRedirectUri(value)) return true;
+      const uri = new URL(value);
+      return uri.protocol !== "https:" || loopbackHosts.includes(uri.hostname);
+    })
+  )
+    context.addIssue({
+      code: "custom",
+      path: ["redirect_uris"],
+      message: "Web clients require non-loopback HTTPS callbacks",
+    });
 }
 const metadata = z
   .object({
     client_name: name.default("MCP client"),
+    application_type: z.enum(["native", "web"]).optional(),
     redirect_uris: z
       .array(redirectUri)
       .min(1)
@@ -133,9 +149,16 @@ const metadata = z
       .refine((values) => new Set(values).size === values.length),
     token_endpoint_auth_method: methods.default("client_secret_basic"),
     grant_types: z
-      .array(z.literal("authorization_code"))
-      .length(1)
-      .default(["authorization_code"]),
+      .array(z.enum(["authorization_code", "refresh_token"]))
+      .min(1)
+      .max(2)
+      .refine(
+        (values) =>
+          values.includes("authorization_code") &&
+          new Set(values).size === values.length,
+      )
+      .default(["authorization_code"])
+      .transform(() => ["authorization_code"] as ["authorization_code"]),
     response_types: z.array(z.literal("code")).length(1).default(["code"]),
     scope: scope.default(oauthScopes.join(" ")),
     jwks_uri: opaqueString
@@ -419,6 +442,9 @@ export class OAuthClients {
       await transaction.execute(
         sql`select pg_advisory_xact_lock(hashtext('vitalog-oauth-client-registration'))`,
       );
+      await transaction.execute(
+        sql`delete from oauth_clients where approved_at is null and created_at <= statement_timestamp() - interval '1 hour'`,
+      );
       const result = await transaction.execute(
         sql`select count(*)::integer as count from oauth_clients`,
       );
@@ -454,7 +480,15 @@ export class OAuthClients {
       const [registered] = await this.db
         .select()
         .from(oauthClients)
-        .where(eq(oauthClients.clientId, id))
+        .where(
+          and(
+            eq(oauthClients.clientId, id),
+            or(
+              isNotNull(oauthClients.approvedAt),
+              sql`${oauthClients.createdAt} > statement_timestamp() - interval '1 hour'`,
+            ),
+          ),
+        )
         .limit(1);
       if (!registered)
         throw new OAuthError("invalid_client", "Unknown client ID");
@@ -484,6 +518,31 @@ export class OAuthClients {
     } finally {
       this.pending.delete(id);
     }
+  }
+  async approve(id: string) {
+    if (
+      !/^vcl_[A-Za-z0-9_-]{43}$/.test(id) ||
+      this.configured.some((client) => client.client_id === id)
+    )
+      return;
+    const [approved] = await this.db
+      .update(oauthClients)
+      .set({ approvedAt: sql`statement_timestamp()` })
+      .where(
+        and(
+          eq(oauthClients.clientId, id),
+          or(
+            isNotNull(oauthClients.approvedAt),
+            sql`${oauthClients.createdAt} > statement_timestamp() - interval '1 hour'`,
+          ),
+        ),
+      )
+      .returning({ clientId: oauthClients.clientId });
+    if (!approved)
+      throw new OAuthError(
+        "invalid_client",
+        "Client registration expired; register again",
+      );
   }
   private async load(id: string) {
     try {

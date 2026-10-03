@@ -212,6 +212,7 @@ export const oauthClients = pgTable(
     clientId: text("client_id").primaryKey(),
     metadata: jsonb("metadata").$type<ClientMetadata>().notNull(),
     clientSecretDigest: text("client_secret_digest"),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`statement_timestamp()`),

@@ -174,7 +174,7 @@ export const oauthPaths: Data = {
       operationId: "oauth_exchange_code",
       summary: "Exchange a PKCE authorization code for an MCP access token",
       description:
-        "Authorization-code exchange with S256 PKCE and exact client, consented callback and canonical MCP resource binding. Public clients use client_id without a secret; configured or dynamically registered confidential clients use their declared client_secret_basic, client_secret_post or private_key_jwt method. JWT clients send a signed assertion with registered public keys and a unique jti; replay is blocked across restarts. HTTP Basic identifies the client when client_id is omitted from the body. Unknown OAuth parameters are ignored. No refresh or client-credentials grants. Atomically consumes the code and creates a scoped 30-day MCP token and its API-key management record. The primary AUTH_KEY can list or revoke this record. Revocation is checked on every MCP request.",
+        "Authorization-code exchange with S256 PKCE and exact client, consented callback and canonical MCP resource binding. Public clients use client_id without a secret; confidential clients use their declared client_secret_basic, client_secret_post or private_key_jwt method. JWT clients send a signed assertion with registered public keys and a unique jti; replay is blocked across restarts. Basic credentials or a verified assertion identify the client when client_id is omitted from the body. Unknown OAuth parameters are ignored. No refresh or client-credentials grants. Atomically consumes the code and creates a scoped 30-day MCP token and its API-key management record. The primary AUTH_KEY can list or revoke this record. Revocation is checked on every MCP request.",
       requestBody: {
         required: true,
         content: {
@@ -216,7 +216,7 @@ export const oauthPaths: Data = {
       operationId: "oauth_register_client",
       summary: "Register an OAuth client for MCP compatibility",
       description:
-        "RFC 7591 dynamic registration for clients without a metadata document or configured client ID. Accepts HTTPS, literal loopback HTTP and reverse-domain native callbacks. Public clients explicitly use token_endpoint_auth_method=none. The default is client_secret_basic; client_secret_post and private_key_jwt are also supported. JWT clients supply exactly one public jwks or HTTPS jwks_uri and receive no symmetric secret. Only authorization_code/code and health:read/health:write scopes are supported. Unknown metadata fields are ignored and external logos or client URIs are never fetched. Registration grants no ledger access. Limited to ten registrations per source address per minute and 1,000 persisted clients. Store any returned client secret privately; only its SHA-256 digest is retained.",
+        "RFC 7591 dynamic registration for clients without a metadata document or configured client ID. Accepts HTTPS, literal loopback HTTP and reverse-domain native callbacks. Public clients explicitly use token_endpoint_auth_method=none. The default is client_secret_basic; client_secret_post and private_key_jwt are also supported. JWT clients supply exactly one public jwks or HTTPS jwks_uri and receive no symmetric secret. Only authorization_code/code and health:read/health:write scopes are issued. Requests listing authorization_code plus refresh_token are accepted with an authorization_code-only response. Declared web clients require non-loopback HTTPS callbacks; native clients can use loopback or native schemes. Unapproved registrations expire after one hour and are reclaimed before admitting new clients; successful root consent retains the client. Unknown metadata fields are ignored and external logos or client URIs are never fetched. Registration grants no ledger access. Limited to ten registrations per source address per minute and 1,000 persisted clients. Store any returned client secret privately; only its SHA-256 digest is retained.",
       requestBody: {
         required: true,
         content: {
@@ -244,6 +244,12 @@ export const oauthPaths: Data = {
             ],
             properties: {
               ...(jsonSchema(registrationSchema).properties as Data),
+              grant_types: {
+                type: "array",
+                items: { const: "authorization_code" },
+                minItems: 1,
+                maxItems: 1,
+              },
               client_id: { type: "string", pattern: "^vcl_[A-Za-z0-9_-]{43}$" },
               client_id_issued_at: { type: "integer" },
               client_secret: {

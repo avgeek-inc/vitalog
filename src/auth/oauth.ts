@@ -2,6 +2,7 @@ import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { Hono, type Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { z } from "zod";
+import { decodeJwt } from "jose";
 import type { Config } from "../config.js";
 import { DomainError } from "../errors.js";
 import { keyCreation } from "./contracts.js";
@@ -386,6 +387,7 @@ export function oauthRoutes(
     else {
       config.assertCredentialAbsent(approval.data.email);
       await root.verify(approval.data.email, approval.data.password);
+      await clients.approve(flow.client_id);
       redirect.searchParams.set("code", await store.issueCode(undefined, flow));
     }
     deleteCookie(c, cookieName, cookieOptions);
@@ -437,7 +439,7 @@ export function oauthRoutes(
         (params.client_id !== undefined && params.client_id !== basic.id)
       )
         throw new OAuthError(
-          "invalid_request",
+          params.client_assertion ? "invalid_client" : "invalid_request",
           "Use a single client authentication method",
         );
       params.client_id = basic.id;
@@ -453,16 +455,28 @@ export function oauthRoutes(
         "invalid_request",
         "Supply the authorization code, client, callback, resource and verifier",
       );
-    if (!input.data.client_id)
-      throw new OAuthError("invalid_client", "Supply the client ID");
     if (
       !!input.data.client_assertion !== !!input.data.client_assertion_type ||
       (input.data.client_assertion && input.data.client_secret)
     )
       throw new OAuthError(
-        "invalid_request",
+        input.data.client_assertion && input.data.client_secret
+          ? "invalid_client"
+          : "invalid_request",
         "Use a single complete client authentication method",
       );
+    if (!input.data.client_id && input.data.client_assertion) {
+      try {
+        // The subject selects public keys; authentication still verifies its signature and claims.
+        input.data.client_id = clientId.parse(
+          decodeJwt(input.data.client_assertion).sub,
+        );
+      } catch {
+        throw new OAuthError("invalid_client", "Invalid client assertion", 401);
+      }
+    }
+    if (!input.data.client_id)
+      throw new OAuthError("invalid_client", "Supply the client ID");
     await clients.authenticate(
       input.data.client_id,
       basic?.secret ?? input.data.client_secret,

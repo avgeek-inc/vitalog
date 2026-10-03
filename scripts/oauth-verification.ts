@@ -1297,6 +1297,104 @@ try {
     },
   );
   await check(
+    "Registration retains application type, negotiates SDK grant capabilities and reclaims abandoned clients",
+    async () => {
+      const before = (await keys.list(100, 0)).total;
+      const web = await registerClient({
+        client_name: "Web client",
+        application_type: "web",
+        redirect_uris: [alternateCallback],
+        token_endpoint_auth_method: "none",
+        grant_types: ["authorization_code", "refresh_token"],
+      });
+      assert.equal(web.application_type, "web");
+      assert.deepEqual(web.grant_types, ["authorization_code"]);
+      for (const redirect of [
+        "http://127.0.0.1/callback",
+        "https://localhost/callback",
+        "com.example.client:/callback",
+        "not-a-uri",
+      ]) {
+        const result = await json("/oauth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            application_type: "web",
+            redirect_uris: [redirect],
+            token_endpoint_auth_method: "none",
+          }),
+        });
+        assert.equal(result.response.status, 400);
+        assert.equal(result.body.error, "invalid_redirect_uri");
+      }
+      const native = await registerClient({
+        client_name: "Native client",
+        application_type: "native",
+        redirect_uris: ["com.example.client:/callback"],
+        token_endpoint_auth_method: "none",
+      });
+      assert.equal(native.application_type, "native");
+      const nativeExtras = {
+        client_id: String(native.client_id),
+        redirect_uri: "com.example.client:/callback",
+      };
+      const nativeGrant = await code("health:read", nativeExtras);
+      const nativeToken = await exchange(nativeGrant);
+      assert.equal(nativeToken.response.status, 200);
+      const expiredFlow = await begin("health:read", {
+        client_id: String(web.client_id),
+        redirect_uri: alternateCallback,
+      });
+      await connection!.pool.query(
+        "update oauth_clients set created_at=statement_timestamp()-interval '61 minutes' where client_id=any($1)",
+        [[String(web.client_id), String(native.client_id)]],
+      );
+      assert.equal(
+        (await request("/oauth/authorize?" + expiredFlow.params)).status,
+        400,
+      );
+      const failedApproval = await approve(expiredFlow, {
+        ...login,
+        password: "incorrect-password",
+      });
+      assert.equal(failedApproval.response.status, 401);
+      assert.equal((await approve(expiredFlow)).response.status, 400);
+      const available = await registerClient({
+        client_name: "Replacement",
+        redirect_uris: [alternateCallback],
+        token_endpoint_auth_method: "none",
+      });
+      assert(available.client_id);
+      assert.equal(
+        (
+          await connection!.pool.query(
+            "select client_id from oauth_clients where client_id=$1",
+            [String(web.client_id)],
+          )
+        ).rowCount,
+        0,
+      );
+      assert.equal(
+        (
+          await connection!.pool.query(
+            "select approved_at from oauth_clients where client_id=$1",
+            [String(native.client_id)],
+          )
+        ).rowCount,
+        1,
+      );
+      restart();
+      await begin("health:read", nativeExtras);
+      const sdkClient = await client(String(nativeToken.body.access_token));
+      try {
+        assert.equal((await sdkClient.listTools()).tools.length, 16);
+      } finally {
+        await sdkClient.close();
+      }
+      assert.equal((await keys.list(100, 0)).total, before + 1);
+    },
+  );
+  await check(
     "Confidential registrations hash secrets, enforce the declared authentication method and preserve code binding",
     async () => {
       for (const method of [
@@ -1511,8 +1609,6 @@ try {
             client_name: "SDK MCP client",
             redirect_uris: [redirectUrl],
             token_endpoint_auth_method: "none",
-            grant_types: ["authorization_code"],
-            response_types: ["code"],
           },
           state: () => randomBytes(32).toString("base64url"),
           clientInformation: () => information,
@@ -1762,8 +1858,7 @@ try {
         assert.equal(
           (
             await request(
-              "/oauth/authorize?" +
-                new URLSearchParams({ ...grant.params, ...extras }),
+              "/oauth/authorize?" + new URLSearchParams(grant.params),
             )
           ).status,
           400,
@@ -1786,12 +1881,32 @@ try {
         iss: registeredId,
         sub: registeredId,
         aud: origin,
+        iat: undefined,
       });
       assert.equal(
         (
           await exchange(registeredGrant, {
+            client_id: alternateId,
             client_assertion_type: assertionType,
             client_assertion: signed,
+          })
+        ).response.status,
+        401,
+      );
+      assert.equal(
+        (
+          await json("/oauth/token", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({
+              grant_type: "authorization_code",
+              code: registeredGrant.code,
+              redirect_uri: alternateCallback,
+              resource: origin + "/mcp",
+              code_verifier: registeredGrant.verifier,
+              client_assertion_type: assertionType,
+              client_assertion: signed,
+            }),
           })
         ).response.status,
         200,
@@ -1909,6 +2024,32 @@ try {
         assert.equal(
           (await request("/oauth/authorize?" + (await begin()).params)).status,
           302,
+        );
+        await connection!.pool.query(
+          "update oauth_clients set created_at=statement_timestamp()-interval '61 minutes' where client_id like 'vcl_capacity%'",
+        );
+        assert(
+          (
+            await registerClient({
+              redirect_uris: [alternateCallback],
+              token_endpoint_auth_method: "none",
+            })
+          ).client_id,
+        );
+        assert.equal(
+          (
+            await connection!.pool.query(
+              "select count(*)::int count from oauth_clients where client_id like 'vcl_capacity%'",
+            )
+          ).rows[0].count,
+          0,
+        );
+        assert(
+          (
+            await connection!.pool.query(
+              "select count(*)::int count from oauth_clients",
+            )
+          ).rows[0].count < 1000,
         );
       } finally {
         await connection!.pool.query(

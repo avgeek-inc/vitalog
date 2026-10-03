@@ -381,6 +381,7 @@ for (const [path, methods] of Object.entries(source.paths as Data)) {
       headers["Content-Type"] = "application/json";
       const content = json({
         client_name: "{{oauthClientName}}",
+        application_type: "native",
         redirect_uris: ["{{oauthRedirectUri}}"],
         token_endpoint_auth_method: "none",
         grant_types: ["authorization_code"],

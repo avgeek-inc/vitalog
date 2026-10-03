@@ -57,6 +57,13 @@
       "when": 1791020209688,
       "tag": "0007_oauth_assertion_replay",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1791022133281,
+      "tag": "0008_oauth_client_approval",
+      "breakpoints": true
     }
   ]
 }

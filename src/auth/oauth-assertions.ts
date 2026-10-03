@@ -44,16 +44,15 @@ export async function verifyClientAssertion(
       issuer: clientId,
       subject: clientId,
       audience: [issuer, issuer + "/oauth/token"],
-      requiredClaims: ["iss", "sub", "aud", "exp", "iat", "jti"],
-      maxTokenAge: "5 minutes",
+      requiredClaims: ["iss", "sub", "aud", "exp", "jti"],
     });
     const now = Math.floor(Date.now() / 1000);
     if (
       typeof payload.aud !== "string" ||
       !Number.isInteger(payload.exp) ||
       payload.exp! > now + 300 ||
-      !Number.isInteger(payload.iat) ||
-      payload.iat! > now ||
+      (payload.iat !== undefined &&
+        (!Number.isInteger(payload.iat) || payload.iat > now)) ||
       typeof payload.jti !== "string" ||
       !payload.jti.length ||
       payload.jti.length > 256
