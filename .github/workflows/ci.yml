@@ -25,6 +25,7 @@ jobs:
       - run: npm audit --omit=dev --audit-level=moderate
       - run: npm run test:container
       - run: npm run test:towbar
+      - run: npm run test:build-budget
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: verification
@@ -38,4 +39,5 @@ jobs:
             .test-artifacts/oauth.json
             .test-artifacts/summary.json
             .test-artifacts/towbar.json
+            .test-artifacts/build-budget.json
             dist/vitalog-plugin.zip

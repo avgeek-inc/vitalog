@@ -8,7 +8,7 @@ The repository declares a production environment in [towbar.yml](../towbar.yml),
 | Vitalog API        | `https://vitalog-api.praveent.com` | `Dockerfile`                  | 512 MiB, 0.5 CPU |
 | Vitalog PostgreSQL | Private network only               | Pinned PostgreSQL 17.11 image | 256 MiB, 0.5 CPU |
 
-Builds run one at a time: the API build has 512 MiB and the Next.js build has 768 MiB. The API retains its manifest ID `vitalog` and private network alias; PostgreSQL retains `vitalog-postgres`, its existing workload and persistent volume. The UI has no database connection and requires no private API alias. PostgreSQL uses 64 MiB shared buffers and at most 30 connections; the API pool uses five.
+The API emits JavaScript separately from CI type checking. The UI uses webpack with memory optimizations and one build worker, retaining its TypeScript build check. These choices fit the server's budgets without increasing its size. Builds run one at a time: the API build has 512 MiB and the Next.js build has 768 MiB. The API retains its manifest ID `vitalog` and private network alias; PostgreSQL retains `vitalog-postgres`, its existing workload and persistent volume. The UI has no database connection and requires no private API alias. PostgreSQL uses 64 MiB shared buffers and at most 30 connections; the API pool uses five.
 
 ## Runtime configuration
 
@@ -48,8 +48,11 @@ The brief gap between API route migration and UI promotion is intentional. A rol
 npm run towbar:check
 npm run test:container
 npm run test:towbar
+npm run test:build-budget
 ```
 
 `towbar:check` validates all three manifests against pinned official schemas, domain separation, the UI's credential-free runtime keys, private database network and Dockerfile paths. `test:container` runs production API/UI images as separate non-root containers with read-only filesystems. It verifies real Next.js routes and local assets, script nonces/CSP, absence of API credentials in the UI, exact-origin preflight, generated-key use/revocation, migrated database readiness and REST/MCP durability. `test:towbar` repeats this with the manifests' resource limits, PostgreSQL image/tuning, aliases and readiness command, including database failure and recovery.
+
+`test:build-budget` installs and runs each production build in an isolated container using the manifest's actual build memory and CPU limits. It catches builder OOM failures that runtime container checks cannot detect. CI and tag publication require it; full API/UI type checking remains a separate required gate.
 
 Fresh reports are written to ignored `.test-artifacts/` and uploaded by CI. Historical checked-in container/Towbar reports describe the earlier single-service run; they do not prove this split, a production deployment, DNS/TLS, or a successful ChatGPT account connection.
