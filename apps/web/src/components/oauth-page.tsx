@@ -146,11 +146,10 @@ export function OAuthPage({ apiBaseUrl }: { apiBaseUrl: string }) {
                 ledger for 30 days.
               </Card.Description>
             ) : null}
-            {callback ? (
-              <div className="grid gap-1 text-sm leading-5 text-muted break-words">
-                {clientHost ? <p>Application: {clientHost}</p> : null}
-                <p>Return to {callback.host || connection!.redirect_uri}</p>
-              </div>
+            {clientHost ? (
+              <p className="text-sm leading-5 text-muted break-words">
+                Application: {clientHost}
+              </p>
             ) : null}
           </Card.Header>
           <Card.Content>
@@ -212,6 +211,11 @@ export function OAuthPage({ apiBaseUrl }: { apiBaseUrl: string }) {
                 >
                   Cancel
                 </Button>
+                {callback ? (
+                  <p className="text-center text-sm leading-5 text-accent break-words underline underline-offset-4">
+                    Return to {callback.host || connection!.redirect_uri}
+                  </p>
+                ) : null}
               </div>
             </Form>
           </Card.Content>
