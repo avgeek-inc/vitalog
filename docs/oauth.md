@@ -22,6 +22,8 @@ Metadata requests have a five-second deadline and 5 KiB body limit, validate TLS
 
 `OAUTH_CLIENTS` is an optional JSON array with at most 20 unique clients. Leave it as `[]` when using CIMD or dynamic registration. A public native-client example is:
 
+Docker Compose passes this variable from the root `.env` to the API only. For configured clients on Towbar, add `OAUTH_CLIENTS` to the API workload's `secrets.runtime` list and supply its JSON through Towbar before syncing that manifest. Browser MCP clients likewise need `ALLOWED_ORIGINS` supplied to the API runtime. CIMD and dynamic registration work with the checked-in Towbar manifest without extra client secrets.
+
 ```json
 [
   {
