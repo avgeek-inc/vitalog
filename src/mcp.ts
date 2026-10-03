@@ -203,7 +203,10 @@ export async function handleMcp(
             : error.message.includes("Parse error")
               ? "malformed_message"
               : "transport_error";
-    log?.({ event: "mcp_transport_error", method: request.method, reason });
+    log?.({
+      event: "mcp_transport_error." + reason,
+      method: request.method,
+    });
   };
   const server = mcpServer(
     service,

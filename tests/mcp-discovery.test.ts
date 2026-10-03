@@ -51,9 +51,8 @@ describe("Portable MCP discovery", () => {
     });
     expect(response.status).toBe(400);
     expect(logs).toContainEqual({
-      event: "mcp_transport_error",
+      event: "mcp_transport_error.unsupported_protocol_version",
       method: "POST",
-      reason: "unsupported_protocol_version",
     });
     expect(JSON.stringify(logs)).not.toContain(privateNote);
     expect(JSON.stringify(logs)).not.toContain(credential);
