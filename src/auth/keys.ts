@@ -1,7 +1,7 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { and, count, desc, eq, gt, isNull, sql } from "drizzle-orm";
 import type { Database } from "../db/client.js";
-import { apiKeys } from "../db/schema.js";
+import { apiKeys, oauthCodes } from "../db/schema.js";
 import { DomainError } from "../errors.js";
 
 const digest = (key: string) => createHash("sha256").update(key).digest("hex");
@@ -102,12 +102,15 @@ export class ApiKeys {
   }
 
   async revokeAll() {
-    const result = await this.db.execute<{ revoked_count: number }>(sql`
-      with revoked as (
-        update ${apiKeys} set revoked_at = clock_timestamp()
-        where revoked_at is null returning 1
-      ) select count(*)::integer as revoked_count from revoked
-    `);
-    return result.rows[0]!;
+    return this.db.transaction(async (transaction) => {
+      await transaction.delete(oauthCodes).where(isNull(oauthCodes.consumedAt));
+      const result = await transaction.execute<{ revoked_count: number }>(sql`
+        with revoked as (
+          update ${apiKeys} set revoked_at = clock_timestamp()
+          where revoked_at is null returning 1
+        ) select count(*)::integer as revoked_count from revoked
+      `);
+      return result.rows[0]!;
+    });
   }
 }

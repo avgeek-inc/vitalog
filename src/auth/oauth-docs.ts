@@ -133,17 +133,10 @@ export const oauthPaths: Data = {
       operationId: "oauth_approve",
       summary: "Approve or cancel ChatGPT access",
       description:
-        "Requires the flow cookie, exact same-origin Origin header and matching CSRF token. Allow also requires an active generated API key in Authorization; AUTH_KEY is rejected. Cancel does not need the API key. Returns a validated ChatGPT redirect containing state and iss; approval includes a single-use five-minute code.",
+        "Requires the flow cookie, exact same-origin Origin header and matching CSRF token. Allow signs in with ROOT_EMAIL and ROOT_PASSWORD in the JSON body and authorizes the requested scopes. Cancel does not need credentials. Returns a validated ChatGPT redirect containing state and iss; approval includes a single-use five-minute code. No API key or access token is created until code exchange.",
       security: [{ oauthFlowCookie: [] }],
       parameters: [
         { name: "Origin", in: "header", required: true, schema: uri },
-        {
-          name: "Authorization",
-          in: "header",
-          required: false,
-          schema: { type: "string" },
-          description: "Bearer generated API key, required for action=allow",
-        },
       ],
       requestBody: {
         required: true,
@@ -155,10 +148,20 @@ export const oauthPaths: Data = {
           "ChatGPT callback URL; no API key is returned",
         ),
         "400": error,
-        "401": error,
+        "401": response(
+          { $ref: "#/components/schemas/Error" },
+          "Root email or password is incorrect",
+        ),
         "403": { description: "Origin rejected" },
         "413": { description: "Request exceeds 4 KiB" },
-        "429": { description: "Approval rate exceeded; Retry-After: 60" },
+        "429": response(
+          { $ref: "#/components/schemas/Error" },
+          "Approval rate exceeded or sign-in is busy; Retry-After: 60",
+        ),
+        "503": response(
+          { $ref: "#/components/schemas/Error" },
+          "Root sign-in is not configured",
+        ),
       },
     },
   },
@@ -168,7 +171,7 @@ export const oauthPaths: Data = {
       operationId: "oauth_exchange_code",
       summary: "Exchange a PKCE authorization code for an MCP access token",
       description:
-        "Public ChatGPT CIMD client; S256 PKCE and exact client, callback and MCP resource binding. Form-encoded authorization_code only. No client-secret or refresh grants. Access expires with the underlying key and revocation is checked on every MCP request.",
+        "Public ChatGPT CIMD client; S256 PKCE and exact client, callback and MCP resource binding. Form-encoded authorization_code only. No client-secret or refresh grants. Atomically consumes the code and creates a scoped 30-day MCP token and its API-key management record. The primary AUTH_KEY can list or revoke this record. Existing grants keep their original expiry. Revocation is checked on every MCP request.",
       requestBody: {
         required: true,
         content: {

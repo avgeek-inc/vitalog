@@ -19,10 +19,6 @@ values:
     value: ""
     type: secret
     enabled: true
-  - key: oauthApiKey
-    value: ""
-    type: secret
-    enabled: true
   - key: oauthCode
     value: ""
     type: secret

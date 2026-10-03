@@ -1,7 +1,8 @@
 $kind: http-request
 id: c7a597fc-f4de-511b-8347-d7c99fb0953c
-description: List generated key metadata, including expiry and revocation
-  status. Requires the environment AUTH_KEY; never returns keys or hashes.
+description: List generated API keys and OAuth connection metadata, including
+  expiry and revocation status. Requires the environment AUTH_KEY; never returns
+  keys, tokens or hashes.
 method: GET
 url: "{{baseUrl}}/v1/api-keys?limit=50&offset=0"
 headers:

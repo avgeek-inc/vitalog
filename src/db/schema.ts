@@ -147,9 +147,9 @@ export const oauthCodes = pgTable(
   "oauth_authorization_codes",
   {
     codeDigest: text("code_digest").primaryKey(),
-    apiKeyId: uuid("api_key_id")
-      .notNull()
-      .references(() => apiKeys.id, { onDelete: "cascade" }),
+    apiKeyId: uuid("api_key_id").references(() => apiKeys.id, {
+      onDelete: "cascade",
+    }),
     clientId: text("client_id").notNull(),
     redirectUri: text("redirect_uri").notNull(),
     resource: text("resource").notNull(),

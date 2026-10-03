@@ -3,10 +3,10 @@ import { Hono, type Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { z } from "zod";
 import type { Config } from "../config.js";
-import { authorized } from "../config.js";
 import { DomainError } from "../errors.js";
 import { inspectBody } from "../security.js";
-import { ApiKeys } from "./keys.js";
+import { keyCreation } from "./contracts.js";
+import { RootAuthentication } from "./root.js";
 import { keyPageCsp, pageDocument } from "./page.js";
 import { OAuthStore } from "./oauth-store.js";
 
@@ -44,10 +44,14 @@ export const exchangeSchema = z.strictObject({
   resource: z.string().max(512),
   code_verifier: z.string().regex(/^[A-Za-z0-9._~-]{43,128}$/),
 });
-export const approvalSchema = z.strictObject({
-  csrf_token: encodedSecret,
-  action: z.enum(["allow", "deny"]),
-});
+export const approvalSchema = z.discriminatedUnion("action", [
+  z.strictObject({
+    csrf_token: encodedSecret,
+    action: z.literal("allow"),
+    ...keyCreation.shape,
+  }),
+  z.strictObject({ csrf_token: encodedSecret, action: z.literal("deny") }),
+]);
 
 class OAuthError extends Error {
   constructor(
@@ -87,7 +91,11 @@ export function oauthChallenge(
   return `Bearer resource_metadata="${issuer}/.well-known/oauth-protected-resource/mcp", scope="${oauthScopes.join(" ")}"${error ? `, error="${error}", error_description="Connect Vitalog to access your health ledger"` : ""}`;
 }
 
-export function oauthRoutes(keys: ApiKeys, store: OAuthStore, config: Config) {
+export function oauthRoutes(
+  root: RootAuthentication,
+  store: OAuthStore,
+  config: Config,
+) {
   const issuer = config.publicBaseUrl!;
   const resource = issuer + "/mcp";
   const secure = issuer.startsWith("https:");
@@ -213,8 +221,10 @@ export function oauthRoutes(keys: ApiKeys, store: OAuthStore, config: Config) {
         { error: error.code, error_description: error.message },
         error.status,
       );
-    if (error instanceof DomainError)
+    if (error instanceof DomainError) {
+      if (error.code === "RATE_LIMITED") c.header("Retry-After", "60");
       return c.json(error.toJSON(), error.status);
+    }
     return c.json(
       {
         error: "server_error",
@@ -348,17 +358,9 @@ export function oauthRoutes(keys: ApiKeys, store: OAuthStore, config: Config) {
     if (approval.data.action === "deny")
       redirect.searchParams.set("error", "access_denied");
     else {
-      const header = c.req.header("authorization");
-      const key = authorized(header, config)
-        ? undefined
-        : await keys.findActive(header);
-      if (!key)
-        throw new OAuthError(
-          "access_denied",
-          "Use an active generated API key",
-          401,
-        );
-      redirect.searchParams.set("code", await store.issueCode(key.id, flow));
+      config.assertCredentialAbsent(approval.data.email);
+      await root.verify(approval.data.email, approval.data.password);
+      redirect.searchParams.set("code", await store.issueCode(undefined, flow));
     }
     deleteCookie(c, cookieName, cookieOptions);
     return c.json({ redirect_to: redirect.toString() });

@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import type { Database } from "../db/client.js";
 import { apiKeys, oauthCodes, oauthTokens } from "../db/schema.js";
@@ -38,7 +38,7 @@ export class OAuthStore {
       await this.db.execute(sql`
         delete from oauth_authorization_codes where code_digest in (
           select g.code_digest from oauth_authorization_codes g
-          join api_keys parent on parent.id = g.api_key_id
+          left join api_keys parent on parent.id = g.api_key_id
           where g.expires_at <= statement_timestamp()
             or parent.expires_at <= statement_timestamp()
             or parent.revoked_at is not null
@@ -66,7 +66,7 @@ export class OAuthStore {
     }
   }
 
-  async issueCode(apiKeyId: string, grant: OAuthGrant) {
+  async issueCode(apiKeyId: string | undefined, grant: OAuthGrant) {
     await this.cleanup();
     const code = "voc_" + randomBytes(32).toString("base64url");
     await this.db.insert(oauthCodes).values({
@@ -89,11 +89,8 @@ export class OAuthStore {
         .select({
           apiKeyId: oauthCodes.apiKeyId,
           scopes: oauthCodes.scopes,
-          expiresAt: apiKeys.expiresAt,
-          remaining: sql<number>`floor(extract(epoch from (${apiKeys.expiresAt} - clock_timestamp())))::integer`,
         })
         .from(oauthCodes)
-        .innerJoin(apiKeys, eq(apiKeys.id, oauthCodes.apiKeyId))
         .where(
           and(
             eq(oauthCodes.codeDigest, digest(input.code)),
@@ -103,28 +100,55 @@ export class OAuthStore {
             eq(oauthCodes.codeChallenge, pkceChallenge(input.code_verifier)),
             isNull(oauthCodes.consumedAt),
             gt(oauthCodes.expiresAt, sql`clock_timestamp()`),
-            isNull(apiKeys.revokedAt),
-            gt(apiKeys.expiresAt, sql`clock_timestamp() + interval '1 second'`),
           ),
         )
         .for("update");
-      if (!grant || grant.remaining < 1) return;
+      if (!grant) return;
+      const token = "vlo_" + randomBytes(32).toString("base64url");
+      const projection = {
+        id: apiKeys.id,
+        expiresAt: apiKeys.expiresAt,
+        remaining: sql<number>`floor(extract(epoch from (${apiKeys.expiresAt} - clock_timestamp())))::integer`,
+      };
+      const [key] = grant.apiKeyId
+        ? await transaction
+            .select(projection)
+            .from(apiKeys)
+            .where(
+              and(
+                eq(apiKeys.id, grant.apiKeyId),
+                isNull(apiKeys.revokedAt),
+                gt(
+                  apiKeys.expiresAt,
+                  sql`clock_timestamp() + interval '1 second'`,
+                ),
+              ),
+            )
+            .for("update")
+        : await transaction
+            .insert(apiKeys)
+            .values({
+              id: randomUUID(),
+              tokenDigest: digest(token),
+              tokenHint: "vlo_…" + token.slice(-4),
+            })
+            .returning(projection);
+      if (!key || key.remaining < 1) return;
       await transaction
         .update(oauthCodes)
-        .set({ consumedAt: sql`clock_timestamp()` })
+        .set({ apiKeyId: key.id, consumedAt: sql`clock_timestamp()` })
         .where(eq(oauthCodes.codeDigest, digest(input.code)));
-      const token = "vlo_" + randomBytes(32).toString("base64url");
       await transaction.insert(oauthTokens).values({
         tokenDigest: digest(token),
-        apiKeyId: grant.apiKeyId,
+        apiKeyId: key.id,
         resource: input.resource,
         scopes: grant.scopes,
-        expiresAt: grant.expiresAt,
+        expiresAt: key.expiresAt,
       });
       return {
         access_token: token,
         token_type: "Bearer",
-        expires_in: grant.remaining,
+        expires_in: key.remaining,
         scope: grant.scopes.join(" "),
       };
     });

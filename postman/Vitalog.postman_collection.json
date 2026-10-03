@@ -1070,7 +1070,7 @@
           "request": {
             "method": "GET",
             "url": "{{baseUrl}}/v1/api-keys?limit=50&offset=0",
-            "description": "List generated key metadata, including expiry and revocation status. Requires the environment AUTH_KEY; never returns keys or hashes.",
+            "description": "List generated API keys and OAuth connection metadata, including expiry and revocation status. Requires the environment AUTH_KEY; never returns keys, tokens or hashes.",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -1094,7 +1094,7 @@
           "request": {
             "method": "DELETE",
             "url": "{{baseUrl}}/v1/api-keys/{{apiKeyId}}",
-            "description": "Revoke a generated API key by ID. Already revoked keys return their metadata. Requires the environment AUTH_KEY.",
+            "description": "Revoke a generated API key or OAuth connection by ID. Already revoked records return their metadata. Requires the environment AUTH_KEY.",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -1118,7 +1118,7 @@
           "request": {
             "method": "DELETE",
             "url": "{{baseUrl}}/v1/api-keys",
-            "description": "Revoke all currently unrevoked generated keys, including expired keys. The environment AUTH_KEY is unaffected.",
+            "description": "Revoke all currently unrevoked generated API keys and OAuth connections, including expired records, and cancel pending authorization codes. The environment AUTH_KEY is unaffected.",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -1232,7 +1232,7 @@
           "request": {
             "method": "POST",
             "url": "{{baseUrl}}/oauth/approve",
-            "description": "Requires the flow cookie, exact same-origin Origin header and matching CSRF token. Allow also requires an active generated API key in Authorization; AUTH_KEY is rejected. Cancel does not need the API key. Returns a validated ChatGPT redirect containing state and iss; approval includes a single-use five-minute code.",
+            "description": "Requires the flow cookie, exact same-origin Origin header and matching CSRF token. Allow signs in with ROOT_EMAIL and ROOT_PASSWORD in the JSON body and authorizes the requested scopes. Cancel does not need credentials. Returns a validated ChatGPT redirect containing state and iss; approval includes a single-use five-minute code. No API key or access token is created until code exchange.",
             "auth": {
               "type": "noauth"
             },
@@ -1248,15 +1248,11 @@
               {
                 "key": "Origin",
                 "value": "{{baseUrl}}"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{oauthApiKey}}"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"csrf_token\": \"{{oauthCsrf}}\",\n  \"action\": \"allow\"\n}",
+              "raw": "{\n  \"csrf_token\": \"{{oauthCsrf}}\",\n  \"action\": \"allow\",\n  \"email\": \"{{rootEmail}}\",\n  \"password\": \"{{rootPassword}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1270,7 +1266,7 @@
           "request": {
             "method": "POST",
             "url": "{{baseUrl}}/oauth/token",
-            "description": "Public ChatGPT CIMD client; S256 PKCE and exact client, callback and MCP resource binding. Form-encoded authorization_code only. No client-secret or refresh grants. Access expires with the underlying key and revocation is checked on every MCP request.",
+            "description": "Public ChatGPT CIMD client; S256 PKCE and exact client, callback and MCP resource binding. Form-encoded authorization_code only. No client-secret or refresh grants. Atomically consumes the code and creates a scoped 30-day MCP token and its API-key management record. The primary AUTH_KEY can list or revoke this record. Existing grants keep their original expiry. Revocation is checked on every MCP request.",
             "auth": {
               "type": "noauth"
             },

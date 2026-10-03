@@ -4,8 +4,10 @@ method: POST
 url: "{{baseUrl}}/oauth/token"
 description: Public ChatGPT CIMD client; S256 PKCE and exact client, callback
   and MCP resource binding. Form-encoded authorization_code only. No
-  client-secret or refresh grants. Access expires with the underlying key and
-  revocation is checked on every MCP request.
+  client-secret or refresh grants. Atomically consumes the code and creates a
+  scoped 30-day MCP token and its API-key management record. The primary
+  AUTH_KEY can list or revoke this record. Existing grants keep their original
+  expiry. Revocation is checked on every MCP request.
 headers:
   Accept: application/json
   Content-Type: application/x-www-form-urlencoded

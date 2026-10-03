@@ -38,7 +38,6 @@ export function application(
   const limits = new Map<string, { count: number; reset: number }>();
   const keys = new ApiKeys(service.db);
   const root = new RootAuthentication(config.rootCredentials);
-  const oauthAttempts = new RootAuthentication(undefined);
   const oauth = config.publicBaseUrl
     ? new OAuthStore(service.db, config.publicBaseUrl + "/mcp")
     : undefined;
@@ -96,10 +95,11 @@ export function application(
       c.header("Retry-After", "60");
       throw new DomainError("RATE_LIMITED", "Request rate exceeded");
     }
-    if (path === "/auth/api-keys" && c.req.method === "POST")
+    if (
+      c.req.method === "POST" &&
+      (path === "/auth/api-keys" || path === "/oauth/approve")
+    )
       root.limit(address);
-    if (path === "/oauth/approve" && c.req.method === "POST")
-      oauthAttempts.limit(address);
     if (
       path.startsWith("/v1") ||
       path === "/mcp" ||
@@ -187,6 +187,9 @@ export function application(
       c.req.path === "/auth/api-keys" && c.req.method === "POST";
     const tokenExchange =
       !!oauth && c.req.path === "/oauth/token" && c.req.method === "POST";
+    const rootSignIn =
+      generation ||
+      (!!oauth && c.req.path === "/oauth/approve" && c.req.method === "POST");
     const authRequest = generation || c.req.path.startsWith("/oauth/");
     guard(c.req.url);
     const url = new URL(c.req.url);
@@ -206,7 +209,7 @@ export function application(
     }
     await inspectBody(
       c.req.raw,
-      generation ? config.assertAuthKeyAbsent : guard,
+      rootSignIn ? config.assertAuthKeyAbsent : guard,
       authRequest ? 4096 : MAX_REQUEST_BYTES,
       authRequest ? "Authentication requests must not exceed 4 KiB" : undefined,
     );
@@ -231,7 +234,7 @@ export function application(
   });
   app.get("/healthz", (c) => c.json({ status: "ok" }));
   app.route("/", keyPage());
-  if (oauth) app.route("/", oauthRoutes(keys, oauth, config));
+  if (oauth) app.route("/", oauthRoutes(root, oauth, config));
   app.post("/auth/api-keys", async (c) => {
     if ([...new URL(c.req.url).searchParams].length)
       throw new DomainError(

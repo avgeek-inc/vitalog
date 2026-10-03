@@ -324,7 +324,6 @@ for (const operation of keyOperations) {
 }
 const oauthItems: Data[] = [];
 const oauthVariables = [
-  { key: "oauthApiKey", value: "", type: "secret", enabled: true },
   { key: "oauthCode", value: "", type: "secret", enabled: true },
   { key: "oauthVerifier", value: "", type: "secret", enabled: true },
   { key: "oauthCsrf", value: "", type: "secret", enabled: true },
@@ -371,10 +370,11 @@ for (const [path, methods] of Object.entries(source.paths as Data)) {
     if (path === "/oauth/approve") {
       headers["Content-Type"] = "application/json";
       headers.Origin = "{{baseUrl}}";
-      headers.Authorization = "Bearer {{oauthApiKey}}";
       const content = json({
         csrf_token: "{{oauthCsrf}}",
         action: "allow",
+        email: "{{rootEmail}}",
+        password: "{{rootPassword}}",
       }).trimEnd();
       nativeBody = { type: "json", content };
       importedBody = {

@@ -1,7 +1,8 @@
 $kind: http-request
 id: 3aeca7d8-370a-5738-86d9-32078556001b
-description: Revoke all currently unrevoked generated keys, including expired
-  keys. The environment AUTH_KEY is unaffected.
+description: Revoke all currently unrevoked generated API keys and OAuth
+  connections, including expired records, and cancel pending authorization
+  codes. The environment AUTH_KEY is unaffected.
 method: DELETE
 url: "{{baseUrl}}/v1/api-keys"
 headers:

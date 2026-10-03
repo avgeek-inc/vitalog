@@ -1,8 +1,8 @@
 # API keys
 
-Vitalog has one primary environment `AUTH_KEY` and optional generated API keys. Every key can read and write the single health ledger. Only `AUTH_KEY` can list or revoke generated keys. Key-management operations are REST-only and do not add MCP tools.
+Vitalog has one primary environment `AUTH_KEY`, optional manually generated API keys and scoped OAuth connection tokens. Manually generated keys can read and write the single health ledger; OAuth tokens authorize only their requested MCP scopes. Only `AUTH_KEY` can list or revoke these records. Key-management operations are REST-only and do not add MCP tools.
 
-This is the authentication extension requested on 3 October 2026. It supersedes the original specification's prohibition on key generation/management. The [ChatGPT plugin](chatgpt-plugin.md) adds OAuth connections linked to existing generated keys. There are no additional accounts, JWTs, refresh tokens or health-ledger owners.
+This is the authentication extension requested on 3 October 2026. It supersedes the original specification's prohibition on key generation/management. The [ChatGPT plugin](chatgpt-plugin.md) signs in with the same root credentials and creates a scoped 30-day connection token through authorization-code exchange. There are no additional accounts, JWTs, refresh tokens or health-ledger owners.
 
 ## Configuration and generation
 
@@ -45,7 +45,7 @@ Listing defaults to 50 rows and accepts a limit from 1 to 100 and offset from 0 
 
 All state survives process restarts and primary-key rotation. No authentication cache delays revocation. Root credential changes do not implicitly revoke keys. Database backups include token hashes and revocation metadata; restoring an older backup can re-enable a key revoked after that backup. Use the primary key to revoke restored generated keys before exposing a restored instance.
 
-These are bearer API keys. ChatGPT connects through the [OAuth flow](chatgpt-plugin.md) using an existing generated key. The connection receives a separate MCP token with the key's remaining lifetime, and revoking the linked key also revokes the connection.
+These are bearer API keys. ChatGPT connects through the [OAuth flow](chatgpt-plugin.md) by signing in with the configured root email and password. Code exchange creates the 30-day MCP token and an API-key management record with a `vlo_…` hint. It appears in the same paginated list, and revoking it disconnects ChatGPT on the next request. Revoke-all also cancels pending authorization codes. Authentication attempts and password-verification concurrency are shared across manual key creation and OAuth sign-in.
 
 ## Verification
 

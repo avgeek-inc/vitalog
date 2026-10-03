@@ -62,21 +62,18 @@ export class RootAuthentication {
       if (bucket.count > maximum)
         throw new DomainError(
           "RATE_LIMITED",
-          "Too many key generation attempts; try again in a minute",
+          "Too many sign-in attempts; try again in a minute",
         );
     }
   }
 
   async verify(email: string, password: string): Promise<void> {
     if (!this.credentials)
-      throw new DomainError(
-        "UNAVAILABLE",
-        "API key generation is not configured",
-      );
+      throw new DomainError("UNAVAILABLE", "Root sign-in is not configured");
     if (this.verifying >= 2)
       throw new DomainError(
         "RATE_LIMITED",
-        "Key generation is busy; try again in a minute",
+        "Sign-in is busy; try again in a minute",
       );
     this.verifying++;
     try {

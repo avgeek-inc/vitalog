@@ -10,7 +10,7 @@ import { database } from "../src/db/client.js";
 import { Service } from "../src/service.js";
 import { ApiKeys } from "../src/auth/keys.js";
 import { chatGptClientId, chatGptRedirectUri } from "../src/auth/oauth.js";
-import { pkceChallenge } from "../src/auth/oauth-store.js";
+import { OAuthStore, pkceChallenge } from "../src/auth/oauth-store.js";
 import { object, type Data } from "../src/domain/types.js";
 import { examples } from "../tests/fixtures.js";
 import { migrateDatabase } from "./migrate.js";
@@ -18,6 +18,10 @@ import { migrateDatabase } from "./migrate.js";
 const container = `vitalog-oauth-${process.pid}`;
 const databasePassword = randomBytes(32).toString("hex");
 const primary = randomBytes(32).toString("base64url");
+const login = {
+  email: "oauth.owner@example.test",
+  password: randomBytes(32).toString("base64url"),
+};
 const origin = "http://127.0.0.1:3000";
 const logs: Data[] = [];
 const checks: { name: string; status: "passed" }[] = [];
@@ -49,13 +53,16 @@ globalThis.fetch = async (input, init) => {
   }
   return nativeFetch(input, init);
 };
-function restart() {
+function restart(rootConfigured = true) {
   const config = configuration({
     AUTH_KEY: primary,
     DATABASE_URL: connection!.pool.options.connectionString,
     PUBLIC_BASE_URL: origin,
     ALLOWED_HOSTS: new URL(origin).host,
     RATE_LIMIT_PER_MINUTE: "100000",
+    ...(rootConfigured
+      ? { ROOT_EMAIL: login.email, ROOT_PASSWORD: login.password }
+      : {}),
   });
   app = application(
     new Service(
@@ -116,7 +123,7 @@ async function begin(
 type Flow = Awaited<ReturnType<typeof begin>>;
 async function approve(
   flow: Flow,
-  key?: string,
+  credentials: typeof login | undefined = login,
   action = "allow",
   extra: RequestInit = {},
 ) {
@@ -126,23 +133,58 @@ async function approve(
       "Content-Type": "application/json",
       Origin: origin,
       Cookie: flow.cookie,
-      ...(key ? { Authorization: "Bearer " + key } : {}),
     },
-    body: JSON.stringify({ csrf_token: flow.csrf, action }),
+    body: JSON.stringify({
+      csrf_token: flow.csrf,
+      action,
+      ...(action === "allow" ? credentials : {}),
+    }),
     ...extra,
   });
 }
-async function code(key: string, scope?: string) {
+async function code(scope?: string) {
   const flow = await begin(scope);
-  const result = await approve(flow, key);
+  const result = await approve(flow);
   assert.equal(result.response.status, 200);
   const redirect = new URL(String(result.body.redirect_to));
   assert.equal(redirect.origin + redirect.pathname, chatGptRedirectUri);
   assert.equal(redirect.searchParams.get("state"), flow.state);
   assert.equal(redirect.searchParams.get("iss"), origin);
   assert.equal(result.response.headers.get("cache-control"), "no-store");
-  assert(!result.text.includes(key));
+  assert(!result.text.includes(login.password));
+  assert(!result.text.includes(login.email));
   return { ...flow, code: redirect.searchParams.get("code")! };
+}
+async function legacyCode(apiKeyId: string, scope?: string) {
+  const flow = await begin(scope);
+  const store = new OAuthStore(connection!.db, origin + "/mcp");
+  const issued = await store.issueCode(apiKeyId, {
+    client_id: chatGptClientId,
+    redirect_uri: chatGptRedirectUri,
+    resource: origin + "/mcp",
+    scopes: (scope ?? "health:read health:write").split(" "),
+    code_challenge: pkceChallenge(flow.verifier),
+  });
+  return { ...flow, code: issued };
+}
+async function connectionKey(token: string) {
+  const result = await connection!.pool.query<{
+    id: string;
+    token_digest: string;
+    token_hint: string;
+    created_at: Date;
+    expires_at: Date;
+  }>(
+    "select k.* from api_keys k join oauth_access_tokens g on g.api_key_id=k.id where g.token_digest=$1",
+    [createHash("sha256").update(token).digest("hex")],
+  );
+  assert.equal(result.rowCount, 1);
+  const row = result.rows[0]!;
+  return {
+    ...row,
+    created_at: row.created_at.toISOString(),
+    expires_at: row.expires_at.toISOString(),
+  };
 }
 async function exchange(
   grant: Awaited<ReturnType<typeof code>>,
@@ -162,8 +204,8 @@ async function exchange(
     }).toString(),
   });
 }
-async function token(key: string, scope?: string) {
-  const issued = await exchange(await code(key, scope));
+async function token(scope?: string) {
+  const issued = await exchange(await code(scope));
   assert.equal(issued.response.status, 200);
   assert.equal(issued.body.token_type, "Bearer");
   tokens.push(String(issued.body.access_token));
@@ -248,9 +290,23 @@ try {
         headers: { Cookie: flow.cookie },
       });
       assert.deepEqual(request.body.scopes, ["health:read", "health:write"]);
-      assert.equal((await approve(flow, primary)).response.status, 401);
+      for (const supplied of [primary, key.api_key])
+        assert.equal(
+          (
+            await approve(flow, undefined, "allow", {
+              headers: {
+                "Content-Type": "application/json",
+                Origin: origin,
+                Cookie: flow.cookie,
+                Authorization: "Bearer " + supplied,
+              },
+              body: JSON.stringify({ csrf_token: flow.csrf, action: "allow" }),
+            })
+          ).response.status,
+          400,
+        );
       assert.equal(
-        (await approve(flow, "vlk_" + randomBytes(32).toString("base64url")))
+        (await approve(flow, { ...login, password: "incorrect-password" }))
           .response.status,
         401,
       );
@@ -261,6 +317,86 @@ try {
       assert.equal(redirect.searchParams.get("iss"), origin);
       assert.equal(redirect.searchParams.get("state"), flow.state);
       assert(!redirect.searchParams.has("code"));
+    },
+  );
+  await check(
+    "Root sign-in returns only a code; exchange creates one managed 30-day MCP token without a pre-generated API key",
+    async () => {
+      const before = (await keys.list(100, 0)).total;
+      const grant = await code();
+      assert.equal((await keys.list(100, 0)).total, before);
+      const pending = (
+        await connection!.pool.query(
+          "select api_key_id, consumed_at from oauth_authorization_codes where code_digest=$1",
+          [createHash("sha256").update(grant.code).digest("hex")],
+        )
+      ).rows[0];
+      assert.equal(pending.api_key_id, null);
+      assert.equal(pending.consumed_at, null);
+      const issued = await exchange(grant);
+      assert.equal(issued.response.status, 200);
+      assert.match(String(issued.body.access_token), /^vlo_[A-Za-z0-9_-]{43}$/);
+      assert.equal(issued.body.token_type, "Bearer");
+      assert.equal(issued.body.scope, "health:read health:write");
+      tokens.push(String(issued.body.access_token));
+      const parent = await connectionKey(String(issued.body.access_token));
+      assert.equal(
+        parent.token_digest,
+        createHash("sha256")
+          .update(String(issued.body.access_token))
+          .digest("hex"),
+      );
+      assert.equal(
+        new Date(String(parent.expires_at)).getTime() -
+          new Date(String(parent.created_at)).getTime(),
+        30 * 86400 * 1000,
+      );
+      assert.match(String(parent.token_hint), /^vlo_…/);
+      const listed = await json("/v1/api-keys", {
+        headers: { Authorization: "Bearer " + primary },
+      });
+      assert.equal(listed.response.status, 200);
+      assert.equal(listed.body.total, before + 1);
+      assert(Array.isArray(listed.body.api_keys));
+      assert(
+        listed.body.api_keys.some((value) => object(value).id === parent.id),
+      );
+      for (const secret of [
+        login.email,
+        login.password,
+        String(issued.body.access_token),
+        String(parent.token_digest),
+      ])
+        assert(!listed.text.includes(secret));
+    },
+  );
+  await check(
+    "Root sign-in fails closed when unconfigured, rejects malformed credentials and does not create keys on failure or cancellation",
+    async () => {
+      const before = (await keys.list(100, 0)).total;
+      const flow = await begin();
+      for (const credentials of [
+        { ...login, email: "different.owner@example.test" },
+        { ...login, password: "incorrect-password" },
+      ])
+        assert.equal((await approve(flow, credentials)).response.status, 401);
+      for (const body of [
+        { csrf_token: flow.csrf, action: "allow", ...login, name: "unused" },
+        { csrf_token: flow.csrf, action: "allow", email: login.email },
+      ])
+        assert.equal(
+          (await approve(flow, login, "allow", { body: JSON.stringify(body) }))
+            .response.status,
+          400,
+        );
+      restart(false);
+      const unconfigured = await begin();
+      assert.equal((await approve(unconfigured)).response.status, 503);
+      assert.equal(
+        (await approve(unconfigured, undefined, "deny")).response.status,
+        200,
+      );
+      assert.equal((await keys.list(100, 0)).total, before);
     },
   );
   await check(
@@ -319,10 +455,11 @@ try {
       const flow = await begin();
       assert.equal(
         (
-          await approve(flow, key.api_key, "allow", {
+          await approve(flow, login, "allow", {
             body: JSON.stringify({
               csrf_token: randomBytes(32).toString("base64url"),
               action: "allow",
+              ...login,
             }),
           })
         ).response.status,
@@ -334,12 +471,11 @@ try {
       ])
         assert.equal(
           (
-            await approve(flow, key.api_key, "allow", {
+            await approve(flow, login, "allow", {
               headers: {
                 Origin: origin,
                 "Content-Type": "application/json",
                 Cookie,
-                Authorization: "Bearer " + key.api_key,
               },
             })
           ).response.status,
@@ -347,12 +483,11 @@ try {
         );
       assert.equal(
         (
-          await approve(flow, key.api_key, "allow", {
+          await approve(flow, login, "allow", {
             headers: {
               Origin: "https://untrusted.example",
               "Content-Type": "application/json",
               Cookie: flow.cookie,
-              Authorization: "Bearer " + key.api_key,
             },
           })
         ).response.status,
@@ -363,7 +498,7 @@ try {
   await check(
     "A code is bound to its PKCE verifier, callback, client and resource and is exchanged only once",
     async () => {
-      const grant = await code(key.api_key);
+      const grant = await code();
       const invalidExchanges: Record<string, string>[] = [
         { code_verifier: randomBytes(32).toString("base64url") },
         { resource: origin + "/other" },
@@ -379,18 +514,21 @@ try {
       const stored = (
         await connection!.pool.query("select * from oauth_access_tokens")
       ).rows;
-      assert(
-        stored.some(
-          (row) =>
-            row.token_digest ===
-            createHash("sha256")
-              .update(String(issued.body.access_token))
-              .digest("hex"),
-        ),
+      const storedToken = stored.find(
+        (row) =>
+          row.token_digest ===
+          createHash("sha256")
+            .update(String(issued.body.access_token))
+            .digest("hex"),
       );
+      assert(storedToken);
       assert.equal(
-        new Date(stored[0].expires_at).toISOString(),
-        key.expires_at,
+        new Date(storedToken.expires_at).toISOString(),
+        new Date(
+          String(
+            (await connectionKey(String(issued.body.access_token))).expires_at,
+          ),
+        ).toISOString(),
       );
       assert(
         Number(issued.body.expires_in) > 0 &&
@@ -399,6 +537,7 @@ try {
       for (const secret of [
         primary,
         key.api_key,
+        login.password,
         String(issued.body.access_token),
         grant.code,
       ]) {
@@ -416,14 +555,52 @@ try {
     },
   );
   await check(
+    "A failed token insert rolls back key creation and code consumption so the exchange can be retried",
+    async () => {
+      const grant = await code();
+      const before = (await keys.list(100, 0)).total;
+      await connection!.pool.query(`
+        create function test_fail_oauth_token() returns trigger language plpgsql as $$
+        begin raise exception 'Synthetic token insert failure'; end;
+        $$
+      `);
+      await connection!.pool.query(
+        "create trigger test_fail_oauth_token before insert on oauth_access_tokens for each row execute function test_fail_oauth_token()",
+      );
+      try {
+        assert.equal((await exchange(grant)).response.status, 500);
+        assert.equal((await keys.list(100, 0)).total, before);
+        const pending = (
+          await connection!.pool.query(
+            "select api_key_id, consumed_at from oauth_authorization_codes where code_digest=$1",
+            [createHash("sha256").update(grant.code).digest("hex")],
+          )
+        ).rows[0];
+        assert.equal(pending.api_key_id, null);
+        assert.equal(pending.consumed_at, null);
+      } finally {
+        await connection!.pool.query(
+          "drop trigger test_fail_oauth_token on oauth_access_tokens",
+        );
+        await connection!.pool.query("drop function test_fail_oauth_token()");
+      }
+      const retried = await exchange(grant);
+      assert.equal(retried.response.status, 200);
+      assert.equal((await keys.list(100, 0)).total, before + 1);
+      tokens.push(String(retried.body.access_token));
+    },
+  );
+  await check(
     "Concurrent exchanges of one code issue exactly one access token",
     async () => {
-      const grant = await code(key.api_key);
+      const before = (await keys.list(100, 0)).total;
+      const grant = await code();
       const results = await Promise.all([exchange(grant), exchange(grant)]);
       assert.deepEqual(
         results.map((result) => result.response.status).sort(),
         [200, 400],
       );
+      assert.equal((await keys.list(100, 0)).total, before + 1);
       tokens.push(
         String(
           results.find((result) => result.response.status === 200)!.body
@@ -435,7 +612,7 @@ try {
   await check(
     "OAuth tokens work with the official MCP client and do not grant REST or key-administration access",
     async () => {
-      const issued = await token(key.api_key);
+      const issued = await token();
       const instance = await client(String(issued.access_token));
       try {
         const tools = await instance.listTools();
@@ -517,7 +694,7 @@ try {
   await check(
     "Read-only grants reject writes with the OAuth scope challenge and preserve data",
     async () => {
-      const issued = await token(key.api_key, "health:read");
+      const issued = await token("health:read");
       const instance = await client(String(issued.access_token));
       try {
         const count = (
@@ -557,15 +734,23 @@ try {
     },
   );
   await check(
-    "OAuth access survives a server restart and parent-key revocation blocks an already connected client",
+    "OAuth access survives a restart and the primary key can revoke its management record to disconnect a client",
     async () => {
-      const parent = await keys.create();
-      const issued = await token(parent.api_key);
+      const issued = await token();
+      const parent = await connectionKey(String(issued.access_token));
       restart();
       const instance = await client(String(issued.access_token));
       try {
         await instance.listTools();
-        await keys.revoke(parent.id);
+        assert.equal(
+          (
+            await request("/v1/api-keys/" + parent.id, {
+              method: "DELETE",
+              headers: { Authorization: "Bearer " + primary },
+            })
+          ).status,
+          200,
+        );
         await assert.rejects(() => instance.listTools());
       } finally {
         await instance.close();
@@ -576,14 +761,16 @@ try {
     "Expired authorization codes and expired or revoked parent keys cannot issue or use tokens",
     async () => {
       const parent = await keys.create();
-      const grant = await code(parent.api_key);
+      const grant = await code();
       await connection!.pool.query(
         "update oauth_authorization_codes set created_at=statement_timestamp()-interval '300 seconds', expires_at=statement_timestamp() where code_digest=$1",
         [createHash("sha256").update(grant.code).digest("hex")],
       );
       assert.equal((await exchange(grant)).body.error, "invalid_grant");
-      const issued = await token(parent.api_key);
-      const pending = await code(parent.api_key);
+      const issued = await exchange(await legacyCode(parent.id));
+      assert.equal(issued.response.status, 200);
+      tokens.push(String(issued.body.access_token));
+      const pending = await legacyCode(parent.id);
       await connection!.pool.query(
         "update api_keys set created_at=statement_timestamp()-interval '720 hours', expires_at=statement_timestamp() where id=$1",
         [parent.id],
@@ -592,13 +779,13 @@ try {
       assert.equal(
         (
           await request("/mcp", {
-            headers: { Authorization: "Bearer " + issued.access_token },
+            headers: { Authorization: "Bearer " + issued.body.access_token },
           })
         ).status,
         401,
       );
       const revoked = await keys.create();
-      const revokedGrant = await code(revoked.api_key);
+      const revokedGrant = await legacyCode(revoked.id);
       await keys.revoke(revoked.id);
       assert.equal((await exchange(revokedGrant)).body.error, "invalid_grant");
     },
@@ -607,11 +794,15 @@ try {
     "Expired and revoked OAuth grants are pruned in bounded shared batches without deleting active grants, keys or ledger records",
     async () => {
       const parent = await keys.create();
-      const active = await token(parent.api_key);
-      const pending = await code(parent.api_key);
+      const active = await exchange(await legacyCode(parent.id));
+      assert.equal(active.response.status, 200);
+      tokens.push(String(active.body.access_token));
+      const pending = await code();
       const revoked = await keys.create();
-      const revokedAccess = await token(revoked.api_key);
-      const revokedCode = await code(revoked.api_key);
+      const revokedAccess = await exchange(await legacyCode(revoked.id));
+      assert.equal(revokedAccess.response.status, 200);
+      tokens.push(String(revokedAccess.body.access_token));
+      const revokedCode = await legacyCode(revoked.id);
       await keys.revoke(revoked.id);
       const ledgerCount = (
         await connection!.pool.query(
@@ -627,7 +818,7 @@ try {
         from generate_series(1,1500) n
       `,
         [
-          parent.id,
+          null,
           chatGptClientId,
           chatGptRedirectUri,
           origin + "/mcp",
@@ -672,7 +863,7 @@ try {
         (
           await connection!.pool.query(
             "select count(*)::int count from oauth_access_tokens where token_digest=any($1)",
-            [[expiredDigest, digest(String(revokedAccess.access_token))]],
+            [[expiredDigest, digest(String(revokedAccess.body.access_token))]],
           )
         ).rows[0].count,
         0,
@@ -703,7 +894,7 @@ try {
         ).rows[0].count,
         ledgerCount,
       );
-      const instance = await client(String(active.access_token));
+      const instance = await client(String(active.body.access_token));
       try {
         await instance.listTools();
       } finally {
@@ -717,7 +908,8 @@ try {
   await check(
     "Revoke-all invalidates every OAuth connection and credentials cannot enter health data or URLs",
     async () => {
-      const issued = await token(key.api_key);
+      const issued = await token();
+      const pending = await code();
       const instance = await client(String(issued.access_token));
       try {
         await assert.rejects(
@@ -743,7 +935,16 @@ try {
           (await request("/healthz?token=" + issued.access_token)).status,
           422,
         );
-        await keys.revokeAll();
+        assert.equal(
+          (
+            await request("/v1/api-keys", {
+              method: "DELETE",
+              headers: { Authorization: "Bearer " + primary },
+            })
+          ).status,
+          200,
+        );
+        assert.equal((await exchange(pending)).body.error, "invalid_grant");
         await assert.rejects(() => instance.listTools());
       } finally {
         await instance.close();
@@ -756,19 +957,18 @@ try {
       const flow = await begin();
       for (let attempt = 0; attempt < 5; attempt++)
         assert.equal(
-          (await approve(flow, "vlk_" + randomBytes(32).toString("base64url")))
+          (await approve(flow, { ...login, password: "incorrect-password" }))
             .response.status,
           401,
         );
-      const limited = await approve(
-        flow,
-        "vlk_" + randomBytes(32).toString("base64url"),
-      );
+      const limited = await approve(flow, {
+        ...login,
+        password: "incorrect-password",
+      });
       assert.equal(limited.response.status, 429);
       assert.equal(limited.response.headers.get("retry-after"), "60");
-      const parent = await keys.create();
       restart();
-      const grant = await code(parent.api_key);
+      const grant = await code();
       assert.equal(
         (await exchange(grant, { client_secret: primary })).response.status,
         422,
@@ -791,6 +991,50 @@ try {
         ).status,
         413,
       );
+    },
+  );
+  await check(
+    "Root sign-in shares its attempt budget across API-key creation and OAuth and passwords cannot enter URLs",
+    async () => {
+      const flow = await begin();
+      assert.equal(
+        (
+          await request("/oauth/approve?password=" + login.password, {
+            method: "POST",
+            headers: {
+              Origin: origin,
+              Cookie: flow.cookie,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              csrf_token: flow.csrf,
+              action: "allow",
+              ...login,
+            }),
+          })
+        ).status,
+        422,
+      );
+      restart();
+      assert.equal(
+        (
+          await request("/auth/api-keys", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...login, password: "incorrect-password" }),
+          })
+        ).status,
+        401,
+      );
+      for (let attempt = 0; attempt < 4; attempt++)
+        assert.equal(
+          (await approve(flow, { ...login, password: "incorrect-password" }))
+            .response.status,
+          401,
+        );
+      const limited = await approve(flow);
+      assert.equal(limited.response.status, 429);
+      assert.equal(limited.response.headers.get("retry-after"), "60");
     },
   );
   await check(
@@ -827,7 +1071,13 @@ try {
     "Request logs contain no credentials, OAuth codes, cookies or sensitive parameters",
     async () => {
       const serialized = JSON.stringify(logs);
-      for (const secret of [primary, databasePassword, ...tokens])
+      for (const secret of [
+        primary,
+        databasePassword,
+        login.email,
+        login.password,
+        ...tokens,
+      ])
         assert(!serialized.includes(secret));
       assert(
         logs.every((entry) =>

@@ -18,10 +18,12 @@ type ConnectionRequest = {
 
 export function OAuthPage() {
   const [connection, setConnection] = useState<ConnectionRequest>();
-  const [apiKey, setApiKey] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string>();
+  const [invalidCredentials, setInvalidCredentials] = useState(false);
   const [pending, setPending] = useState(false);
-  const keyInput = useRef<HTMLInputElement>(null);
+  const passwordInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     document.title = "Connect ChatGPT · Vitalog";
@@ -44,8 +46,8 @@ export function OAuthPage() {
     }
     void load();
     const clear = () => {
-      if (keyInput.current) keyInput.current.value = "";
-      setApiKey("");
+      if (passwordInput.current) passwordInput.current.value = "";
+      setPassword("");
     };
     window.addEventListener("pagehide", clear);
     return () => {
@@ -58,27 +60,30 @@ export function OAuthPage() {
     if (!connection || pending) return;
     setPending(true);
     setError(undefined);
+    setInvalidCredentials(false);
     try {
       const response = await fetch("/oauth/approve", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(action === "allow"
-            ? { Authorization: "Bearer " + apiKey.trim() }
-            : {}),
-        },
-        body: JSON.stringify({ csrf_token: connection.csrf_token, action }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          csrf_token: connection.csrf_token,
+          action,
+          ...(action === "allow" ? { email, password } : {}),
+        }),
         cache: "no-store",
         credentials: "same-origin",
         redirect: "error",
       });
       if (!response.ok) {
+        setInvalidCredentials(response.status === 401);
         setError(
           response.status === 401
-            ? "Use an active API key and try again."
+            ? "Check your email and password and try again."
             : response.status === 429
               ? "Too many attempts. Wait a minute and try again."
-              : "The connection could not be completed. Restart from ChatGPT.",
+              : response.status === 503
+                ? "Sign-in is unavailable. Check the root configuration."
+                : "The connection could not be completed. Restart from ChatGPT.",
         );
         return;
       }
@@ -93,7 +98,7 @@ export function OAuthPage() {
     } catch {
       setError("Unable to connect. Check your connection and try again.");
     } finally {
-      setApiKey("");
+      setPassword("");
       setPending(false);
     }
   }
@@ -117,31 +122,53 @@ export function OAuthPage() {
             <h1 className="page-title">Connect ChatGPT</h1>
             {connection ? (
               <Card.Description className="text-base leading-6">
-                Allow ChatGPT to {permission} your health ledger. Access expires
-                with your API key.
+                Allow ChatGPT to {permission} your health ledger for 30 days.
               </Card.Description>
             ) : null}
           </Card.Header>
           <Card.Content>
             <Form className="grid gap-5" onSubmit={submit} aria-busy={pending}>
               <TextField
-                name="api-key"
-                type="password"
-                autoComplete="off"
+                name="email"
+                type="email"
+                autoComplete="username"
                 isRequired
+                isInvalid={invalidCredentials || undefined}
                 isDisabled={!connection || pending}
-                value={apiKey}
+                value={email}
                 onChange={(value) => {
-                  setApiKey(value);
+                  setEmail(value);
                   setError(undefined);
+                  setInvalidCredentials(false);
                 }}
               >
-                <Label>API key</Label>
+                <Label>Root email</Label>
                 <Input
-                  ref={keyInput}
                   variant="secondary"
-                  spellCheck={false}
-                  maxLength={128}
+                  maxLength={254}
+                  aria-describedby={error ? "connection-error" : undefined}
+                />
+                <FieldError />
+              </TextField>
+              <TextField
+                name="password"
+                type="password"
+                autoComplete="current-password"
+                isRequired
+                isInvalid={invalidCredentials || undefined}
+                isDisabled={!connection || pending}
+                value={password}
+                onChange={(value) => {
+                  setPassword(value);
+                  setError(undefined);
+                  setInvalidCredentials(false);
+                }}
+              >
+                <Label>Root password</Label>
+                <Input
+                  ref={passwordInput}
+                  variant="secondary"
+                  maxLength={256}
                   aria-describedby={error ? "connection-error" : undefined}
                 />
                 <FieldError />
@@ -158,6 +185,7 @@ export function OAuthPage() {
               <div className="key-actions">
                 <Button
                   type="submit"
+                  fullWidth
                   isDisabled={!connection}
                   isPending={pending}
                 >
@@ -166,20 +194,13 @@ export function OAuthPage() {
                 <Button
                   type="button"
                   variant="secondary"
+                  fullWidth
                   isDisabled={!connection || pending}
                   onPress={() => void approve("deny")}
                 >
                   Cancel
                 </Button>
               </div>
-              <a
-                className="text-sm underline underline-offset-4"
-                href="/api-keys"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Generate an API key
-              </a>
             </Form>
           </Card.Content>
         </Card>
