@@ -236,7 +236,7 @@ describe("Catalog invariants", () => {
       expect(text.includes(term), `Generated interfaces contain ${term}`).toBe(
         false,
       );
-    expect(Object.keys(doc.paths as object)).toHaveLength(30);
+    expect(Object.keys(doc.paths as object)).toHaveLength(31);
     expect(catalog({}, cursors).catalog_version).toBe(CATALOG_VERSION);
   });
   test("Oversized responses fail without truncating the requested value", () => {

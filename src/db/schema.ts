@@ -13,6 +13,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import type { Data, HealthRecord, Provenance } from "../domain/types.js";
+import type { ClientMetadata } from "../auth/oauth-clients.js";
 import { recordTypes } from "../registry/definitions.js";
 
 export const healthRecords = pgTable(
@@ -205,6 +206,38 @@ export const oauthTokens = pgTable(
     ),
   ],
 );
+export const oauthClients = pgTable(
+  "oauth_clients",
+  {
+    clientId: text("client_id").primaryKey(),
+    metadata: jsonb("metadata").$type<ClientMetadata>().notNull(),
+    clientSecretDigest: text("client_secret_digest"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .default(sql`statement_timestamp()`),
+  },
+  (t) => [
+    check("oauth_client_id", sql`${t.clientId} ~ '^vcl_[A-Za-z0-9_-]{43}$'`),
+    check(
+      "oauth_client_secret_sha256",
+      sql`${t.clientSecretDigest} is null or ${t.clientSecretDigest} ~ '^[0-9a-f]{64}$'`,
+    ),
+  ],
+);
+export const oauthClientAssertions = pgTable(
+  "oauth_client_assertions",
+  {
+    assertionDigest: text("assertion_digest").primaryKey(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    index("oauth_client_assertion_expiry").on(t.expiresAt),
+    check(
+      "oauth_client_assertion_sha256",
+      sql`${t.assertionDigest} ~ '^[0-9a-f]{64}$'`,
+    ),
+  ],
+);
 export const schema = {
   healthRecords,
   revisions,
@@ -212,4 +245,6 @@ export const schema = {
   apiKeys,
   oauthCodes,
   oauthTokens,
+  oauthClients,
+  oauthClientAssertions,
 };

@@ -43,6 +43,20 @@
       "when": 1791006386841,
       "tag": "0005_oauth_root_sign_in",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791018000547,
+      "tag": "0006_oauth_clients",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791020209688,
+      "tag": "0007_oauth_assertion_replay",
+      "breakpoints": true
     }
   ]
 }

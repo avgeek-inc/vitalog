@@ -2,12 +2,17 @@ $kind: http-request
 id: e64c63cf-79be-503c-8301-fb654b29dfe6
 method: POST
 url: "{{baseUrl}}/oauth/token"
-description: Public ChatGPT CIMD client; S256 PKCE and exact client, callback
-  and MCP resource binding. Form-encoded authorization_code only. No
-  client-secret or refresh grants. Atomically consumes the code and creates a
-  scoped 30-day MCP token and its API-key management record. The primary
-  AUTH_KEY can list or revoke this record. Existing grants keep their original
-  expiry. Revocation is checked on every MCP request.
+description: Authorization-code exchange with S256 PKCE and exact client,
+  consented callback and canonical MCP resource binding. Public clients use
+  client_id without a secret; configured or dynamically registered confidential
+  clients use their declared client_secret_basic, client_secret_post or
+  private_key_jwt method. JWT clients send a signed assertion with registered
+  public keys and a unique jti; replay is blocked across restarts. HTTP Basic
+  identifies the client when client_id is omitted from the body. Unknown OAuth
+  parameters are ignored. No refresh or client-credentials grants. Atomically
+  consumes the code and creates a scoped 30-day MCP token and its API-key
+  management record. The primary AUTH_KEY can list or revoke this record.
+  Revocation is checked on every MCP request.
 headers:
   Accept: application/json
   Content-Type: application/x-www-form-urlencoded
@@ -17,4 +22,4 @@ auth:
     name: OAuth protocol; no inherited key
 body:
   type: text
-  content: grant_type=authorization_code&code={{oauthCode}}&client_id=https%3A%2F%2Fchatgpt.com%2Foauth%2Fclient.json&redirect_uri=https%3A%2F%2Fchatgpt.com%2Fconnector_platform_oauth_redirect&resource={{baseUrl}}%2Fmcp&code_verifier={{oauthVerifier}}
+  content: grant_type=authorization_code&code={{oauthCode}}&client_id={{oauthClientId}}&redirect_uri={{oauthRedirectUri}}&resource={{baseUrl}}%2Fmcp&code_verifier={{oauthVerifier}}

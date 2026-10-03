@@ -3,12 +3,18 @@ import { isIP } from "node:net";
 import { validTimezone } from "./domain/validation.js";
 import { credentialGuard, type CredentialGuard } from "./security.js";
 import { rootCredentials, type RootCredentials } from "./auth/root.js";
+import {
+  configuredOAuthClients,
+  type OAuthClient,
+} from "./auth/oauth-clients.js";
 
 export type Config = {
   authDigest: Buffer;
   assertCredentialAbsent: CredentialGuard;
   assertAuthKeyAbsent: CredentialGuard;
   assertEnvironmentCredentialsAbsent: CredentialGuard;
+  assertPrimaryCredentialsAbsent: CredentialGuard;
+  oauthClients: OAuthClient[];
   rootCredentials?: RootCredentials;
   databaseUrl: string;
   timezone: string;
@@ -37,6 +43,15 @@ export function configuration(env: NodeJS.ProcessEnv = process.env): Config {
   if (env.ROOT_PASSWORD === key)
     throw new Error("ROOT_PASSWORD must differ from AUTH_KEY");
   const passwordSecrets = root ? [env.ROOT_PASSWORD!] : [];
+  const oauth = configuredOAuthClients(env.OAUTH_CLIENTS);
+  if (
+    oauth.secrets.some(
+      (secret) => secret === key || secret === env.ROOT_PASSWORD,
+    )
+  )
+    throw new Error(
+      "OAuth client secrets must differ from the primary key and root password",
+    );
   if (!databaseUrl || !/^postgres(?:ql)?:\/\//.test(databaseUrl))
     throw new Error("A PostgreSQL DATABASE_URL is required");
   const timezone = env.DEFAULT_TIMEZONE ?? "Asia/Kolkata";
@@ -134,13 +149,22 @@ export function configuration(env: NodeJS.ProcessEnv = process.env): Config {
     );
   return {
     authDigest: createHash("sha256").update(key).digest(),
-    assertCredentialAbsent: credentialGuard(key, passwordSecrets),
+    assertCredentialAbsent: credentialGuard(key, [
+      ...passwordSecrets,
+      ...oauth.secrets,
+    ]),
     assertAuthKeyAbsent: credentialGuard(key, [], false),
     assertEnvironmentCredentialsAbsent: credentialGuard(
+      key,
+      [...passwordSecrets, ...oauth.secrets],
+      false,
+    ),
+    assertPrimaryCredentialsAbsent: credentialGuard(
       key,
       passwordSecrets,
       false,
     ),
+    oauthClients: oauth.clients,
     rootCredentials: root,
     databaseUrl,
     timezone,

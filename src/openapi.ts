@@ -242,7 +242,7 @@ export function openapi(): Data {
       title: "Vitalog",
       version: "1.0.0",
       description:
-        "Single-user structured observations with equivalent REST and MCP domain services. Environment AUTH_KEY or revocable 30-day opaque Bearer keys; key management requires AUTH_KEY. ChatGPT uses OAuth authorization code with S256 PKCE, issued after root sign-in. OAuth tokens grant MCP access only.",
+        "Single-user structured observations with equivalent REST and MCP domain services. Environment AUTH_KEY or revocable 30-day opaque Bearer keys; key management requires AUTH_KEY. MCP clients use OAuth authorization code with S256 PKCE, issued after root sign-in. Clients are resolved through HTTPS metadata, pre-registration or dynamic registration. OAuth tokens grant MCP access only.",
     },
     servers: [
       {
