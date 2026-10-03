@@ -16,7 +16,6 @@ import { MAX_RESPONSE_BYTES } from "./domain/catalog.js";
 import { ApiKeys } from "./auth/keys.js";
 import { RootAuthentication } from "./auth/root.js";
 import { keyCreation, keyId, keyListQuery } from "./auth/contracts.js";
-import { keyPage } from "./auth/page.js";
 import { OAuthStore } from "./auth/oauth-store.js";
 import { oauthChallenge, oauthRoutes } from "./auth/oauth.js";
 
@@ -159,15 +158,52 @@ export function application(
           (source.protocol === "https:" ||
             (source.protocol === "http:" &&
               ["localhost", "127.0.0.1", "[::1]"].includes(source.hostname)));
-        if (
-          path === "/auth/api-keys" ||
-          path === "/api-keys" ||
-          path.startsWith("/oauth/") ||
-          path.startsWith("/api-key-ui/assets/")
-            ? !sameOrigin
-            : !config.allowedOrigins.includes(origin)
-        )
+        const uiRequest = [
+          "/auth/api-keys",
+          "/oauth/request",
+          "/oauth/approve",
+        ].includes(path);
+        const permitted =
+          uiRequest && config.uiBaseUrl
+            ? origin === config.uiBaseUrl
+            : path === "/api-keys" ||
+                path.startsWith("/oauth/") ||
+                path === "/auth/api-keys"
+              ? sameOrigin
+              : config.allowedOrigins.includes(origin);
+        if (!permitted)
           throw new DomainError("FORBIDDEN", "Origin is not permitted");
+      }
+    }
+    await next();
+  });
+  app.use("*", async (c, next) => {
+    const method = c.req.path === "/oauth/request" ? "GET" : "POST";
+    const browserAuth = [
+      "/auth/api-keys",
+      "/oauth/request",
+      "/oauth/approve",
+    ].includes(c.req.path);
+    const origin = c.req.header("origin");
+    if (browserAuth && config.uiBaseUrl && origin === config.uiBaseUrl) {
+      c.header("Access-Control-Allow-Origin", origin);
+      c.header("Vary", "Origin");
+      if (c.req.path.startsWith("/oauth/"))
+        c.header("Access-Control-Allow-Credentials", "true");
+      if (c.req.method === "OPTIONS") {
+        const requested = (c.req.header("access-control-request-headers") ?? "")
+          .split(",")
+          .map((value) => value.trim().toLowerCase())
+          .filter(Boolean);
+        if (
+          c.req.header("access-control-request-method") !== method ||
+          requested.some((value) => value !== "content-type") ||
+          [...new URL(c.req.url).searchParams].length
+        )
+          throw new DomainError("FORBIDDEN", "Preflight is not permitted");
+        c.header("Access-Control-Allow-Methods", method);
+        c.header("Access-Control-Allow-Headers", "Content-Type");
+        return c.body(null, 204);
       }
     }
     await next();
@@ -233,7 +269,11 @@ export function application(
     }
   });
   app.get("/healthz", (c) => c.json({ status: "ok" }));
-  app.route("/", keyPage());
+  app.get("/api-keys", (c) =>
+    config.uiBaseUrl
+      ? c.redirect(config.uiBaseUrl + "/api-keys", 302)
+      : c.notFound(),
+  );
   if (oauth) app.route("/", oauthRoutes(root, oauth, config));
   app.post("/auth/api-keys", async (c) => {
     if ([...new URL(c.req.url).searchParams].length)

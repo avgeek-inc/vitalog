@@ -1,3 +1,5 @@
+"use client";
+
 import {
   Button,
   Card,
@@ -17,7 +19,7 @@ type ConnectionRequest = {
   csrf_token: string;
 };
 
-export function OAuthPage() {
+export function OAuthPage({ apiBaseUrl }: { apiBaseUrl: string }) {
   const [connection, setConnection] = useState<ConnectionRequest>();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -30,9 +32,9 @@ export function OAuthPage() {
     const controller = new AbortController();
     async function load() {
       try {
-        const response = await fetch("/oauth/request", {
+        const response = await fetch(apiBaseUrl + "/oauth/request", {
           cache: "no-store",
-          credentials: "same-origin",
+          credentials: "include",
           redirect: "error",
           signal: controller.signal,
         });
@@ -57,14 +59,14 @@ export function OAuthPage() {
       controller.abort();
       window.removeEventListener("pagehide", clear);
     };
-  }, []);
+  }, [apiBaseUrl]);
 
   async function approve(action: "allow" | "deny") {
     if (!connection || pending) return;
     setPending(true);
     setInvalidCredentials(false);
     try {
-      const response = await fetch("/oauth/approve", {
+      const response = await fetch(apiBaseUrl + "/oauth/approve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -73,7 +75,7 @@ export function OAuthPage() {
           ...(action === "allow" ? { email, password } : {}),
         }),
         cache: "no-store",
-        credentials: "same-origin",
+        credentials: "include",
         redirect: "error",
       });
       if (!response.ok) {

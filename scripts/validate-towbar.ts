@@ -18,7 +18,12 @@ type Config = {
   deployment?: { type: string; context: string; dockerfile?: string };
   domains?: { primary: string };
   tls?: { mode: string };
-  health?: { type?: string; command?: string[]; publicPath?: string };
+  health?: {
+    type?: string;
+    command?: string[];
+    publicPath?: string;
+    path?: string;
+  };
   rollout?: { type: string; maintenanceMode?: boolean };
 };
 type Entity = Config & {
@@ -44,9 +49,9 @@ async function validate<T>(file: string, schemaName: string): Promise<T> {
   });
   assert.equal(document.errors.length, 0, `${file}: invalid YAML`);
   const data: unknown = document.toJS({ maxAliasCount: 0 });
-  const check = ajv.compile<T>(schema);
+  const check = ajv.getSchema<T>(schema.$id) ?? ajv.compile<T>(schema);
   assert(check(data), `${file}: ${ajv.errorsText(check.errors)}`);
-  return data;
+  return data as T;
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -73,13 +78,14 @@ function configuration(entity: Entity, environment: string): Config {
   return merge(defaults, overrides) as Config;
 }
 
-const [root, app, database] = await Promise.all([
+const [root, app, database, web] = await Promise.all([
   validate<Root>("towbar.yml", "repository"),
   validate<Entity>(".towbar/services/vitalog.service.yml", "app"),
   validate<Entity>(
     ".towbar/datastores/vitalog-postgres.datastore.yml",
     "resource",
   ),
+  validate<Entity>(".towbar/services/vitalog-web.service.yml", "app"),
 ]);
 assert(Object.keys(root.environments).length > 0);
 assert.notEqual(app.id, database.id);
@@ -89,7 +95,7 @@ if (database.image)
     /@sha256:[0-9a-f]{64}$/.test(database.image),
     "Custom PostgreSQL images need an immutable digest",
   );
-for (const entity of [app, database]) {
+for (const entity of [app, database, web]) {
   for (const environment of Object.keys(entity.environments))
     assert(
       environment in root.environments,
@@ -108,6 +114,8 @@ for (const key of [
   "ROOT_PASSWORD",
   "DATABASE_URL",
   "ALLOWED_HOSTS",
+  "PUBLIC_BASE_URL",
+  "UI_BASE_URL",
 ])
   assert(app.secrets?.runtime?.includes(key), `Missing service key ${key}`);
 for (const key of ["POSTGRES_USER", "POSTGRES_DB", "POSTGRES_PASSWORD"])
@@ -154,7 +162,23 @@ for (const environment of Object.keys(root.environments)) {
     if (service.domains) assert(service.health.publicPath);
   }
   if (service.domains) assert(service.tls, "Public routing requires TLS");
+  const ui = configuration(web, environment);
+  assert.equal(ui.server, service.server);
+  assert.equal(ui.deployment?.dockerfile, "apps/web/Dockerfile");
+  assert.equal(ui.domains?.primary, "vitalog.praveent.com");
+  assert.equal(service.domains?.primary, "vitalog-api.praveent.com");
+  assert.equal(ui.health?.publicPath ?? ui.health?.path, "/healthz");
+  assert(
+    !ui.container?.networkAlias,
+    "UI does not require a private API alias",
+  );
+  assert.deepEqual(web.secrets?.runtime, ["API_BASE_URL", "UI_BASE_URL"]);
+  assert(
+    (
+      await stat(resolve(ui.deployment.context, ui.deployment.dockerfile))
+    ).isFile(),
+  );
   process.stdout.write(
-    `PASS Towbar ${environment}: ${app.id} + ${database.id} on ${service.server}\n`,
+    `PASS Towbar ${environment}: ${app.id} + ${web.id} + ${database.id} on ${service.server}\n`,
   );
 }

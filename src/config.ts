@@ -15,6 +15,7 @@ export type Config = {
   port: number;
   allowedHosts: string[];
   publicBaseUrl?: string;
+  uiBaseUrl?: string;
   allowedOrigins: string[];
   trustedProxyIps: string[];
   rateLimit: number;
@@ -92,6 +93,18 @@ export function configuration(env: NodeJS.ProcessEnv = process.env): Config {
       );
   }
   const allowedOrigins = split(env.ALLOWED_ORIGINS);
+  const uiBaseUrl = env.UI_BASE_URL || undefined;
+  if (uiBaseUrl) {
+    const url = new URL(uiBaseUrl);
+    const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+    if (
+      url.origin !== uiBaseUrl ||
+      (url.protocol !== "https:" && !(url.protocol === "http:" && loopback))
+    )
+      throw new Error(
+        "UI_BASE_URL requires an exact HTTPS origin, or loopback HTTP for development",
+      );
+  }
   if (
     allowedOrigins.some((origin) => {
       try {
@@ -134,6 +147,7 @@ export function configuration(env: NodeJS.ProcessEnv = process.env): Config {
     port,
     allowedHosts,
     publicBaseUrl,
+    uiBaseUrl,
     allowedOrigins,
     trustedProxyIps,
     rateLimit,

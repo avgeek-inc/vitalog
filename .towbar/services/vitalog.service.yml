@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://towbar.dev/schemas/app.v2.json
 id: vitalog
-name: Vitalog
+name: Vitalog API
 description: Personal health ledger REST API and MCP service
 deployment:
   type: dockerfile
@@ -44,7 +44,7 @@ health:
 ingress:
   type: proxy
 domains:
-  primary: vitalog.praveent.com
+  primary: vitalog-api.praveent.com
 tls:
   mode: cloudflare-dns
 secrets:
@@ -54,6 +54,8 @@ secrets:
     - ROOT_PASSWORD
     - DATABASE_URL
     - ALLOWED_HOSTS
+    - PUBLIC_BASE_URL
+    - UI_BASE_URL
 environments:
   production:
     server: 13.204.184.47

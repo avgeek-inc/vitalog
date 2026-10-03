@@ -1,0 +1,35 @@
+# yaml-language-server: $schema=https://towbar.dev/schemas/app.v2.json
+id: vitalog-web
+name: Vitalog UI
+description: HeroUI authentication screens for the personal health ledger
+deployment:
+  type: dockerfile
+  context: .
+  dockerfile: apps/web/Dockerfile
+  architecture: arm64
+  resources:
+    cpus: 1
+    memory: 768m
+autoDeploy: false
+container:
+  port: 3000
+  resources:
+    cpus: 0.5
+    memory: 256m
+health:
+  type: http
+  path: /healthz
+  timeoutSeconds: 90
+ingress:
+  type: proxy
+domains:
+  primary: vitalog.praveent.com
+tls:
+  mode: cloudflare-dns
+secrets:
+  runtime:
+    - API_BASE_URL
+    - UI_BASE_URL
+environments:
+  production:
+    server: 13.204.184.47

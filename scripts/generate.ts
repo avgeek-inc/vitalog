@@ -369,7 +369,7 @@ for (const [path, methods] of Object.entries(source.paths as Data)) {
     let importedBody: Data | undefined;
     if (path === "/oauth/approve") {
       headers["Content-Type"] = "application/json";
-      headers.Origin = "{{baseUrl}}";
+      headers.Origin = "{{uiUrl}}";
       const content = json({
         csrf_token: "{{oauthCsrf}}",
         action: "allow",
@@ -531,7 +531,12 @@ await save(
   stringify({
     name: "Vitalog",
     values: [
-      { key: "baseUrl", value: "http://localhost:3000", enabled: true },
+      {
+        key: "baseUrl",
+        value: "https://vitalog-api.praveent.com",
+        enabled: true,
+      },
+      { key: "uiUrl", value: "https://vitalog.praveent.com", enabled: true },
       { key: "authKey", value: "", type: "secret", enabled: true },
       { key: "rootAuthKey", value: "", type: "secret", enabled: true },
       { key: "rootEmail", value: "", type: "secret", enabled: true },
@@ -546,7 +551,11 @@ await save(
     id: stableId("vitalog-environment"),
     name: "Vitalog",
     values: [
-      { key: "baseUrl", value: "http://localhost:3000", enabled: true },
+      {
+        key: "baseUrl",
+        value: "https://vitalog-api.praveent.com",
+        enabled: true,
+      },
       { key: "authKey", value: "", type: "secret", enabled: true },
       { key: "rootAuthKey", value: "", type: "secret", enabled: true },
       { key: "rootEmail", value: "", type: "secret", enabled: true },

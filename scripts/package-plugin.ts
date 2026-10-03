@@ -30,7 +30,7 @@ const servers = JSON.parse(
 assert.deepEqual(Object.keys(servers), ["vitalog"]);
 assert.deepEqual(servers.vitalog, {
   type: "streamable-http",
-  url: "https://vitalog.praveent.com/mcp",
+  url: "https://vitalog-api.praveent.com/mcp",
 });
 for (const name of ["composerIcon", "logo"]) {
   const path = manifest.extensions["com.openai"].interface[name];
@@ -57,11 +57,11 @@ for (const file of files) {
 }
 assert.deepEqual(
   await readFile(`${root}/assets/icon.png`),
-  await readFile("web/assets/vitalog-favicon.png"),
+  await readFile("apps/web/public/brand/vitalog-favicon.png"),
 );
 assert.deepEqual(
   await readFile(`${root}/assets/logo.png`),
-  await readFile("web/assets/vitalog-mark.png"),
+  await readFile("apps/web/public/brand/vitalog-mark.png"),
 );
 await mkdir("dist", { recursive: true });
 await rm(output, { force: true });

@@ -8,7 +8,6 @@ import {
   keyListQuery,
   keyOperations,
 } from "../src/auth/contracts.js";
-import { keyPageCsp } from "../src/auth/page.js";
 import { openapi } from "../src/openapi.js";
 import type { Data } from "../src/domain/types.js";
 import { application } from "../src/app.js";
@@ -181,14 +180,5 @@ describe("Key generation contracts", () => {
       { staticKey: [] },
       { apiKey: [] },
     ]);
-  });
-  test("The page policy blocks native form submissions, framing and third-party resources", () => {
-    expect(keyPageCsp).toContain("default-src 'none'");
-    expect(keyPageCsp).toContain("script-src 'self'");
-    expect(keyPageCsp).toContain("style-src 'self'");
-    expect(keyPageCsp).toContain("font-src 'self'");
-    expect(keyPageCsp).toContain("form-action 'none'");
-    expect(keyPageCsp).toContain("frame-ancestors 'none'");
-    expect(keyPageCsp).not.toContain("unsafe-inline");
   });
 });

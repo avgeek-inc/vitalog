@@ -4,7 +4,9 @@ Vitalog's mark is a vivid warm red heart with full rounded 3D volume. Its soft c
 
 The source is [`assets/brand/vitalog-mark-source.png`](../assets/brand/vitalog-mark-source.png), a 1254 × 1254 RGBA PNG edited from the original mark with the built-in image generation tool. The source's alpha is preserved in the 256 px page/plugin mark, 64 px favicon/composer icon and 180 px touch icon. Derivatives were resized with macOS `sips`; no visual edits were made outside the image generation tool. The UI reserves a 64 × 64 px image area to avoid layout shifts. Its alt text is "Vitalog" so the logo-only treatment retains an accessible brand name.
 
-Vite emits the PNGs as same-origin assets. The page's CSP permits same-origin images; external images and embedded data URLs remain blocked.
+The Next.js app serves PNGs from `apps/web/public/brand` at `/brand/`. The plugin package uses identical copies. The page's CSP permits local images and framework data images; external images remain blocked.
+
+The light accent changed from `oklch(0.25 0.015 160)` to `oklch(0.55 0.21 25)`, with `oklch(0.99 0 0)` foreground: a warm red with readable light text. The dark accent changed from `oklch(0.85 0.02 160)` to `oklch(0.75 0.14 25)`, with dark foreground `oklch(0.18 0.01 25)`: a lighter red that remains distinct on dark surfaces. The accent/foreground pairs have WCAG contrast ratios of 5.26:1 in light mode and 7.99:1 in dark mode, calculated from the sRGB luminance of the OKLCH tokens. Both remain inside sRGB. The focus ring follows the accent. Neutral page/card surfaces preserve the Towbar and Mill hierarchy.
 
 ## Edit prompt
 

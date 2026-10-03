@@ -18,6 +18,8 @@ jobs:
       - run: npm ci
       - run: npm run verify
       - run: npm run test:integration
+      - run: npm run test:auth
+      - run: npm run test:oauth
       - run: node --import tsx scripts/security-verification.ts
       - run: node --import tsx scripts/summary-verification.ts
       - run: npm run build
@@ -33,6 +35,8 @@ jobs:
             .test-artifacts/verification.json
             .test-artifacts/container.json
             .test-artifacts/security.json
+            .test-artifacts/auth.json
+            .test-artifacts/oauth.json
             .test-artifacts/summary.json
             .test-artifacts/towbar.json
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
@@ -46,3 +50,9 @@ jobs:
           context: .
           push: true
           tags: ghcr.io/avgeek-inc/vitalog:${{ github.ref_name }}
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: true
+          tags: ghcr.io/avgeek-inc/vitalog-web:${{ github.ref_name }}

@@ -7,7 +7,6 @@ import { DomainError } from "../errors.js";
 import { inspectBody } from "../security.js";
 import { keyCreation } from "./contracts.js";
 import { RootAuthentication } from "./root.js";
-import { keyPageCsp, pageDocument } from "./page.js";
 import { OAuthStore } from "./oauth-store.js";
 
 export const chatGptClientId = "https://chatgpt.com/oauth/client.json";
@@ -97,6 +96,7 @@ export function oauthRoutes(
   config: Config,
 ) {
   const issuer = config.publicBaseUrl!;
+  const uiOrigin = config.uiBaseUrl;
   const resource = issuer + "/mcp";
   const secure = issuer.startsWith("https:");
   const cookieName = secure ? "__Secure-vitalog-oauth" : "vitalog-oauth";
@@ -260,61 +260,62 @@ export function oauthRoutes(
       scopes_supported: [...oauthScopes],
     }),
   );
-  routes.get(
-    "/oauth/authorize",
-    async (c, next) => {
-      const query = new URL(c.req.url).searchParams;
-      c.header("Referrer-Policy", "no-referrer");
-      let input: z.infer<typeof authorization>;
-      let scopes: Flow["scopes"];
-      try {
-        const params = parameters(query);
-        const parsed = authorization.safeParse(params);
-        if (!parsed.success)
-          throw new OAuthError(
-            "invalid_request",
-            "Use the ChatGPT client, callback and S256 PKCE",
-          );
-        input = parsed.data;
-        if (input.resource !== resource)
-          throw new OAuthError("invalid_target", "Use this MCP resource");
-        scopes = requestedScopes(input.scope);
-        await validateClient();
-      } catch (error) {
-        if (
-          !(error instanceof OAuthError) ||
-          query.getAll("client_id").length !== 1 ||
-          query.get("client_id") !== chatGptClientId ||
-          query.getAll("redirect_uri").length !== 1 ||
-          query.get("redirect_uri") !== chatGptRedirectUri
-        )
-          throw error;
-        const redirect = new URL(chatGptRedirectUri);
-        redirect.searchParams.set("error", error.code);
-        redirect.searchParams.set("error_description", error.message);
-        redirect.searchParams.set("iss", issuer);
-        const state = authorization.shape.state.safeParse(query.get("state"));
-        if (query.getAll("state").length === 1 && state.success)
-          redirect.searchParams.set("state", state.data);
-        deleteCookie(c, cookieName, cookieOptions);
-        return c.redirect(redirect.toString(), 302);
-      }
-      const flow: Flow = {
-        client_id: input.client_id,
-        redirect_uri: input.redirect_uri,
-        resource,
-        scopes,
-        code_challenge: input.code_challenge,
-        state: input.state,
-        csrf_token: randomBytes(32).toString("base64url"),
-        expires_at: Date.now() + 300_000,
-      };
-      setCookie(c, cookieName, encode(flow), { ...cookieOptions, maxAge: 300 });
-      c.header("Content-Security-Policy", keyPageCsp);
-      await next();
-    },
-    pageDocument,
-  );
+  routes.get("/oauth/authorize", async (c) => {
+    if (!uiOrigin)
+      throw new OAuthError(
+        "temporarily_unavailable",
+        "The connection page is not configured",
+        503,
+      );
+    const query = new URL(c.req.url).searchParams;
+    c.header("Referrer-Policy", "no-referrer");
+    let input: z.infer<typeof authorization>;
+    let scopes: Flow["scopes"];
+    try {
+      const params = parameters(query);
+      const parsed = authorization.safeParse(params);
+      if (!parsed.success)
+        throw new OAuthError(
+          "invalid_request",
+          "Use the ChatGPT client, callback and S256 PKCE",
+        );
+      input = parsed.data;
+      if (input.resource !== resource)
+        throw new OAuthError("invalid_target", "Use this MCP resource");
+      scopes = requestedScopes(input.scope);
+      await validateClient();
+    } catch (error) {
+      if (
+        !(error instanceof OAuthError) ||
+        query.getAll("client_id").length !== 1 ||
+        query.get("client_id") !== chatGptClientId ||
+        query.getAll("redirect_uri").length !== 1 ||
+        query.get("redirect_uri") !== chatGptRedirectUri
+      )
+        throw error;
+      const redirect = new URL(chatGptRedirectUri);
+      redirect.searchParams.set("error", error.code);
+      redirect.searchParams.set("error_description", error.message);
+      redirect.searchParams.set("iss", issuer);
+      const state = authorization.shape.state.safeParse(query.get("state"));
+      if (query.getAll("state").length === 1 && state.success)
+        redirect.searchParams.set("state", state.data);
+      deleteCookie(c, cookieName, cookieOptions);
+      return c.redirect(redirect.toString(), 302);
+    }
+    const flow: Flow = {
+      client_id: input.client_id,
+      redirect_uri: input.redirect_uri,
+      resource,
+      scopes,
+      code_challenge: input.code_challenge,
+      state: input.state,
+      csrf_token: randomBytes(32).toString("base64url"),
+      expires_at: Date.now() + 300_000,
+    };
+    setCookie(c, cookieName, encode(flow), { ...cookieOptions, maxAge: 300 });
+    return c.redirect(uiOrigin + "/oauth/authorize", 302);
+  });
   routes.get("/oauth/request", (c) => {
     const flow = readFlow(c);
     return c.json({
@@ -325,7 +326,8 @@ export function oauthRoutes(
   });
   routes.post("/oauth/approve", async (c) => {
     if (
-      c.req.header("origin") !== issuer ||
+      !uiOrigin ||
+      c.req.header("origin") !== uiOrigin ||
       [...new URL(c.req.url).searchParams].length ||
       !/^application\/json(?:\s*;|$)/i.test(c.req.header("content-type") ?? "")
     )

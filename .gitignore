@@ -9,3 +9,5 @@ coverage/
 *.jsonl
 .DS_Store
 .test-artifacts/
+.next/
+*.tsbuildinfo

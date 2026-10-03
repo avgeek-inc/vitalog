@@ -23,6 +23,7 @@ const login = {
   password: randomBytes(32).toString("base64url"),
 };
 const origin = "http://127.0.0.1:3000";
+const uiOrigin = "http://127.0.0.1:3001";
 const logs: Data[] = [];
 const checks: { name: string; status: "passed" }[] = [];
 const tokens: string[] = [];
@@ -58,6 +59,7 @@ function restart(rootConfigured = true) {
     AUTH_KEY: primary,
     DATABASE_URL: connection!.pool.options.connectionString,
     PUBLIC_BASE_URL: origin,
+    UI_BASE_URL: uiOrigin,
     ALLOWED_HOSTS: new URL(origin).host,
     RATE_LIMIT_PER_MINUTE: "100000",
     ...(rootConfigured
@@ -106,7 +108,8 @@ async function begin(
     ...extras,
   });
   const response = await request("/oauth/authorize?" + params);
-  assert.equal(response.status, 200);
+  assert.equal(response.status, 302);
+  assert.equal(response.headers.get("location"), uiOrigin + "/oauth/authorize");
   const cookie = response.headers.get("set-cookie")!.split(";")[0]!;
   assert.match(response.headers.get("set-cookie")!, /HttpOnly/);
   assert.match(response.headers.get("set-cookie")!, /SameSite=Lax/);
@@ -131,7 +134,7 @@ async function approve(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Origin: origin,
+      Origin: uiOrigin,
       Cookie: flow.cookie,
     },
     body: JSON.stringify({
@@ -296,7 +299,7 @@ try {
             await approve(flow, undefined, "allow", {
               headers: {
                 "Content-Type": "application/json",
-                Origin: origin,
+                Origin: uiOrigin,
                 Cookie: flow.cookie,
                 Authorization: "Bearer " + supplied,
               },
@@ -473,7 +476,7 @@ try {
           (
             await approve(flow, login, "allow", {
               headers: {
-                Origin: origin,
+                Origin: uiOrigin,
                 "Content-Type": "application/json",
                 Cookie,
               },
@@ -1002,7 +1005,7 @@ try {
           await request("/oauth/approve?password=" + login.password, {
             method: "POST",
             headers: {
-              Origin: origin,
+              Origin: uiOrigin,
               Cookie: flow.cookie,
               "Content-Type": "application/json",
             },

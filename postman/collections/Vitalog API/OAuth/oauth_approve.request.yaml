@@ -2,7 +2,7 @@ $kind: http-request
 id: a030bccd-7a24-57f0-8489-4d910a579517
 method: POST
 url: "{{baseUrl}}/oauth/approve"
-description: Requires the flow cookie, exact same-origin Origin header and
+description: Requires the flow cookie, exact UI_BASE_URL Origin header and
   matching CSRF token. Allow signs in with ROOT_EMAIL and ROOT_PASSWORD in the
   JSON body and authorizes the requested scopes. Cancel does not need
   credentials. Returns a validated ChatGPT redirect containing state and iss;
@@ -11,7 +11,7 @@ description: Requires the flow cookie, exact same-origin Origin header and
 headers:
   Accept: application/json
   Content-Type: application/json
-  Origin: "{{baseUrl}}"
+  Origin: "{{uiUrl}}"
 auth:
   - id: 1f52505e-b06b-5047-8733-6378216d8767
     type: noauth

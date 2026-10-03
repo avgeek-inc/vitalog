@@ -1,3 +1,5 @@
+"use client";
+
 import {
   Button,
   Card,
@@ -22,7 +24,7 @@ function generationError(status: number) {
   return "The key could not be generated. Try again.";
 }
 
-export function ApiKeyPage() {
+export function ApiKeyPage({ apiBaseUrl }: { apiBaseUrl: string }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [invalidCredentials, setInvalidCredentials] = useState(false);
@@ -55,7 +57,7 @@ export function ApiKeyPage() {
     setInvalidCredentials(false);
     setIsSubmitting(true);
     try {
-      const response = await fetch("/auth/api-keys", {
+      const response = await fetch(apiBaseUrl + "/auth/api-keys", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -165,7 +167,7 @@ export function ApiKeyPage() {
             ) : (
               <Form
                 className="grid gap-5"
-                action="/auth/api-keys"
+                action={apiBaseUrl + "/auth/api-keys"}
                 method="post"
                 onSubmit={generate}
                 aria-busy={isSubmitting}

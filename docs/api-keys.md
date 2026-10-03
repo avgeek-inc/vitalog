@@ -10,7 +10,7 @@ Configure `ROOT_EMAIL` and `ROOT_PASSWORD` through your deployment's secret mana
 
 Open `https://vitalog.praveent.com/api-keys` after deploying this change, or the same path on your development instance. Enter the root email and password. The form sends a JSON POST and returns one token. Copy it immediately; it cannot be retrieved later. The password is cleared after submission, and neither credentials nor tokens are stored in browser storage. The page has no third-party assets, cannot be framed and uses a restrictive CSP and `Cache-Control: no-store`.
 
-The page uses React 19 and HeroUI v3's accessible form, input, card and button components, with Tailwind CSS v4 and the locally bundled Inter font used in Towbar. Vite bundles everything at build time. Hono serves the HTML at `/api-keys` and the compiled assets under `/api-key-ui/assets/` from the same Docker image. No additional server or CDN is needed. The CSP permits same-origin scripts, styles, fonts and API requests; inline scripts/styles, native form submissions and framing remain blocked. The production build contains no root credentials or environment secrets.
+The page runs in the separate Next.js app, using React 19 and HeroUI v3 with Tailwind CSS v4, Inter and a red theme. It posts to `https://vitalog-api.praveent.com/auth/api-keys`. The API accepts browser requests only from its configured `UI_BASE_URL` on this endpoint, with JSON-only preflight. The UI uses a fresh script nonce for each uncached response, allows network calls only to itself and the configured API, blocks native form submissions and framing, and serves its font/logo locally. HeroUI requires inline component styles; scripts require a nonce. The UI image and runtime environment contain no API credentials. Invalid login shows the HeroUI “Invalid credentials” toast and clears the password.
 
 Direct generation uses `POST /auth/api-keys` with `Content-Type: application/json`. This route authenticates using the JSON credentials and requires no Bearer header:
 
@@ -27,7 +27,7 @@ Email matching is case insensitive and ignores surrounding whitespace; password 
 
 A successful 201 response contains `api_key`, `id`, `token_hint`, `created_at`, `expires_at`, `revoked_at` and `status`. Timestamps are UTC ISO strings. The `api_key` field occurs only in this creation response. Metadata status is `active`, `expired` or `revoked`; revocation takes precedence over expiration. Migration `0003_remove_api_key_names` drops the former name column and constraint; existing token hashes, IDs, expiry and revocation are preserved.
 
-The generation endpoint accepts same-origin browser submissions from its HTTPS host, or loopback HTTP during development. Cross-origin submissions and form-encoded requests are rejected. Do not put root credentials in URLs or HTTP Basic authentication. Keep reverse-proxy request/response bodies and Authorization headers out of logging and tracing.
+The generation endpoint accepts browser submissions from the exact configured UI origin, or loopback HTTP during development. Other origins and form-encoded requests are rejected. If UI_BASE_URL is absent, direct same-origin API clients retain their previous behavior. Do not put root credentials in URLs or HTTP Basic authentication. Keep reverse-proxy request/response bodies and Authorization headers out of logging and tracing.
 
 ## Use and management
 
@@ -49,4 +49,4 @@ These are bearer API keys. ChatGPT connects through the [OAuth flow](chatgpt-plu
 
 ## Verification
 
-Run `npm run build:web` before the standalone `npm run test:auth` command, or run `npm run verify` first. The auth check creates and removes a disposable PostgreSQL database. It verifies the compiled page and its same-origin assets, a populated-database forward migration, one-time issuance and hash-only storage, both transports, administration boundaries, exact expiry, revocation, restart/rotation durability, login limits, origin protection, configuration fallback and log privacy. Reports are written to ignored `.test-artifacts/auth.json` and uploaded by CI. No production database is used.
+Run `npm run test:auth` for database/API verification and `npm run test:container` for the independent production UI. The auth check creates and removes a disposable PostgreSQL database. The auth check verifies the absence of UI assets in the API, a populated-database forward migration, one-time issuance and hash-only storage, both transports, administration boundaries, exact expiry, revocation, restart/rotation durability, login limits, origin protection, configuration fallback and log privacy. Reports are written to ignored `.test-artifacts/auth.json` and uploaded by CI. No production database is used.

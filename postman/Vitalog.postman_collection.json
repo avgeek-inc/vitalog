@@ -1232,7 +1232,7 @@
           "request": {
             "method": "POST",
             "url": "{{baseUrl}}/oauth/approve",
-            "description": "Requires the flow cookie, exact same-origin Origin header and matching CSRF token. Allow signs in with ROOT_EMAIL and ROOT_PASSWORD in the JSON body and authorizes the requested scopes. Cancel does not need credentials. Returns a validated ChatGPT redirect containing state and iss; approval includes a single-use five-minute code. No API key or access token is created until code exchange.",
+            "description": "Requires the flow cookie, exact UI_BASE_URL Origin header and matching CSRF token. Allow signs in with ROOT_EMAIL and ROOT_PASSWORD in the JSON body and authorizes the requested scopes. Cancel does not need credentials. Returns a validated ChatGPT redirect containing state and iss; approval includes a single-use five-minute code. No API key or access token is created until code exchange.",
             "auth": {
               "type": "noauth"
             },
@@ -1247,7 +1247,7 @@
               },
               {
                 "key": "Origin",
-                "value": "{{baseUrl}}"
+                "value": "{{uiUrl}}"
               }
             ],
             "body": {

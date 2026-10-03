@@ -1,13 +1,13 @@
 FROM node:24.16.0-bookworm-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
-COPY tsconfig.json tsconfig.build.json tsconfig.web.json vite.config.ts ./
+COPY apps/web/package.json ./apps/web/package.json
+RUN npm ci --workspaces=false
+COPY tsconfig.json tsconfig.build.json ./
 COPY src ./src
-COPY web ./web
 COPY scripts ./scripts
 COPY drizzle ./drizzle
-RUN npm run build && npm prune --omit=dev
+RUN npm run build:api && npm prune --omit=dev --workspaces=false
 
 FROM node:24.16.0-bookworm-slim AS runtime
 ENV NODE_ENV=production PORT=3000

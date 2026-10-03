@@ -92,14 +92,9 @@ export const oauthPaths: Data = {
         schema,
       })),
       responses: {
-        "200": {
-          description:
-            "HeroUI consent form; establishes a signed HttpOnly flow cookie with a five-minute lifetime",
-          content: { "text/html": { schema: { type: "string" } } },
-        },
         "302": {
           description:
-            "Authorization error returned only to the exact ChatGPT callback, with error, state and issuer identification",
+            "Valid request establishes a signed HttpOnly API-host flow cookie and redirects to the separate Next.js consent screen. Authorization errors return only to the exact ChatGPT callback with state and issuer.",
           headers: {
             Location: { schema: { type: "string", format: "uri" } },
           },
@@ -133,7 +128,7 @@ export const oauthPaths: Data = {
       operationId: "oauth_approve",
       summary: "Approve or cancel ChatGPT access",
       description:
-        "Requires the flow cookie, exact same-origin Origin header and matching CSRF token. Allow signs in with ROOT_EMAIL and ROOT_PASSWORD in the JSON body and authorizes the requested scopes. Cancel does not need credentials. Returns a validated ChatGPT redirect containing state and iss; approval includes a single-use five-minute code. No API key or access token is created until code exchange.",
+        "Requires the flow cookie, exact UI_BASE_URL Origin header and matching CSRF token. Allow signs in with ROOT_EMAIL and ROOT_PASSWORD in the JSON body and authorizes the requested scopes. Cancel does not need credentials. Returns a validated ChatGPT redirect containing state and iss; approval includes a single-use five-minute code. No API key or access token is created until code exchange.",
       security: [{ oauthFlowCookie: [] }],
       parameters: [
         { name: "Origin", in: "header", required: true, schema: uri },

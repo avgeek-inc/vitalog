@@ -3,9 +3,13 @@
   "info": {
     "title": "Vitalog",
     "version": "1.0.0",
-    "description": "Single-user structured observations with equivalent REST and MCP domain services. Environment AUTH_KEY or revocable 30-day opaque Bearer keys; key management requires AUTH_KEY. ChatGPT uses OAuth authorization code with S256 PKCE, linked to an existing generated key. OAuth tokens grant MCP access only."
+    "description": "Single-user structured observations with equivalent REST and MCP domain services. Environment AUTH_KEY or revocable 30-day opaque Bearer keys; key management requires AUTH_KEY. ChatGPT uses OAuth authorization code with S256 PKCE, issued after root sign-in. OAuth tokens grant MCP access only."
   },
   "servers": [
+    {
+      "url": "https://vitalog-api.praveent.com",
+      "description": "Production REST and MCP API"
+    },
     {
       "url": "http://localhost:3000",
       "description": "Loopback development; production requires TLS ingress"
@@ -230336,18 +230340,22 @@
     },
     "/api-keys": {
       "get": {
-        "summary": "Root credential form for generating a 30-day API key",
+        "summary": "Redirect to the separate API-key creation UI",
         "security": [],
         "responses": {
-          "200": {
-            "description": "API key generation page",
-            "content": {
-              "text/html": {
+          "302": {
+            "description": "Redirect to UI_BASE_URL/api-keys",
+            "headers": {
+              "Location": {
                 "schema": {
-                  "type": "string"
+                  "type": "string",
+                  "format": "uri"
                 }
               }
             }
+          },
+          "404": {
+            "description": "UI_BASE_URL is not configured"
           }
         }
       }
@@ -230689,18 +230697,8 @@
           }
         ],
         "responses": {
-          "200": {
-            "description": "HeroUI consent form; establishes a signed HttpOnly flow cookie with a five-minute lifetime",
-            "content": {
-              "text/html": {
-                "schema": {
-                  "type": "string"
-                }
-              }
-            }
-          },
           "302": {
-            "description": "Authorization error returned only to the exact ChatGPT callback, with error, state and issuer identification",
+            "description": "Valid request establishes a signed HttpOnly API-host flow cookie and redirects to the separate Next.js consent screen. Authorization errors return only to the exact ChatGPT callback with state and issuer.",
             "headers": {
               "Location": {
                 "schema": {
@@ -230817,7 +230815,7 @@
             "oauthFlowCookie": []
           }
         ],
-        "description": "Requires the flow cookie, exact same-origin Origin header and matching CSRF token. Allow signs in with ROOT_EMAIL and ROOT_PASSWORD in the JSON body and authorizes the requested scopes. Cancel does not need credentials. Returns a validated ChatGPT redirect containing state and iss; approval includes a single-use five-minute code. No API key or access token is created until code exchange.",
+        "description": "Requires the flow cookie, exact UI_BASE_URL Origin header and matching CSRF token. Allow signs in with ROOT_EMAIL and ROOT_PASSWORD in the JSON body and authorizes the requested scopes. Cancel does not need credentials. Returns a validated ChatGPT redirect containing state and iss; approval includes a single-use five-minute code. No API key or access token is created until code exchange.",
         "operationId": "oauth_approve",
         "summary": "Approve or cancel ChatGPT access",
         "parameters": [
