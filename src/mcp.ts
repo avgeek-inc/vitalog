@@ -4,15 +4,14 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
-import { z } from "zod";
 import { operations } from "./registry/operations.js";
 import { publicError, DomainError } from "./errors.js";
 import type { Config } from "./config.js";
 import type { Service } from "./service.js";
 import type { Data } from "./domain/types.js";
-import { hash } from "./domain/canonical.js";
 import { boundedResponse } from "./domain/catalog.js";
 import { oauthChallenge } from "./auth/oauth.js";
+import { discoverySchema } from "./mcp-schema.js";
 
 const annotations = (operation: (typeof operations)[number]) => ({
   readOnlyHint: !operation.mutation,
@@ -22,23 +21,11 @@ const annotations = (operation: (typeof operations)[number]) => ({
   idempotentHint: true,
   openWorldHint: false,
 });
-const transportSchema = (schema: z.ZodType) => {
-  const document = z.toJSONSchema(schema, {
-    target: "draft-7",
-    reused: "ref",
-    io: "input",
-  });
-  return {
-    ...document,
-    type: "object" as const,
-    $id: `urn:vitalog:schema:${hash(document)}`,
-  };
-};
 const toolMetadata = operations.map((operation) => ({
   name: operation.name,
   description: operation.description,
-  inputSchema: transportSchema(operation.input),
-  outputSchema: transportSchema(operation.output),
+  inputSchema: discoverySchema(operation.input),
+  outputSchema: discoverySchema(operation.output),
   annotations: annotations(operation),
 }));
 
@@ -126,7 +113,7 @@ export function mcpServer(
   server.server.setRequestHandler(CallToolRequestSchema, (request) =>
     call(request.params.name, request.params.arguments ?? {}),
   );
-  // Local references preserve complete schemas and avoid duplicating hundreds of nested field definitions.
+  // Full domain schemas are available through the catalog; discovery stays bounded and self-contained.
   server.server.setRequestHandler(ListToolsRequestSchema, async () =>
     boundedResponse({
       tools: toolMetadata.map((tool, index) => {
@@ -150,6 +137,7 @@ export async function handleMcp(
   service: Service,
   config: Config,
   scopes?: string[],
+  log?: (entry: Data) => void,
 ): Promise<Response> {
   if (scopes && config.publicBaseUrl && request.method === "POST") {
     let message: unknown;
@@ -203,6 +191,20 @@ export async function handleMcp(
     allowedOrigins: config.allowedOrigins,
     maxRequestBodySize: 1024 * 1024,
   });
+  transport.onerror = (error) => {
+    const reason = error.message.includes("Unsupported protocol version:")
+      ? "unsupported_protocol_version"
+      : error.message.startsWith("Invalid Host header:")
+        ? "invalid_host"
+        : error.message.startsWith("Invalid Origin header:")
+          ? "invalid_origin"
+          : error.message.includes("Client must accept")
+            ? "invalid_accept_header"
+            : error.message.includes("Parse error")
+              ? "malformed_message"
+              : "transport_error";
+    log?.({ event: "mcp_transport_error", method: request.method, reason });
+  };
   const server = mcpServer(
     service,
     config.publicBaseUrl ? { issuer: config.publicBaseUrl, scopes } : undefined,

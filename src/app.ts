@@ -481,7 +481,7 @@ export function application(
   const document = openapi();
   app.get("/openapi.json", (c) => c.json(document));
   app.all("/mcp", (c) =>
-    handleMcp(c.req.raw, service, config, c.get("oauthScopes")),
+    handleMcp(c.req.raw, service, config, c.get("oauthScopes"), log),
   );
   for (const operation of operations) {
     const path = operation.path.replace(/\{([^}]+)\}/g, ":$1");
