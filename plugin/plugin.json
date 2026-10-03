@@ -21,7 +21,7 @@
           "Log the health observations I provide in Vitalog.",
           "Show my Vitalog summary for today."
         ],
-        "brandColor": "#E84D4D",
+        "brandColor": "#D01C29",
         "composerIcon": "./assets/icon.png",
         "logo": "./assets/logo.png"
       }
