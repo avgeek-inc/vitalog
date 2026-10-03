@@ -40,12 +40,8 @@ body {
 .brand {
   display: flex;
   align-items: center;
-  gap: 0.625rem;
+  justify-content: center;
   margin-bottom: 1.5rem;
-  padding-inline: 0.25rem;
-  font-size: 1.125rem;
-  font-weight: 650;
-  letter-spacing: -0.03em;
 }
 
 .key-card {

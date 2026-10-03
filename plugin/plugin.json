@@ -3,7 +3,7 @@
   "name": "vitalog",
   "version": "1.0.0",
   "description": "Log and retrieve your personal health observations through Vitalog.",
-  "author": { "name": "AvGeek Inc." },
+  "author": { "name": "Avgeek, Inc." },
   "homepage": "https://vitalog.praveent.com/api-keys",
   "repository": "https://github.com/avgeek-inc/vitalog",
   "keywords": ["health", "ledger", "observations"],
@@ -13,7 +13,7 @@
         "displayName": "Vitalog",
         "shortDescription": "Your personal health ledger",
         "longDescription": "Save supplied health observations, retrieve records, and review daily summaries and trends from your Vitalog ledger.",
-        "developerName": "AvGeek Inc.",
+        "developerName": "Avgeek, Inc.",
         "category": "Productivity",
         "capabilities": ["Read", "Write"],
         "websiteURL": "https://vitalog.praveent.com/api-keys",
@@ -21,7 +21,7 @@
           "Log the health observations I provide in Vitalog.",
           "Show my Vitalog summary for today."
         ],
-        "brandColor": "#C95745",
+        "brandColor": "#FA8078",
         "composerIcon": "./assets/icon.png",
         "logo": "./assets/logo.png"
       }

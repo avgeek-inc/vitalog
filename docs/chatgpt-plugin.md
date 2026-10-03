@@ -6,6 +6,10 @@ The archive uses root `plugin.json` and `mcp.json`, OpenAI presentation metadata
 
 ## Connect after deployment
 
+Your email and password still generate a 30-day API key. When you connect the plugin, Vitalog opens a page where you enter that key and approve ChatGPT's access. Vitalog then gives ChatGPT a separate connection token automatically. You do not have to create or copy that second token, and your root password stays with Vitalog. The connection keeps the key's original expiry; revoking the key also disconnects ChatGPT.
+
+The extra connection step is needed because [ChatGPT's authenticated MCP connections use OAuth and cannot send custom API keys directly](https://developers.openai.com/plugins/build/auth). Vitalog handles this handshake using the API key you already generated.
+
 1. Merge and deploy the follow-up changes. Startup applies migration `0003_remove_api_key_names` and `0004_chatgpt_oauth` before serving requests.
 2. Generate a key at `https://vitalog.praveent.com/api-keys` using the existing configured email and password.
 3. Upload `vitalog-plugin.zip` in ChatGPT's **New Plugin** dialog. Connect the declared MCP server with OAuth when prompted.
