@@ -58,17 +58,22 @@ export function configuration(env: NodeJS.ProcessEnv = process.env): Config {
     )
   )
     throw new Error("ALLOWED_HOSTS requires exact host[:port] values");
-  const publicHosts = allowedHosts.filter((host) => {
-    const hostname = new URL(`https://${host}`).hostname;
-    return (
-      hostname.includes(".") &&
-      !isIP(hostname) &&
-      !hostname.endsWith(".localhost")
-    );
-  });
+  const publicOrigins = [
+    ...new Set(
+      allowedHosts
+        .map((host) => new URL(`https://${host}`))
+        .filter(
+          ({ hostname }) =>
+            hostname.includes(".") &&
+            !isIP(hostname) &&
+            !hostname.endsWith(".localhost"),
+        )
+        .map(({ origin }) => origin),
+    ),
+  ];
   const publicBaseUrl =
     env.PUBLIC_BASE_URL ||
-    (publicHosts.length === 1 ? `https://${publicHosts[0]}` : undefined);
+    (publicOrigins.length === 1 ? publicOrigins[0] : undefined);
   if (publicBaseUrl) {
     const origin = new URL(publicBaseUrl);
     const loopback = ["localhost", "127.0.0.1", "[::1]"].includes(
@@ -76,7 +81,9 @@ export function configuration(env: NodeJS.ProcessEnv = process.env): Config {
     );
     if (
       origin.origin !== publicBaseUrl ||
-      !allowedHosts.includes(origin.host) ||
+      !allowedHosts.some(
+        (host) => new URL(`${origin.protocol}//${host}`).host === origin.host,
+      ) ||
       (origin.protocol !== "https:" &&
         !(origin.protocol === "http:" && loopback))
     )

@@ -23,12 +23,51 @@ export type CodeExchange = {
 };
 
 export class OAuthStore {
+  private nextCleanup = 0;
+  private cleaning?: Promise<void>;
+
   constructor(
     private db: Database,
     private resource: string,
   ) {}
 
+  private async cleanup() {
+    if (this.cleaning) return this.cleaning;
+    if (Date.now() < this.nextCleanup) return;
+    this.cleaning = (async () => {
+      await this.db.execute(sql`
+        delete from oauth_authorization_codes where code_digest in (
+          select g.code_digest from oauth_authorization_codes g
+          join api_keys parent on parent.id = g.api_key_id
+          where g.expires_at <= statement_timestamp()
+            or parent.expires_at <= statement_timestamp()
+            or parent.revoked_at is not null
+          order by g.expires_at
+          limit 1000 for update of g skip locked
+        )
+      `);
+      await this.db.execute(sql`
+        delete from oauth_access_tokens where token_digest in (
+          select g.token_digest from oauth_access_tokens g
+          join api_keys parent on parent.id = g.api_key_id
+          where g.expires_at <= statement_timestamp()
+            or parent.expires_at <= statement_timestamp()
+            or parent.revoked_at is not null
+          order by g.expires_at
+          limit 1000 for update of g skip locked
+        )
+      `);
+      this.nextCleanup = Date.now() + 60_000;
+    })();
+    try {
+      await this.cleaning;
+    } finally {
+      this.cleaning = undefined;
+    }
+  }
+
   async issueCode(apiKeyId: string, grant: OAuthGrant) {
+    await this.cleanup();
     const code = "voc_" + randomBytes(32).toString("base64url");
     await this.db.insert(oauthCodes).values({
       codeDigest: digest(code),
@@ -44,6 +83,7 @@ export class OAuthStore {
 
   async exchange(input: CodeExchange) {
     if (input.resource !== this.resource) return;
+    await this.cleanup();
     return this.db.transaction(async (transaction) => {
       const [grant] = await transaction
         .select({
@@ -92,6 +132,7 @@ export class OAuthStore {
 
   async authenticate(header: string | undefined) {
     if (!header || !/^Bearer vlo_[A-Za-z0-9_-]{43}$/.test(header)) return;
+    await this.cleanup();
     const [grant] = await this.db
       .select({ scopes: oauthTokens.scopes })
       .from(oauthTokens)

@@ -97,8 +97,14 @@ export const oauthPaths: Data = {
             "HeroUI consent form; establishes a signed HttpOnly flow cookie with a five-minute lifetime",
           content: { "text/html": { schema: { type: "string" } } },
         },
+        "302": {
+          description:
+            "Authorization error returned only to the exact ChatGPT callback, with error, state and issuer identification",
+          headers: {
+            Location: { schema: { type: "string", format: "uri" } },
+          },
+        },
         "400": error,
-        "503": error,
       },
     },
   },

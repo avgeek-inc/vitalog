@@ -155,7 +155,7 @@ export function application(
         }
         const sameOrigin =
           source.origin === origin &&
-          source.host === host &&
+          source.host === new URL(`${source.protocol}//${host}`).host &&
           (source.protocol === "https:" ||
             (source.protocol === "http:" &&
               ["localhost", "127.0.0.1", "[::1]"].includes(source.hostname)));

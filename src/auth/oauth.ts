@@ -253,30 +253,54 @@ export function oauthRoutes(keys: ApiKeys, store: OAuthStore, config: Config) {
   routes.get(
     "/oauth/authorize",
     async (c, next) => {
-      const input = authorization.safeParse(
-        parameters(new URL(c.req.url).searchParams),
-      );
-      if (!input.success)
-        throw new OAuthError(
-          "invalid_request",
-          "Use the ChatGPT client, callback and S256 PKCE",
-        );
-      if (input.data.resource !== resource)
-        throw new OAuthError("invalid_target", "Use this MCP resource");
-      await validateClient();
+      const query = new URL(c.req.url).searchParams;
+      c.header("Referrer-Policy", "no-referrer");
+      let input: z.infer<typeof authorization>;
+      let scopes: Flow["scopes"];
+      try {
+        const params = parameters(query);
+        const parsed = authorization.safeParse(params);
+        if (!parsed.success)
+          throw new OAuthError(
+            "invalid_request",
+            "Use the ChatGPT client, callback and S256 PKCE",
+          );
+        input = parsed.data;
+        if (input.resource !== resource)
+          throw new OAuthError("invalid_target", "Use this MCP resource");
+        scopes = requestedScopes(input.scope);
+        await validateClient();
+      } catch (error) {
+        if (
+          !(error instanceof OAuthError) ||
+          query.getAll("client_id").length !== 1 ||
+          query.get("client_id") !== chatGptClientId ||
+          query.getAll("redirect_uri").length !== 1 ||
+          query.get("redirect_uri") !== chatGptRedirectUri
+        )
+          throw error;
+        const redirect = new URL(chatGptRedirectUri);
+        redirect.searchParams.set("error", error.code);
+        redirect.searchParams.set("error_description", error.message);
+        redirect.searchParams.set("iss", issuer);
+        const state = authorization.shape.state.safeParse(query.get("state"));
+        if (query.getAll("state").length === 1 && state.success)
+          redirect.searchParams.set("state", state.data);
+        deleteCookie(c, cookieName, cookieOptions);
+        return c.redirect(redirect.toString(), 302);
+      }
       const flow: Flow = {
-        client_id: input.data.client_id,
-        redirect_uri: input.data.redirect_uri,
+        client_id: input.client_id,
+        redirect_uri: input.redirect_uri,
         resource,
-        scopes: requestedScopes(input.data.scope),
-        code_challenge: input.data.code_challenge,
-        state: input.data.state,
+        scopes,
+        code_challenge: input.code_challenge,
+        state: input.state,
         csrf_token: randomBytes(32).toString("base64url"),
         expires_at: Date.now() + 300_000,
       };
       setCookie(c, cookieName, encode(flow), { ...cookieOptions, maxAge: 300 });
       c.header("Content-Security-Policy", keyPageCsp);
-      c.header("Referrer-Policy", "no-referrer");
       await next();
     },
     pageDocument,

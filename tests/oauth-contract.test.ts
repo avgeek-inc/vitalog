@@ -31,6 +31,84 @@ describe("OAuth configuration and discovery", () => {
         .publicBaseUrl,
     ).toBe("http://127.0.0.1:3000");
   });
+  test("Default ports produce a canonical issuer while preserving exact ingress Host values", async () => {
+    const connection = database(env.DATABASE_URL);
+    try {
+      for (const explicit of [false, true]) {
+        const config = configuration({
+          ...env,
+          ALLOWED_HOSTS: "vitalog.praveent.com:443,127.0.0.1:3000",
+          ...(explicit
+            ? { PUBLIC_BASE_URL: "https://vitalog.praveent.com" }
+            : {}),
+        });
+        expect(config.publicBaseUrl).toBe("https://vitalog.praveent.com");
+        expect(config.allowedHosts).toContain("vitalog.praveent.com:443");
+        expect(config.allowedHosts).not.toContain("vitalog.praveent.com");
+        const app = application(
+          new Service(connection.db, config.timezone, "synthetic-cursor"),
+          config,
+          () => {},
+        );
+        const page = await app.request(
+          "https://vitalog.praveent.com/api-keys",
+          {
+            headers: {
+              Host: "vitalog.praveent.com:443",
+              Origin: "https://vitalog.praveent.com",
+            },
+          },
+        );
+        expect(page.status).toBe(200);
+        const discovery = await app.request(
+          "https://vitalog.praveent.com/mcp",
+          {
+            method: "POST",
+            headers: {
+              Host: "vitalog.praveent.com:443",
+              Authorization: "Bearer " + env.AUTH_KEY,
+              Accept: "application/json, text/event-stream",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              jsonrpc: "2.0",
+              id: 1,
+              method: "tools/list",
+              params: {},
+            }),
+          },
+        );
+        expect(discovery.status).toBe(200);
+        expect((await discovery.json()).result.tools).toHaveLength(16);
+      }
+      expect(
+        configuration({
+          ...env,
+          ALLOWED_HOSTS: "vitalog.praveent.com,vitalog.praveent.com:443",
+        }).publicBaseUrl,
+      ).toBe("https://vitalog.praveent.com");
+      expect(
+        configuration({ ...env, ALLOWED_HOSTS: "vitalog.praveent.com:8443" })
+          .publicBaseUrl,
+      ).toBe("https://vitalog.praveent.com:8443");
+      expect(() =>
+        configuration({
+          ...env,
+          ALLOWED_HOSTS: "vitalog.praveent.com:8443",
+          PUBLIC_BASE_URL: "https://vitalog.praveent.com",
+        }),
+      ).toThrow();
+      expect(
+        configuration({
+          ...env,
+          ALLOWED_HOSTS: "localhost:80",
+          PUBLIC_BASE_URL: "http://localhost",
+        }).publicBaseUrl,
+      ).toBe("http://localhost");
+    } finally {
+      await connection.pool.end();
+    }
+  });
   test.each([
     "http://vitalog.praveent.com",
     "https://untrusted.example",

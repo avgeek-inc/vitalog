@@ -264,20 +264,36 @@ try {
     },
   );
   await check(
-    "Untrusted clients, redirect URIs, resources, duplicate fields and plain PKCE are rejected before any metadata fetch",
+    "Untrusted identities stay local and trusted authorization errors return state and issuer to ChatGPT without fetching metadata",
     async () => {
       const baseline = (await begin()).params;
       const before = clientFetches;
       for (const [field, value] of [
         ["client_id", "http://169.254.169.254/latest/meta-data/"],
         ["redirect_uri", "https://untrusted.example/callback"],
-        ["resource", "https://untrusted.example/mcp"],
-        ["code_challenge_method", "plain"],
-        ["scope", "health:admin"],
       ]) {
         const params = new URLSearchParams(baseline);
         params.set(field!, value!);
         assert.equal((await request("/oauth/authorize?" + params)).status, 400);
+      }
+      for (const [field, value, error] of [
+        ["resource", "https://untrusted.example/mcp", "invalid_target"],
+        ["code_challenge_method", "plain", "invalid_request"],
+        ["scope", "health:admin", "invalid_scope"],
+        ["unexpected", "value", "invalid_request"],
+      ]) {
+        const params = new URLSearchParams(baseline);
+        params.set(field!, value!);
+        const response = await request("/oauth/authorize?" + params);
+        assert.equal(response.status, 302);
+        const redirect = new URL(response.headers.get("location")!);
+        assert.equal(redirect.origin + redirect.pathname, chatGptRedirectUri);
+        assert.equal(redirect.searchParams.get("error"), error);
+        assert.equal(redirect.searchParams.get("state"), baseline.get("state"));
+        assert.equal(redirect.searchParams.get("iss"), origin);
+        assert(!redirect.searchParams.has("code"));
+        assert.equal(response.headers.get("referrer-policy"), "no-referrer");
+        assert.match(response.headers.get("set-cookie")!, /Max-Age=0/);
       }
       const duplicate = new URLSearchParams(baseline);
       duplicate.append("client_id", chatGptClientId);
@@ -285,6 +301,14 @@ try {
         (await request("/oauth/authorize?" + duplicate)).status,
         400,
       );
+      const duplicateResource = new URLSearchParams(baseline);
+      duplicateResource.append("resource", origin + "/mcp");
+      const invalid = await request("/oauth/authorize?" + duplicateResource);
+      assert.equal(invalid.status, 302);
+      const redirect = new URL(invalid.headers.get("location")!);
+      assert.equal(redirect.searchParams.get("error"), "invalid_request");
+      assert.equal(redirect.searchParams.get("state"), baseline.get("state"));
+      assert.equal(redirect.searchParams.get("iss"), origin);
       assert.equal(clientFetches, before);
     },
   );
@@ -579,6 +603,117 @@ try {
     },
   );
   await check(
+    "Expired and revoked OAuth grants are pruned in bounded shared batches without deleting active grants, keys or ledger records",
+    async () => {
+      const parent = await keys.create();
+      const active = await token(parent.api_key);
+      const pending = await code(parent.api_key);
+      const revoked = await keys.create();
+      const revokedAccess = await token(revoked.api_key);
+      const revokedCode = await code(revoked.api_key);
+      await keys.revoke(revoked.id);
+      const ledgerCount = (
+        await connection!.pool.query(
+          "select count(*)::int count from health_records",
+        )
+      ).rows[0].count;
+      await connection!.pool.query(
+        `
+        insert into oauth_authorization_codes (
+          code_digest, api_key_id, client_id, redirect_uri, resource, scopes, code_challenge, created_at, expires_at
+        ) select lpad(n::text, 64, '0'), $1, $2, $3, $4, array['health:read'], $5,
+          statement_timestamp()-interval '900 seconds', statement_timestamp()-interval '600 seconds'
+        from generate_series(1,1500) n
+      `,
+        [
+          parent.id,
+          chatGptClientId,
+          chatGptRedirectUri,
+          origin + "/mcp",
+          "c".repeat(43),
+        ],
+      );
+      const expiredDigest = "0".repeat(64);
+      await connection!.pool.query(
+        `
+        insert into oauth_access_tokens (token_digest, api_key_id, resource, scopes, created_at, expires_at)
+        values ($1, $2, $3, array['health:read'], statement_timestamp()-interval '120 seconds', statement_timestamp()-interval '60 seconds')
+      `,
+        [expiredDigest, parent.id, origin + "/mcp"],
+      );
+      const staleCount = async () =>
+        (
+          await connection!.pool.query(
+            "select count(*)::int count from oauth_authorization_codes where code_digest like $1",
+            ["0".repeat(48) + "%"],
+          )
+        ).rows[0].count;
+      const denied = () =>
+        request("/mcp", {
+          headers: { Authorization: "Bearer vlo_" + "x".repeat(43) },
+        });
+      restart();
+      assert.deepEqual(
+        (await Promise.all([denied(), denied()])).map(
+          (response) => response.status,
+        ),
+        [401, 401],
+      );
+      assert.equal(await staleCount(), 500);
+      await denied();
+      assert.equal(await staleCount(), 500);
+      restart();
+      await denied();
+      assert.equal(await staleCount(), 0);
+      const digest = (value: string) =>
+        createHash("sha256").update(value).digest("hex");
+      assert.equal(
+        (
+          await connection!.pool.query(
+            "select count(*)::int count from oauth_access_tokens where token_digest=any($1)",
+            [[expiredDigest, digest(String(revokedAccess.access_token))]],
+          )
+        ).rows[0].count,
+        0,
+      );
+      assert.equal(
+        (
+          await connection!.pool.query(
+            "select count(*)::int count from oauth_authorization_codes where code_digest=$1",
+            [digest(revokedCode.code)],
+          )
+        ).rows[0].count,
+        0,
+      );
+      assert.equal(
+        (
+          await connection!.pool.query(
+            "select count(*)::int count from api_keys where id=any($1)",
+            [[parent.id, revoked.id]],
+          )
+        ).rows[0].count,
+        2,
+      );
+      assert.equal(
+        (
+          await connection!.pool.query(
+            "select count(*)::int count from health_records",
+          )
+        ).rows[0].count,
+        ledgerCount,
+      );
+      const instance = await client(String(active.access_token));
+      try {
+        await instance.listTools();
+      } finally {
+        await instance.close();
+      }
+      const exchanged = await exchange(pending);
+      assert.equal(exchanged.response.status, 200);
+      tokens.push(String(exchanged.body.access_token));
+    },
+  );
+  await check(
     "Revoke-all invalidates every OAuth connection and credentials cannot enter health data or URLs",
     async () => {
       const issued = await token(key.api_key);
@@ -668,7 +803,17 @@ try {
           code_challenge: pkceChallenge(randomBytes(32).toString("base64url")),
           code_challenge_method: "S256",
         });
-        assert.equal((await request("/oauth/authorize?" + params)).status, 503);
+        const response = await request("/oauth/authorize?" + params);
+        assert.equal(response.status, 302);
+        const redirect = new URL(response.headers.get("location")!);
+        assert.equal(redirect.origin + redirect.pathname, chatGptRedirectUri);
+        assert.equal(
+          redirect.searchParams.get("error"),
+          "temporarily_unavailable",
+        );
+        assert.equal(redirect.searchParams.get("state"), "synthetic-state");
+        assert.equal(redirect.searchParams.get("iss"), origin);
+        assert(!redirect.searchParams.has("code"));
       }
       metadataMode = "valid";
     },

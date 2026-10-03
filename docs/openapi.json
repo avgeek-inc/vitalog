@@ -230699,30 +230699,18 @@
               }
             }
           },
-          "400": {
-            "description": "OAuth protocol error",
-            "content": {
-              "application/json": {
+          "302": {
+            "description": "Authorization error returned only to the exact ChatGPT callback, with error, state and issuer identification",
+            "headers": {
+              "Location": {
                 "schema": {
-                  "type": "object",
-                  "additionalProperties": false,
-                  "required": [
-                    "error",
-                    "error_description"
-                  ],
-                  "properties": {
-                    "error": {
-                      "type": "string"
-                    },
-                    "error_description": {
-                      "type": "string"
-                    }
-                  }
+                  "type": "string",
+                  "format": "uri"
                 }
               }
             }
           },
-          "503": {
+          "400": {
             "description": "OAuth protocol error",
             "content": {
               "application/json": {
