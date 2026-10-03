@@ -1,3 +1,4 @@
+import { Toast } from "@heroui/react";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { ApiKeyPage } from "./api-key-page";
@@ -19,5 +20,6 @@ createRoot(document.getElementById("root")!).render(
     ) : (
       <ApiKeyPage />
     )}
+    <Toast.Provider />
   </StrictMode>,
 );

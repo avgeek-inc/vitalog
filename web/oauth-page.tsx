@@ -6,6 +6,7 @@ import {
   Input,
   Label,
   TextField,
+  toast,
 } from "@heroui/react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Brand } from "./brand";
@@ -20,7 +21,6 @@ export function OAuthPage() {
   const [connection, setConnection] = useState<ConnectionRequest>();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string>();
   const [invalidCredentials, setInvalidCredentials] = useState(false);
   const [pending, setPending] = useState(false);
   const passwordInput = useRef<HTMLInputElement>(null);
@@ -41,7 +41,10 @@ export function OAuthPage() {
         setConnection(request);
       } catch {
         if (!controller.signal.aborted)
-          setError("This connection request expired. Restart from ChatGPT.");
+          toast.danger("Connection expired", {
+            description: "Restart the connection from ChatGPT.",
+            timeout: 0,
+          });
       }
     }
     void load();
@@ -59,7 +62,6 @@ export function OAuthPage() {
   async function approve(action: "allow" | "deny") {
     if (!connection || pending) return;
     setPending(true);
-    setError(undefined);
     setInvalidCredentials(false);
     try {
       const response = await fetch("/oauth/approve", {
@@ -76,9 +78,9 @@ export function OAuthPage() {
       });
       if (!response.ok) {
         setInvalidCredentials(response.status === 401);
-        setError(
+        toast.danger(
           response.status === 401
-            ? "Check your email and password and try again."
+            ? "Invalid credentials"
             : response.status === 429
               ? "Too many attempts. Wait a minute and try again."
               : response.status === 503
@@ -96,7 +98,7 @@ export function OAuthPage() {
         throw new Error("Invalid callback");
       window.location.assign(redirect.toString());
     } catch {
-      setError("Unable to connect. Check your connection and try again.");
+      toast.danger("Unable to connect. Check your connection and try again.");
     } finally {
       setPassword("");
       setPending(false);
@@ -118,7 +120,7 @@ export function OAuthPage() {
       <div className="key-page-content">
         <Brand />
         <Card className="key-card" aria-label="Connect ChatGPT">
-          <Card.Header className="gap-2">
+          <Card.Header className="key-card-header gap-2">
             <h1 className="page-title">Connect ChatGPT</h1>
             {connection ? (
               <Card.Description className="text-base leading-6">
@@ -138,16 +140,11 @@ export function OAuthPage() {
                 value={email}
                 onChange={(value) => {
                   setEmail(value);
-                  setError(undefined);
                   setInvalidCredentials(false);
                 }}
               >
                 <Label>Root email</Label>
-                <Input
-                  variant="secondary"
-                  maxLength={254}
-                  aria-describedby={error ? "connection-error" : undefined}
-                />
+                <Input variant="secondary" maxLength={254} />
                 <FieldError />
               </TextField>
               <TextField
@@ -160,7 +157,6 @@ export function OAuthPage() {
                 value={password}
                 onChange={(value) => {
                   setPassword(value);
-                  setError(undefined);
                   setInvalidCredentials(false);
                 }}
               >
@@ -169,19 +165,9 @@ export function OAuthPage() {
                   ref={passwordInput}
                   variant="secondary"
                   maxLength={256}
-                  aria-describedby={error ? "connection-error" : undefined}
                 />
                 <FieldError />
               </TextField>
-              {error ? (
-                <p
-                  id="connection-error"
-                  className="text-sm leading-6 text-danger"
-                  role="alert"
-                >
-                  {error}
-                </p>
-              ) : null}
               <div className="key-actions">
                 <Button
                   type="submit"

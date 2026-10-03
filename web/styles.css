@@ -49,6 +49,11 @@ body {
   padding: 2rem;
 }
 
+.key-card-header {
+  align-items: center;
+  text-align: center;
+}
+
 .page-title {
   font-size: 1.5rem;
   line-height: 1.3;
