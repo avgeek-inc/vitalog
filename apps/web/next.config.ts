@@ -11,6 +11,8 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   agentRules: false,
   allowedDevOrigins: ["localhost", "127.0.0.1"],
+  // build:web generates route types and runs tsc before starting webpack.
+  typescript: { ignoreBuildErrors: true },
   experimental: {
     cpus: 1,
     webpackBuildWorker: false,
