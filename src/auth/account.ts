@@ -1,4 +1,5 @@
 import { eq, sql } from "drizzle-orm";
+import { DomainError } from "../errors.js";
 import type { Database } from "../db/client.js";
 import { accountSettings } from "../db/schema.js";
 import { accountSchema, type Account } from "./account-contracts.js";
@@ -6,19 +7,25 @@ import { accountSchema, type Account } from "./account-contracts.js";
 export class RootAccount {
   constructor(
     private db: Database,
-    private email: string,
+    private email: string | undefined,
     private timezone: string,
   ) {}
+  private identity() {
+    if (!this.email)
+      throw new DomainError("UNAUTHORIZED", "Account sign-in is unavailable");
+    return this.email;
+  }
   private defaults() {
     return {
       id: 1,
-      name: this.email.split("@")[0]!,
+      name: this.identity().split("@")[0]!,
       dateFormat: "short-month-day-year",
       timeFormat: "12-hour",
       timeZone: this.timezone,
     };
   }
   async get(): Promise<Account> {
+    const email = this.identity();
     const [stored] = await this.db
       .select()
       .from(accountSettings)
@@ -26,7 +33,7 @@ export class RootAccount {
     const row = stored ?? this.defaults();
     return accountSchema.parse({
       name: row.name,
-      email: this.email,
+      email,
       preferences: {
         dateFormat: row.dateFormat,
         timeFormat: row.timeFormat,

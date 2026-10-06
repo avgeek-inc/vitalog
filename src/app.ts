@@ -58,7 +58,7 @@ export function application(
   const sessions = new BrowserSessions(service.db);
   const account = new RootAccount(
     service.db,
-    config.rootCredentials?.email ?? "root@localhost",
+    config.rootCredentials?.email,
     config.timezone,
   );
   const keyManagement = new KeyManagementSessions(service.db);

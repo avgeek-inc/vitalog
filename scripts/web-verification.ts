@@ -73,13 +73,14 @@ async function stopApi() {
   });
   await new Promise((resolve) => setTimeout(resolve, 50));
 }
-async function startApi() {
+async function startApi(rootEnabled = true) {
   await stopApi();
   const config = configuration({
     AUTH_KEY: primary,
     DATABASE_URL: connection!.pool.options.connectionString,
-    ROOT_EMAIL: credentials.email,
-    ROOT_PASSWORD: credentials.password,
+    ...(rootEnabled
+      ? { ROOT_EMAIL: credentials.email, ROOT_PASSWORD: credentials.password }
+      : {}),
     ALLOWED_HOSTS: new URL(apiUrl).host,
     PUBLIC_BASE_URL: apiUrl,
     UI_BASE_URL: uiUrl,
@@ -1182,6 +1183,17 @@ try {
         await page.getByRole("button", { name: "Save", exact: true }).click();
         await page.getByText("Preferences updated", { exact: true }).waitFor();
         await page.reload();
+        await startApi(false);
+        assert.equal((await api("/auth/session", token)).status, 401);
+        assert.equal(
+          (
+            await api("/auth/profile", token, "PATCH", {
+              name: "Changed while disabled",
+            })
+          ).status,
+          401,
+        );
+        assert.equal((await api("/v1/goals", token)).status, 200);
         await startApi();
         const after = (await api("/auth/session", token)).data;
         assert.deepEqual(object(after.account).preferences, preference);
