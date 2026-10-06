@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "node --env-file-if-exists=../../.env ../../node_modules/next/dist/bin/next dev --hostname 127.0.0.1 --port 3001",
-    "build": "node --run typecheck && node --max-old-space-size=448 ../../node_modules/next/dist/bin/next build --webpack",
+    "build": "node --run typecheck && node --max-old-space-size=512 ../../node_modules/next/dist/bin/next build --webpack",
     "start": "next start --hostname 0.0.0.0 --port 3001",
     "typecheck": "node ../../node_modules/next/dist/bin/next typegen && node --max-old-space-size=448 ../../node_modules/typescript/bin/tsc --noEmit"
   },
