@@ -1479,6 +1479,9 @@ try {
     await check(
       "Daily shows real metrics and mixed logs with the agreed responsive card layout",
       async () => {
+        await page
+          .getByRole("heading", { name: "Daily nutrition", exact: true })
+          .waitFor();
         await page.waitForFunction(
           () =>
             document.querySelectorAll(
@@ -1495,7 +1498,7 @@ try {
           assert(
             (
               await page
-                .locator(`.metric-card[aria-label="${name}"]`)
+                .locator(`.metric-card[aria-label="${name}"]:visible`)
                 .innerText()
             ).includes(value!),
           );

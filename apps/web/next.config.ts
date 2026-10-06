@@ -15,7 +15,7 @@ const nextConfig: NextConfig = {
   typescript: { ignoreBuildErrors: true },
   experimental: {
     cpus: 1,
-    webpackBuildWorker: false,
+    webpackBuildWorker: true,
     webpackMemoryOptimizations: true,
     optimizePackageImports: [
       "@heroui/react",
