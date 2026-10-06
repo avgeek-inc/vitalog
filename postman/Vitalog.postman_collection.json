@@ -2009,6 +2009,88 @@
               }
             ]
           }
+        },
+        {
+          "name": "update_browser_profile",
+          "request": {
+            "method": "PATCH",
+            "url": "{{baseUrl}}/auth/profile",
+            "description": "Update the root account display name using a browser session. Email and password remain environment-managed. Health records are unaffected.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{browserSessionToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "{{uiUrl}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Your name\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "update_browser_preferences",
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/auth/preferences",
+            "description": "Save date format, time format and display time zone for the root account using a browser session. Recorded dates, daily summary boundaries and goal effective dates remain unchanged.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{browserSessionToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "{{uiUrl}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dateFormat\": \"day-short-month-year\",\n  \"timeFormat\": \"24-hour\",\n  \"timeZone\": \"Asia/Kolkata\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
         }
       ]
     },
@@ -2098,7 +2180,7 @@
           "request": {
             "method": "GET",
             "url": "{{baseUrl}}/auth/key-management/api-keys",
-            "description": "List unrevoked API keys and MCP connections, filtering before pagination. Excludes dashboard and management sessions. Never returns tokens or hashes.",
+            "description": "Using a browser or management session, list unrevoked API keys and MCP connections, filtering before pagination. Excludes dashboard and management sessions. Never returns tokens or hashes.",
             "auth": {
               "type": "bearer",
               "bearer": [

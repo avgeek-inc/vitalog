@@ -50,7 +50,7 @@ export const keyManagementOperations = [
     input: keyListQuery,
     output: keyList,
     description:
-      "List unrevoked API keys and MCP connections, filtering before pagination. Excludes dashboard and management sessions. Never returns tokens or hashes.",
+      "Using a browser or management session, list unrevoked API keys and MCP connections, filtering before pagination. Excludes dashboard and management sessions. Never returns tokens or hashes.",
   },
   {
     name: "create_managed_api_key",

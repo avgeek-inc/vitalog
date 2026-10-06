@@ -1,0 +1,22 @@
+$kind: http-request
+id: 02807551-dae5-52e4-84ea-c419c9000219
+method: PATCH
+url: "{{baseUrl}}/auth/profile"
+description: Update the root account display name using a browser session. Email
+  and password remain environment-managed. Health records are unaffected.
+headers:
+  Accept: application/json
+  Origin: "{{uiUrl}}"
+  Content-Type: application/json
+auth:
+  - id: 12ffac45-976b-547c-87d3-13ba913ed72a
+    type: bearer
+    name: Read-only browser session
+    credentials:
+      token: "{{browserSessionToken}}"
+body:
+  type: json
+  content: |-
+    {
+      "name": "Your name"
+    }

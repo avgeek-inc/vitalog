@@ -1,13 +1,15 @@
 "use client";
+import { Widget } from "./ui/widget";
+import { useAccount } from "./account-context";
+import { formatDateTime } from "../lib/date-time";
 
 import { Button } from "./ui/button";
 
-import { Card, ProgressBar } from "@heroui/react";
+import { ProgressBar } from "@heroui/react";
 import ChartLine from "@gravity-ui/icons/ChartLine";
 import ScalesBalanced from "@gravity-ui/icons/ScalesBalanced";
 import { useState } from "react";
 import {
-  dateLabel,
   exactWeight,
   formatNumber,
   resultText,
@@ -28,6 +30,7 @@ export function WeightView({
   progress?: GoalProgress;
   today: string;
 }) {
+  const { preferences } = useAccount();
   const sorted = sortWeightRecords(records);
   const latest = sorted.find(
     (record) => record.occurred_on && exactWeight(record) !== null,
@@ -42,17 +45,16 @@ export function WeightView({
     <>
       <div className="weight-layout">
         <section className="weight-grid" aria-label="Weight overview">
-          <Card
+          <Widget
             className="metric-card current-weight-card"
             aria-label="Current weight"
           >
-            <Card.Header>
-              <h2 className="metric-title">
-                <ScalesBalanced aria-hidden="true" />
-                Current weight
-              </h2>
-            </Card.Header>
-            <Card.Content>
+            <Widget.Header>
+              <Widget.Title icon={<ScalesBalanced aria-hidden="true" />}>
+                <h2 className="font-medium">Current weight</h2>
+              </Widget.Title>
+            </Widget.Header>
+            <Widget.Content>
               <MetricValue value={current} unit="kg" />
               {progress ? (
                 <div className="goal-meter weight-goal">
@@ -73,25 +75,26 @@ export function WeightView({
                   ) : null}
                 </div>
               ) : null}
-            </Card.Content>
-          </Card>
-          <Card className="metric-card weight-trend-card">
-            <Card.Header>
-              <h2 className="metric-title">
-                <ChartLine aria-hidden="true" />
-                Last 30 days
-              </h2>
-            </Card.Header>
-            <Card.Content>
+            </Widget.Content>
+          </Widget>
+          <Widget className="metric-card weight-trend-card">
+            <Widget.Header>
+              <Widget.Title icon={<ChartLine aria-hidden="true" />}>
+                <h2 className="font-medium">Last 30 days</h2>
+              </Widget.Title>
+            </Widget.Header>
+            <Widget.Content>
               <WeightChart records={sorted} today={today} />
-            </Card.Content>
-          </Card>
+            </Widget.Content>
+          </Widget>
         </section>
-        <Card className="logs-card weight-history">
-          <Card.Header>
-            <h2 className="section-title">Weigh-ins</h2>
-          </Card.Header>
-          <Card.Content>
+        <Widget className="logs-card weight-history">
+          <Widget.Header>
+            <Widget.Title>
+              <h2 className="font-medium">Weigh-ins</h2>
+            </Widget.Title>
+          </Widget.Header>
+          <Widget.Content>
             {sorted.length ? (
               <ul>
                 {sorted.slice(0, count).map((record) => {
@@ -100,7 +103,7 @@ export function WeightView({
                     <li key={record.id} className="weight-reading">
                       <time dateTime={record.occurred_on ?? undefined}>
                         {record.occurred_on
-                          ? dateLabel(record.occurred_on)
+                          ? formatDateTime(record.occurred_on, preferences).date
                           : "Date not recorded"}
                       </time>
                       <span>
@@ -138,8 +141,8 @@ export function WeightView({
                 Show more
               </Button>
             ) : null}
-          </Card.Content>
-        </Card>
+          </Widget.Content>
+        </Widget>
       </div>
     </>
   );

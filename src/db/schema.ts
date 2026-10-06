@@ -390,3 +390,36 @@ export const schema = {
   oauthClients,
   oauthClientAssertions,
 };
+
+export const accountSettings = pgTable(
+  "account_settings",
+  {
+    id: integer("id").primaryKey(),
+    name: text("name").notNull(),
+    dateFormat: text("date_format").notNull(),
+    timeFormat: text("time_format").notNull(),
+    timeZone: text("time_zone").notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    check("account_settings_singleton", sql`${table.id} = 1`),
+    check(
+      "account_name_length",
+      sql`length(btrim(${table.name})) between 1 and 120`,
+    ),
+    check(
+      "account_date_format",
+      sql`${table.dateFormat} in ('day-short-month-year', 'short-month-day-year', 'year-month-day', 'day-month-year', 'month-day-year')`,
+    ),
+    check(
+      "account_time_format",
+      sql`${table.timeFormat} in ('24-hour', '12-hour', '24-hour-seconds', '12-hour-seconds')`,
+    ),
+    check(
+      "account_time_zone_length",
+      sql`length(${table.timeZone}) between 1 and 100`,
+    ),
+  ],
+);

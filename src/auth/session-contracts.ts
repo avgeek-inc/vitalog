@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { accountSchema } from "./account-contracts.js";
 import { keyCreation } from "./contracts.js";
 export const sessionCreated = z.strictObject({
   session_token: z.string().regex(/^vls_[A-Za-z0-9_-]{43}$/),
@@ -8,6 +9,7 @@ export const sessionInfo = z.strictObject({
   expires_at: z.iso.datetime(),
   timezone: z.string(),
   today: z.iso.date(),
+  account: accountSchema,
 });
 export const sessionOperations = [
   {

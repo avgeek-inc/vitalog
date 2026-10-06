@@ -85,6 +85,13 @@
       "when": 1791308427008,
       "tag": "0011_reusable_attachments",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1791319046142,
+      "tag": "0012_root_account_settings",
+      "breakpoints": true
     }
   ]
 }

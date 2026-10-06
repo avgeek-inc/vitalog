@@ -1,10 +1,8 @@
 "use client";
 
-import {
-  SecondaryEntityHeader,
-  SecondaryItems,
-} from "@avgeek-oss/design-system/navigation/secondary-sidebar";
+import { SecondaryItems } from "@avgeek-oss/design-system/navigation/secondary-sidebar";
 import BookOpen01Icon from "@hugeicons/core-free-icons/BookOpen01Icon";
+import UserAccountIcon from "@hugeicons/core-free-icons/UserAccountIcon";
 import Key01Icon from "@hugeicons/core-free-icons/Key01Icon";
 import Settings01Icon from "@hugeicons/core-free-icons/Settings01Icon";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -14,14 +12,27 @@ export function AccountSettingsNavigation() {
   const pathname = usePathname();
   return (
     <>
-      <SecondaryEntityHeader
-        title="Account settings"
-        icon={<HugeiconsIcon icon={Settings01Icon} size={18} />}
-      >
-        Account settings
-      </SecondaryEntityHeader>
       <SecondaryItems
-        selected={pathname.endsWith("/mcp") ? "mcp" : "api-keys"}
+        title="Account"
+        selected={pathname.split("/").at(-1) ?? ""}
+        items={[
+          {
+            id: "profile",
+            href: "/settings/profile",
+            label: "Profile",
+            icon: <HugeiconsIcon icon={UserAccountIcon} size={16} />,
+          },
+          {
+            id: "preferences",
+            href: "/settings/preferences",
+            label: "Preferences",
+            icon: <HugeiconsIcon icon={Settings01Icon} size={16} />,
+          },
+        ]}
+      />
+      <SecondaryItems
+        title="API & MCP"
+        selected={pathname.split("/").at(-1) ?? ""}
         items={[
           {
             id: "api-keys",

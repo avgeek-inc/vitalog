@@ -1,6 +1,7 @@
 "use client";
 
-import { Card, ProgressBar } from "@heroui/react";
+import { ProgressBar } from "@heroui/react";
+import { Widget } from "./ui/widget";
 import type { ReactNode } from "react";
 import { formatNumber, type GoalProgress } from "../lib/health";
 
@@ -74,18 +75,17 @@ export function MetricCard({
   className?: string;
 }) {
   return (
-    <Card className={`metric-card ${className}`} aria-label={title}>
-      <Card.Header>
-        <h2 className="metric-title">
-          {icon}
-          {title}
-        </h2>
-      </Card.Header>
-      <Card.Content>
+    <Widget className={`metric-card ${className}`} aria-label={title}>
+      <Widget.Header>
+        <Widget.Title icon={icon}>
+          <h2 className="font-medium">{title}</h2>
+        </Widget.Title>
+      </Widget.Header>
+      <Widget.Content>
         <MetricValue value={value} unit={unit} target={progress?.goal.target} />
         <GoalMeter title={title} progress={progress} />
         {children}
-      </Card.Content>
-    </Card>
+      </Widget.Content>
+    </Widget>
   );
 }

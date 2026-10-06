@@ -1,6 +1,8 @@
 "use client";
 
-import { Accordion, Button, Card } from "@heroui/react";
+import { Accordion } from "@heroui/react";
+import { Button } from "./ui/button";
+import { Widget } from "./ui/widget";
 import { useState } from "react";
 import Calendar from "@gravity-ui/icons/Calendar";
 import Droplet from "@gravity-ui/icons/Droplet";
@@ -23,11 +25,13 @@ const icons = {
 export function Logs({ logs }: { logs: Log[] }) {
   const [visible, setVisible] = useState(30);
   return (
-    <Card className="logs-card">
-      <Card.Header>
-        <h2 className="section-title">Logs</h2>
-      </Card.Header>
-      <Card.Content>
+    <Widget className="logs-card">
+      <Widget.Header>
+        <Widget.Title>
+          <h2 className="font-medium">Logs</h2>
+        </Widget.Title>
+      </Widget.Header>
+      <Widget.Content>
         {logs.length ? (
           <Accordion variant="default" className="logs-accordion">
             {logs.slice(0, visible).map((log) => {
@@ -80,7 +84,7 @@ export function Logs({ logs }: { logs: Log[] }) {
             Show more
           </Button>
         ) : null}
-      </Card.Content>
-    </Card>
+      </Widget.Content>
+    </Widget>
   );
 }

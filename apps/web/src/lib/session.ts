@@ -4,7 +4,13 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { serverApiBaseUrl, webConfiguration } from "./config";
 
-export type Session = { expires_at: string; timezone: string; today: string };
+import type { Account } from "../../../../src/auth/account-contracts";
+export type Session = {
+  account: Account;
+  expires_at: string;
+  timezone: string;
+  today: string;
+};
 export function sessionCookieName() {
   return webConfiguration().uiBaseUrl.startsWith("https:")
     ? "__Host-vitalog-session"

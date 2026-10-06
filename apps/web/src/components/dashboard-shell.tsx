@@ -10,6 +10,10 @@ import {
 import { AppLayout } from "@avgeek-oss/design-system/navigation/app-layout";
 import { SecondarySidebarLayout } from "@avgeek-oss/design-system/navigation/secondary-sidebar";
 import { toast } from "@avgeek-oss/design-system/overlays/toast";
+import { SidebarAccountMenu } from "@avgeek-oss/design-system/patterns/sidebar-account-menu";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { AccountProvider } from "./account-context";
+import type { Account } from "../../../../src/auth/account-contracts";
 import Calendar01Icon from "@hugeicons/core-free-icons/Calendar01Icon";
 import Logout03Icon from "@hugeicons/core-free-icons/Logout03Icon";
 import Settings01Icon from "@hugeicons/core-free-icons/Settings01Icon";
@@ -53,7 +57,7 @@ const sections = [
       {
         id: "account-settings",
         kind: "link" as const,
-        href: "/settings/api-keys",
+        href: "/settings/profile",
         activePath: "/settings",
         preserveSubroute: true,
         label: "Account settings",
@@ -63,7 +67,13 @@ const sections = [
   },
 ];
 
-export function DashboardShell({ children }: { children: ReactNode }) {
+export function DashboardShell({
+  children,
+  account,
+}: {
+  children: ReactNode;
+  account: Account;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const [pending, setPending] = useState(false);
@@ -92,60 +102,88 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     }
   }
   return (
-    <RouteProvider pathname={pathname} navigate={router.push}>
-      <a href="#main-content" className="skip-link">
-        Skip to content
-      </a>
-      <AppShell
-        contentWidth="broad"
-        policy={{ kind: "product", toasts: false, themeControl: "header" }}
-      >
-        <AppLayout
-          {...sidebarState}
-          navigate={router.push}
-          toggleShortcut
-          navbar={
-            <ApplicationNavbar
-              config={{ brand, homeHref: "/daily" }}
-              hasSidebar
-              showThemeSwitcher
-              sidebarOpen={sidebarState.sidebarOpen}
-              onSidebarToggle={() =>
-                sidebarState.onSidebarOpenChange(!sidebarState.sidebarOpen)
-              }
-            />
-          }
-          sidebar={
-            <ApplicationSidebar
-              config={{
-                accessibleLabel: "Primary navigation",
-                homeHref: "/daily",
-                brand,
-                groups: sections,
-                footerActions: [
-                  {
-                    kind: "action",
-                    id: "sign-out",
-                    label: pending ? "Signing out…" : "Sign out",
-                    icon: Logout03Icon,
-                    disabled: pending,
-                    onSelect: () => void signOut(),
-                  },
-                ],
-              }}
-            />
-          }
+    <AccountProvider account={account}>
+      <RouteProvider pathname={pathname} navigate={router.push}>
+        <a href="#main-content" className="skip-link">
+          Skip to content
+        </a>
+        <AppShell
+          contentWidth="broad"
+          policy={{ kind: "product", toasts: false, themeControl: "header" }}
         >
-          <SecondarySidebarLayout>
-            {pathname.startsWith("/settings/") ? (
-              <AccountSettingsNavigation />
-            ) : null}
-            <AppShell.Content id="main-content" tabIndex={-1}>
-              {children}
-            </AppShell.Content>
-          </SecondarySidebarLayout>
-        </AppLayout>
-      </AppShell>
-    </RouteProvider>
+          <AppLayout
+            {...sidebarState}
+            navigate={router.push}
+            toggleShortcut
+            navbar={
+              <ApplicationNavbar
+                config={{ brand, homeHref: "/daily" }}
+                hasSidebar
+                showThemeSwitcher
+                sidebarOpen={sidebarState.sidebarOpen}
+                onSidebarToggle={() =>
+                  sidebarState.onSidebarOpenChange(!sidebarState.sidebarOpen)
+                }
+              />
+            }
+            sidebar={
+              <ApplicationSidebar
+                config={{
+                  accessibleLabel: "Primary navigation",
+                  homeHref: "/daily",
+                  brand,
+                  groups: sections,
+                  footerContent: (
+                    <SidebarAccountMenu
+                      name={account.name}
+                      email={account.email}
+                      teamName={account.email}
+                      groups={[
+                        {
+                          id: "account",
+                          label: "Account",
+                          items: [
+                            {
+                              id: "profile",
+                              label: "Account settings",
+                              icon: <HugeiconsIcon icon={Settings01Icon} />,
+                            },
+                          ],
+                        },
+                        {
+                          id: "session",
+                          label: "Session",
+                          items: [
+                            {
+                              id: "sign-out",
+                              label: pending ? "Signing out…" : "Sign out",
+                              icon: <HugeiconsIcon icon={Logout03Icon} />,
+                              destructive: true,
+                            },
+                          ],
+                        },
+                      ]}
+                      onAction={(id) => {
+                        if (id === "sign-out") void signOut();
+                        else router.push("/settings/profile");
+                      }}
+                    />
+                  ),
+                }}
+              />
+            }
+          >
+            <SecondarySidebarLayout>
+              {pathname.startsWith("/settings/") ? (
+                <AccountSettingsNavigation />
+              ) : null}
+              <AppShell.Content id="main-content" tabIndex={-1}>
+                {children}
+              </AppShell.Content>
+            </SecondarySidebarLayout>
+          </AppLayout>
+        </AppShell>
+      </RouteProvider>
+    </AccountProvider>
   );
 }

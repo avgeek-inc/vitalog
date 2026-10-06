@@ -14,6 +14,7 @@ import { base, examples } from "../tests/fixtures.js";
 import type { Data } from "../src/domain/types.js";
 import { keyOperations } from "../src/auth/contracts.js";
 import { keyManagementOperations } from "../src/auth/key-management-contracts.js";
+import { accountOperations } from "../src/auth/account-contracts.js";
 import { sessionOperations } from "../src/auth/session-contracts.js";
 import { goalMetrics } from "../src/registry/goals.js";
 
@@ -454,17 +455,31 @@ for (const operation of keyManagementOperations) {
   );
 }
 const sessionItems: Data[] = [];
-for (const operation of sessionOperations) {
+for (const operation of [...sessionOperations, ...accountOperations]) {
   const creation = operation.method === "POST";
+  const accountUpdate =
+    operation.method === "PATCH" || operation.method === "PUT";
   const url = "{{baseUrl}}" + operation.path;
   const headers = {
     Accept: "application/json",
     Origin: "{{uiUrl}}",
-    ...(creation ? { "Content-Type": "application/json" } : {}),
+    ...(creation || accountUpdate
+      ? { "Content-Type": "application/json" }
+      : {}),
   };
   const body = creation
     ? json({ email: "{{rootEmail}}", password: "{{rootPassword}}" }).trimEnd()
-    : undefined;
+    : accountUpdate
+      ? json(
+          operation.method === "PATCH"
+            ? { name: "Your name" }
+            : {
+                dateFormat: "day-short-month-year",
+                timeFormat: "24-hour",
+                timeZone: "Asia/Kolkata",
+              },
+        ).trimEnd()
+      : undefined;
   const auth = creation
     ? { type: "noauth" }
     : {

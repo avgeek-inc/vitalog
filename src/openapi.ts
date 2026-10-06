@@ -5,6 +5,7 @@ import type { Data } from "./domain/types.js";
 import { keyOperations } from "./auth/contracts.js";
 import { oauthPaths } from "./auth/oauth-docs.js";
 import { keyManagementOperations } from "./auth/key-management-contracts.js";
+import { accountOperations } from "./auth/account-contracts.js";
 import { sessionOperations } from "./auth/session-contracts.js";
 export function openapi(): Data {
   const paths: Data = {};
@@ -206,6 +207,43 @@ export function openapi(): Data {
       },
     };
   }
+  for (const operation of accountOperations) {
+    paths[operation.path] = {
+      [operation.method.toLowerCase()]: {
+        operationId: operation.name,
+        summary: operation.description,
+        tags: ["Account settings"],
+        security: [{ browserSession: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": { schema: jsonSchema(operation.input) },
+          },
+        },
+        responses: {
+          "200": {
+            description: operation.description,
+            content: {
+              "application/json": { schema: jsonSchema(operation.output) },
+            },
+          },
+          ...Object.fromEntries(
+            [401, 403, 413, 422, 429, 500, 503].map((status) => [
+              status,
+              {
+                description: "Authentication or request validation failed",
+                content: {
+                  "application/json": {
+                    schema: { $ref: "#/components/schemas/Error" },
+                  },
+                },
+              },
+            ]),
+          ),
+        },
+      },
+    };
+  }
   for (const operation of sessionOperations) {
     const responses: Data = {
       [operation.status]: {
@@ -286,7 +324,14 @@ export function openapi(): Data {
         operationId: operation.name,
         summary: operation.description,
         tags: ["Key management"],
-        security: credentials ? [] : [{ keyManagementSession: [] }],
+        security: credentials
+          ? []
+          : [
+              { keyManagementSession: [] },
+              ...(operation.name === "list_managed_api_keys"
+                ? [{ browserSession: [] }]
+                : []),
+            ],
         parameters,
         ...(credentials
           ? {

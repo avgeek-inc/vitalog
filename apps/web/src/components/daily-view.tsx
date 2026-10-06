@@ -1,6 +1,8 @@
 "use client";
 
-import { Card } from "@heroui/react";
+import { Widget } from "./ui/widget";
+import { useAccount } from "./account-context";
+import { formatDateTime } from "../lib/date-time";
 import Droplet from "@gravity-ui/icons/Droplet";
 import Flame from "@gravity-ui/icons/Flame";
 import HeartPulse from "@gravity-ui/icons/HeartPulse";
@@ -36,6 +38,7 @@ export function DailyView({
   goals: GoalProgress[];
   records: HealthRecord[];
 }) {
+  const { preferences } = useAccount();
   const byMetric = new Map(
     goals.map((progress) => [progress.goal.metric, progress]),
   );
@@ -108,19 +111,18 @@ export function DailyView({
               ))}
             </div>
           </MetricCard>
-          <Card className="metric-card mood-card" aria-label="Mood">
-            <Card.Header>
-              <h2 className="metric-title">
-                <MoodIcon aria-hidden="true" />
-                Mood
-              </h2>
-            </Card.Header>
-            <Card.Content>
+          <Widget className="metric-card mood-card" aria-label="Mood">
+            <Widget.Header>
+              <Widget.Title icon={<MoodIcon aria-hidden="true" />}>
+                <h2 className="font-medium">Mood</h2>
+              </Widget.Title>
+            </Widget.Header>
+            <Widget.Content>
               <div className="metric-value mood-value">
                 {moodLabels[mood] ?? "—"}
               </div>
-            </Card.Content>
-          </Card>
+            </Widget.Content>
+          </Widget>
           <MetricCard
             title="Water"
             icon={<Droplet aria-hidden="true" />}
@@ -145,7 +147,12 @@ export function DailyView({
         </section>
         <Logs
           key={date}
-          logs={sortRecords(records).map((record) => logView(record, timezone))}
+          logs={sortRecords(records).map((record) => ({
+            ...logView(record, timezone),
+            time: record.occurred_at
+              ? formatDateTime(record.occurred_at, preferences).time
+              : null,
+          }))}
         />
       </div>
     </>

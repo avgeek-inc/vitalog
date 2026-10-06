@@ -41,7 +41,8 @@ export async function keyManagementProxy(request: Request, path: string) {
   }
   const browser = await sessionToken();
   const management = await keyManagementToken();
-  if (!browser || !management) return NextResponse.json({}, { status: 401 });
+  if (!browser || (request.method !== "GET" && !management))
+    return NextResponse.json({}, { status: 401 });
   try {
     const session = await apiRequest("/auth/session", browser);
     if (!session.ok)
@@ -53,7 +54,7 @@ export async function keyManagementProxy(request: Request, path: string) {
       "/auth/key-management/" +
         path +
         (request.method === "GET" ? url.search : ""),
-      management,
+      request.method === "GET" ? browser : management!,
       {
         method: request.method,
         headers: { Origin: webConfiguration().uiBaseUrl },

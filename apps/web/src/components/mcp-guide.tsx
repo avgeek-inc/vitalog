@@ -78,10 +78,7 @@ export function McpGuide({
   return (
     <ApplicationPage
       title="MCP Guide"
-      breadcrumbAncestors={[
-        { label: "Settings" },
-        { label: "Account settings", href: "/settings/api-keys" },
-      ]}
+      breadcrumbAncestors={[{ label: "Settings" }, { label: "API & MCP" }]}
     >
       <Widget aria-label="Connect your MCP client" role="region">
         <Widget.Header>

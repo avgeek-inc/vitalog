@@ -532,7 +532,23 @@ try {
           "/openapi.json",
         ])
           assert.equal((await api(path, token)).status, 401, path);
-        for (const wrong of [browser.session_token, primary])
+        assert.equal(
+          (await api("/auth/key-management/api-keys", browser.session_token))
+            .status,
+          200,
+        );
+        for (const method of ["POST", "DELETE"])
+          assert.equal(
+            (
+              await api(
+                "/auth/key-management/api-keys",
+                browser.session_token,
+                method,
+              )
+            ).status,
+            401,
+          );
+        for (const wrong of [primary])
           assert.equal(
             (await api("/auth/key-management/api-keys", wrong)).status,
             401,
@@ -1064,6 +1080,141 @@ try {
       },
     );
     await check(
+      "Account profile and date/time preferences persist without health write privileges",
+      async () => {
+        const token = (await context.cookies()).find(
+          (cookie) => cookie.name === "vitalog-session",
+        )!.value;
+        const before = (await api("/auth/session", token)).data;
+        const original = object(object(before.account).preferences);
+        const originalName = String(object(before.account).name);
+        for (const path of ["/auth/profile", "/auth/preferences"]) {
+          const method = path.endsWith("profile") ? "PATCH" : "PUT";
+          const body = path.endsWith("profile")
+            ? { name: "Updated name" }
+            : original;
+          assert.equal((await api(path, primary, method, body)).status, 401);
+          assert.equal((await api(path, undefined, method, body)).status, 401);
+          assert.equal(
+            (
+              await api(path, token, method, body, {
+                Origin: "https://foreign.example",
+              })
+            ).status,
+            403,
+          );
+          assert.equal(
+            (
+              await context.request.fetch(uiUrl + path, {
+                method,
+                data: body,
+                headers: { Origin: "https://foreign.example" },
+              })
+            ).status(),
+            403,
+          );
+        }
+        assert.equal(
+          (
+            await api("/auth/profile", token, "PATCH", {
+              name: " ",
+              email: "changed@example.test",
+            })
+          ).status,
+          422,
+        );
+        assert.equal(
+          (
+            await api("/auth/preferences", token, "PUT", {
+              ...original,
+              timeZone: "Invalid/Zone",
+            })
+          ).status,
+          422,
+        );
+        await page.goto(uiUrl + "/settings/profile");
+        const name = page.getByLabel("Full name", { exact: true });
+        await name.fill("Preview Reader");
+        await page.getByRole("button", { name: "Save", exact: true }).click();
+        await page
+          .getByRole("button", {
+            name: "Account menu for Preview Reader",
+            exact: true,
+          })
+          .waitFor();
+        await page.reload();
+        assert.equal(await name.inputValue(), "Preview Reader");
+        assert.equal(
+          await page.getByText("Security", { exact: true }).count(),
+          0,
+        );
+        assert.equal(
+          await page.getByText("Account settings", { exact: true }).count(),
+          1,
+        );
+        assert.equal(
+          await page
+            .getByRole("link", {
+              name: "Edit Gravatar image (opens in a new tab)",
+            })
+            .count(),
+          1,
+        );
+        const preference = {
+          dateFormat: "year-month-day",
+          timeFormat: "24-hour-seconds",
+          timeZone: "America/New_York",
+        };
+        await page.goto(uiUrl + "/settings/preferences");
+        await page.getByRole("button", { name: /Date format/ }).click();
+        await page
+          .getByRole("option", { name: "2026-09-16", exact: true })
+          .click();
+        await page.getByRole("button", { name: /Time format/ }).click();
+        await page
+          .getByRole("option", { name: "14:30:45", exact: true })
+          .click();
+        await page.getByRole("button", { name: /Time zone/ }).click();
+        await page
+          .getByRole("searchbox", { name: "Search time zones" })
+          .fill("America/New_York");
+        await page.getByRole("option", { name: /America\/New_York/ }).click();
+        await page.getByRole("button", { name: "Save", exact: true }).click();
+        await page.getByText("Preferences updated", { exact: true }).waitFor();
+        await page.reload();
+        await startApi();
+        const after = (await api("/auth/session", token)).data;
+        assert.deepEqual(object(after.account).preferences, preference);
+        assert.equal(after.today, before.today);
+        assert.equal(after.timezone, before.timezone);
+        const stored = await connection!.pool.query(
+          "select name,date_format,time_format,time_zone from account_settings where id=1",
+        );
+        assert.equal(stored.rows[0].name, "Preview Reader");
+        assert.equal(stored.rows[0].time_zone, "America/New_York");
+        await page.goto(uiUrl + "/daily");
+        await page.getByRole("heading", { name: new RegExp(today) }).waitFor();
+        await page
+          .getByRole("heading", { name: "Daily nutrition", exact: true })
+          .waitFor();
+        const sizes = await page
+          .locator(".macro .metric-title svg, .metric-card .widget__title svg")
+          .evaluateAll((nodes) =>
+            nodes
+              .map((node) => {
+                const box = node.getBoundingClientRect();
+                return [box.width, box.height];
+              })
+              .filter(([width, height]) => width! > 0 && height! > 0),
+          );
+        assert.equal(sizes.length, 9);
+        assert(sizes.every(([w, h]) => w === 16 && h === 16));
+        await api("/auth/profile", token, "PATCH", { name: originalName });
+        await api("/auth/preferences", token, "PUT", original);
+        await page.reload();
+      },
+    );
+    await check(
       "Daily shows real metrics and mixed logs with the agreed responsive card layout",
       async () => {
         await page.waitForFunction(
@@ -1281,6 +1432,9 @@ try {
         });
         await settingsNav
           .getByRole("link", { name: "API Keys", exact: true })
+          .click();
+        await page
+          .getByRole("heading", { name: "API Keys", exact: true })
           .waitFor();
         assert.equal(
           await nav
@@ -1297,8 +1451,19 @@ try {
         await page
           .getByRole("heading", { name: "API Keys", exact: true })
           .waitFor();
+        await page.getByText("No API keys yet", { exact: true }).waitFor();
+        assert.equal(
+          await page
+            .getByRole("button", { name: "Verify identity", exact: true })
+            .count(),
+          0,
+        );
         await page
-          .getByRole("button", { name: "Verify identity", exact: true })
+          .getByRole("button", { name: "Create API key", exact: true })
+          .click();
+        await page
+          .getByRole("dialog", { name: "Create API key", exact: true })
+          .getByRole("button", { name: "Create API key", exact: true })
           .click();
         const verification = page.getByRole("dialog", {
           name: "Confirm it’s you",
@@ -1551,6 +1716,9 @@ try {
         await nav
           .getByRole("link", { name: "Account settings", exact: true })
           .click();
+        await settingsNav
+          .getByRole("link", { name: "API Keys", exact: true })
+          .click();
         await page.getByText("No API keys yet", { exact: true }).waitFor();
         await connection!.pool.query(
           "update oauth_access_tokens set created_at=created_at - interval '31 minutes', expires_at=expires_at - interval '31 minutes' where token_digest=$1",
@@ -1687,7 +1855,7 @@ try {
         assert(
           (
             await page
-              .locator(".nutrition-card > .card__content > .metric-value")
+              .locator(".nutrition-card > .widget__content > .metric-value")
               .innerText()
           ).startsWith("—"),
         );
@@ -1786,17 +1954,12 @@ try {
           (cookie) => cookie.name === "vitalog-key-management",
         )!;
         await page.setViewportSize({ width: 1280, height: 900 });
-        if (
-          !(await page
-            .getByRole("button", { name: "Sign out", exact: true })
-            .isVisible())
-        ) {
-          await page
-            .getByRole("button", { name: "Toggle navigation", exact: true })
-            .click();
-        }
         await page
-          .getByRole("button", { name: "Sign out", exact: true })
+          .locator("#application-navigation")
+          .getByRole("button", { name: /^Account menu for/ })
+          .click();
+        await page
+          .getByRole("menuitem", { name: "Sign out", exact: true })
           .click();
         await page.waitForURL("**/login");
         assert.equal((await api("/v1/goals", session.value)).status, 401);

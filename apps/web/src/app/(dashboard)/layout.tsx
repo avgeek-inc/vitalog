@@ -5,6 +5,6 @@ export default async function Layout({
 }: {
   children: React.ReactNode;
 }) {
-  await requireSession();
-  return <DashboardShell>{children}</DashboardShell>;
+  const { account } = await requireSession();
+  return <DashboardShell account={account}>{children}</DashboardShell>;
 }

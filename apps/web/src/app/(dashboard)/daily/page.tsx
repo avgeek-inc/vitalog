@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { DailyView } from "../../../components/daily-view";
 import { DashboardSkeleton } from "../../../components/dashboard-skeleton";
 import { DayNavigation } from "../../../components/day-navigation";
-import { dateLabel } from "../../../lib/health";
+import { formatDateTime } from "../../../lib/date-time";
 import { readDaily, selectedDate } from "../../../lib/read-health";
 import { requireSession } from "../../../lib/session";
 export const metadata: Metadata = { title: "Daily" };
@@ -17,12 +17,12 @@ export default async function Daily({
   const date = selectedDate((await searchParams).date, session.today);
   return (
     <ApplicationPage
-      title={dateLabel(date)}
+      title={formatDateTime(date, session.account.preferences).date}
       breadcrumbAncestors={[{ label: "Stats" }]}
       breadcrumbLabel="Daily View"
       titleContent={
         <span className="daily-title">
-          <span>{dateLabel(date)}</span>
+          <span>{formatDateTime(date, session.account.preferences).date}</span>
           <DayNavigation date={date} today={session.today} />
         </span>
       }

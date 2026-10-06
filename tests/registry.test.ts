@@ -230,9 +230,11 @@ describe("Catalog invariants", () => {
       expect(text.includes(term), `Generated interfaces contain ${term}`).toBe(
         false,
       );
-    expect(Object.keys(doc.paths as object)).toHaveLength(45);
+    expect(Object.keys(doc.paths as object)).toHaveLength(47);
     expect(Object.keys(doc.paths as object)).toEqual(
       expect.arrayContaining([
+        "/auth/profile",
+        "/auth/preferences",
         "/auth/key-management/session",
         "/auth/key-management/api-keys",
         "/auth/key-management/api-keys/{id}",

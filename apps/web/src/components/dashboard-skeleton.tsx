@@ -1,12 +1,13 @@
 "use client";
 
-import { Card, Skeleton } from "@heroui/react";
+import { Skeleton } from "@heroui/react";
+import { Widget } from "./ui/widget";
 
 function LoadingCard({ className }: { className: string }) {
   return (
-    <Card className={`loading-surface ${className}`}>
+    <Widget className={`loading-surface ${className}`}>
       <Skeleton className="loading-fill" />
-    </Card>
+    </Widget>
   );
 }
 

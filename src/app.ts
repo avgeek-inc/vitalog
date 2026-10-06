@@ -15,6 +15,8 @@ import { inspectBody, MAX_REQUEST_BYTES } from "./security.js";
 import { MAX_RESPONSE_BYTES } from "./domain/catalog.js";
 import { ApiKeys } from "./auth/keys.js";
 import { RootAuthentication } from "./auth/root.js";
+import { RootAccount } from "./auth/account.js";
+import { profileSchema, preferencesSchema } from "./auth/account-contracts.js";
 import { BrowserSessions } from "./auth/sessions.js";
 import { KeyManagementSessions } from "./auth/key-management.js";
 import { localDate } from "./domain/validation.js";
@@ -54,6 +56,11 @@ export function application(
   const keys = new ApiKeys(service.db);
   const root = new RootAuthentication(config.rootCredentials);
   const sessions = new BrowserSessions(service.db);
+  const account = new RootAccount(
+    service.db,
+    config.rootCredentials?.email ?? "root@localhost",
+    config.timezone,
+  );
   const keyManagement = new KeyManagementSessions(service.db);
   const oauth = config.publicBaseUrl
     ? new OAuthStore(service.db, config.publicBaseUrl + "/mcp")
@@ -163,7 +170,12 @@ export function application(
       root.limit(address);
     if (
       path.startsWith("/auth/key-management/") &&
-      !(path === "/auth/key-management/session" && c.req.method === "POST")
+      !(path === "/auth/key-management/session" && c.req.method === "POST") &&
+      !(
+        path === "/auth/key-management/api-keys" &&
+        c.req.method === "GET" &&
+        /^Bearer vls_/.test(c.req.header("authorization") ?? "")
+      )
     ) {
       const raw = c.env?.incoming?.rawHeaders ?? [];
       const authCount = raw.filter(
@@ -191,6 +203,11 @@ export function application(
         (path === "/auth/session" &&
           c.req.method !== "POST" &&
           c.req.method !== "OPTIONS") ||
+        path === "/auth/profile" ||
+        path === "/auth/preferences" ||
+        (path === "/auth/key-management/api-keys" &&
+          c.req.method === "GET" &&
+          /^Bearer vls_/.test(c.req.header("authorization") ?? "")) ||
         path === "/openapi.json" ||
         path === "/readyz")
     ) {
@@ -202,7 +219,7 @@ export function application(
       const authorization = c.req.header("authorization");
       const primary = authorized(authorization, config);
       const session =
-        !primary && (path.startsWith("/v1/") || path === "/auth/session")
+        !primary && (path.startsWith("/v1/") || path.startsWith("/auth/"))
           ? await sessions.authenticate(authorization)
           : undefined;
       const grant =
@@ -259,6 +276,8 @@ export function application(
           [
             "/auth/api-keys",
             "/auth/session",
+            "/auth/profile",
+            "/auth/preferences",
             "/oauth/request",
             "/oauth/approve",
           ].includes(path) || path.startsWith("/auth/key-management/");
@@ -521,8 +540,41 @@ export function application(
       expires_at: session.expiresAt.toISOString(),
       timezone: config.timezone,
       today: localDate(new Date(), config.timezone),
+      account: await account.get(),
     });
   });
+  for (const [path, method, schema] of [
+    ["/auth/profile", "PATCH", profileSchema],
+    ["/auth/preferences", "PUT", preferencesSchema],
+  ] as const) {
+    app.on(method, path, async (c) => {
+      if (!c.get("browserSession"))
+        throw new DomainError("UNAUTHORIZED", "Supply a valid browser session");
+      if (
+        new URL(c.req.url).search ||
+        !/^application\/json(?:\s*;|$)/i.test(
+          c.req.header("content-type") ?? "",
+        )
+      )
+        throw new DomainError(
+          "VALIDATION_ERROR",
+          "Use application/json without query parameters",
+        );
+      let input: unknown;
+      try {
+        input = await c.req.json();
+      } catch {
+        throw new DomainError("VALIDATION_ERROR", "Malformed JSON request");
+      }
+      const parsed = schema.safeParse(input);
+      if (!parsed.success)
+        throw new DomainError(
+          "VALIDATION_ERROR",
+          "Supply valid account settings",
+        );
+      return c.json(await account.update(parsed.data));
+    });
+  }
   app.delete("/auth/session", async (c) => {
     if (
       [...new URL(c.req.url).searchParams].length ||

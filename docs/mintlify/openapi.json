@@ -67637,6 +67637,373 @@
         "description": "Revoke a generated API key, OAuth connection or browser session by ID. Already revoked records return their metadata. Requires the environment AUTH_KEY."
       }
     },
+    "/auth/profile": {
+      "patch": {
+        "operationId": "update_browser_profile",
+        "summary": "Update browser profile",
+        "tags": [
+          "Account settings"
+        ],
+        "security": [
+          {
+            "browserSession": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Update the root account display name using a browser session. Email and password remain environment-managed. Health records are unaffected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 120
+                    },
+                    "email": {
+                      "type": "string",
+                      "format": "email",
+                      "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                    },
+                    "preferences": {
+                      "type": "object",
+                      "properties": {
+                        "dateFormat": {
+                          "type": "string",
+                          "enum": [
+                            "day-short-month-year",
+                            "short-month-day-year",
+                            "year-month-day",
+                            "day-month-year",
+                            "month-day-year"
+                          ]
+                        },
+                        "timeFormat": {
+                          "type": "string",
+                          "enum": [
+                            "24-hour",
+                            "12-hour",
+                            "24-hour-seconds",
+                            "12-hour-seconds"
+                          ]
+                        },
+                        "timeZone": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 100
+                        }
+                      },
+                      "required": [
+                        "dateFormat",
+                        "timeFormat",
+                        "timeZone"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "email",
+                    "preferences"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication or request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authentication or request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Authentication or request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Authentication or request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Authentication or request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Authentication or request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Authentication or request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Update the root account display name using a browser session. Email and password remain environment-managed. Health records are unaffected."
+      }
+    },
+    "/auth/preferences": {
+      "put": {
+        "operationId": "update_browser_preferences",
+        "summary": "Update browser preferences",
+        "tags": [
+          "Account settings"
+        ],
+        "security": [
+          {
+            "browserSession": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "dateFormat": {
+                    "type": "string",
+                    "enum": [
+                      "day-short-month-year",
+                      "short-month-day-year",
+                      "year-month-day",
+                      "day-month-year",
+                      "month-day-year"
+                    ]
+                  },
+                  "timeFormat": {
+                    "type": "string",
+                    "enum": [
+                      "24-hour",
+                      "12-hour",
+                      "24-hour-seconds",
+                      "12-hour-seconds"
+                    ]
+                  },
+                  "timeZone": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  }
+                },
+                "required": [
+                  "dateFormat",
+                  "timeFormat",
+                  "timeZone"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Save date format, time format and display time zone for the root account using a browser session. Recorded dates, daily summary boundaries and goal effective dates remain unchanged.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$schema": "https://json-schema.org/draft/2020-12/schema",
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 120
+                    },
+                    "email": {
+                      "type": "string",
+                      "format": "email",
+                      "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                    },
+                    "preferences": {
+                      "type": "object",
+                      "properties": {
+                        "dateFormat": {
+                          "type": "string",
+                          "enum": [
+                            "day-short-month-year",
+                            "short-month-day-year",
+                            "year-month-day",
+                            "day-month-year",
+                            "month-day-year"
+                          ]
+                        },
+                        "timeFormat": {
+                          "type": "string",
+                          "enum": [
+                            "24-hour",
+                            "12-hour",
+                            "24-hour-seconds",
+                            "12-hour-seconds"
+                          ]
+                        },
+                        "timeZone": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 100
+                        }
+                      },
+                      "required": [
+                        "dateFormat",
+                        "timeFormat",
+                        "timeZone"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "email",
+                    "preferences"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication or request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Authentication or request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Authentication or request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Authentication or request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Authentication or request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Authentication or request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Authentication or request validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "description": "Save date format, time format and display time zone for the root account using a browser session. Recorded dates, daily summary boundaries and goal effective dates remain unchanged."
+      }
+    },
     "/auth/session": {
       "post": {
         "operationId": "create_browser_session",
@@ -67806,12 +68173,69 @@
                       "type": "string",
                       "format": "date",
                       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                    },
+                    "account": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 120
+                        },
+                        "email": {
+                          "type": "string",
+                          "format": "email",
+                          "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+                        },
+                        "preferences": {
+                          "type": "object",
+                          "properties": {
+                            "dateFormat": {
+                              "type": "string",
+                              "enum": [
+                                "day-short-month-year",
+                                "short-month-day-year",
+                                "year-month-day",
+                                "day-month-year",
+                                "month-day-year"
+                              ]
+                            },
+                            "timeFormat": {
+                              "type": "string",
+                              "enum": [
+                                "24-hour",
+                                "12-hour",
+                                "24-hour-seconds",
+                                "12-hour-seconds"
+                              ]
+                            },
+                            "timeZone": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 100
+                            }
+                          },
+                          "required": [
+                            "dateFormat",
+                            "timeFormat",
+                            "timeZone"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "email",
+                        "preferences"
+                      ],
+                      "additionalProperties": false
                     }
                   },
                   "required": [
                     "expires_at",
                     "timezone",
-                    "today"
+                    "today",
+                    "account"
                   ],
                   "additionalProperties": false
                 }
@@ -68392,6 +68816,9 @@
         "security": [
           {
             "keyManagementSession": []
+          },
+          {
+            "browserSession": []
           }
         ],
         "parameters": [
@@ -68418,7 +68845,7 @@
         ],
         "responses": {
           "200": {
-            "description": "List unrevoked API keys and MCP connections, filtering before pagination. Excludes dashboard and management sessions. Never returns tokens or hashes.",
+            "description": "Using a browser or management session, list unrevoked API keys and MCP connections, filtering before pagination. Excludes dashboard and management sessions. Never returns tokens or hashes.",
             "content": {
               "application/json": {
                 "schema": {
@@ -68588,7 +69015,7 @@
             }
           }
         },
-        "description": "List unrevoked API keys and MCP connections, filtering before pagination. Excludes dashboard and management sessions. Never returns tokens or hashes."
+        "description": "Using a browser or management session, list unrevoked API keys and MCP connections, filtering before pagination. Excludes dashboard and management sessions. Never returns tokens or hashes."
       },
       "post": {
         "operationId": "create_managed_api_key",

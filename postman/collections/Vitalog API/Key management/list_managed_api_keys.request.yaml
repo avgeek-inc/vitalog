@@ -1,8 +1,8 @@
 $kind: http-request
 id: 164cc3b6-8400-51b2-8103-1799c2be9583
-description: List unrevoked API keys and MCP connections, filtering before
-  pagination. Excludes dashboard and management sessions. Never returns tokens
-  or hashes.
+description: Using a browser or management session, list unrevoked API keys and
+  MCP connections, filtering before pagination. Excludes dashboard and
+  management sessions. Never returns tokens or hashes.
 method: GET
 url: "{{baseUrl}}/auth/key-management/api-keys"
 headers:

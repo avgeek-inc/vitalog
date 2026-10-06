@@ -11,7 +11,7 @@ export function proxy(request: NextRequest) {
     `script-src 'self' 'nonce-${nonce}'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""}`,
     "style-src 'self' 'unsafe-inline'",
     "font-src 'self'",
-    "img-src 'self' data:",
+    "img-src 'self' data: https://www.gravatar.com",
     `connect-src 'self' ${apiBaseUrl}`,
     "form-action 'none'",
     "frame-ancestors 'none'",

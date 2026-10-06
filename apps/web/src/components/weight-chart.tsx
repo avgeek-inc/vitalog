@@ -1,9 +1,10 @@
 "use client";
+import { useAccount } from "./account-context";
+import { formatDateTime } from "../lib/date-time";
 
 import { Tooltip } from "@heroui/react";
 import { useEffect, useRef, useState } from "react";
 import {
-  dateLabel,
   dateOffset,
   exactWeight,
   formatNumber,
@@ -17,6 +18,8 @@ export function WeightChart({
   records: HealthRecord[];
   today: string;
 }) {
+  const { preferences } = useAccount();
+  const dateLabel = (date: string) => formatDateTime(date, preferences).date;
   const chart = useRef<SVGSVGElement>(null);
   const [width, setWidth] = useState(640);
   const [active, setActive] = useState<number | null>(null);
@@ -185,7 +188,11 @@ export function WeightChart({
                       : "middle"
                 }
               >
-                {dateLabel(date).replace(/,? \d{4}$/, "")}
+                {new Intl.DateTimeFormat("en", {
+                  day: "numeric",
+                  month: "short",
+                  timeZone: "UTC",
+                }).format(new Date(date + "T12:00:00Z"))}
               </text>
             </g>
           ))}

@@ -16,7 +16,8 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { CredentialsForm, type Credentials } from "./credentials-form";
 import { Button } from "./ui/button";
-import { Widget } from "./ui/widget";
+import { useAccount } from "./account-context";
+import { formatDateTime } from "../lib/date-time";
 
 type ApiKey = {
   id: string;
@@ -33,8 +34,6 @@ type KeyPage = {
   offset: number;
 };
 const endpoint = "/auth/key-management/api-keys";
-const date = (value: string) =>
-  new Date(value).toLocaleDateString(undefined, { dateStyle: "medium" });
 
 function VerifyIdentity({
   onClose,
@@ -93,11 +92,12 @@ function VerifyIdentity({
 }
 
 export function ApiKeySettings() {
+  const { preferences } = useAccount();
+  const date = (value: string) => formatDateTime(value, preferences).date;
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [nextOffset, setNextOffset] = useState<number | null>(null);
   const [pending, setPending] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [locked, setLocked] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -118,7 +118,7 @@ export function ApiKeySettings() {
       });
       if (current !== sequence.current) return;
       if (response.status === 401) {
-        setLocked(true);
+        window.location.assign("/login");
         setKeys([]);
         setNextOffset(null);
         return;
@@ -126,7 +126,6 @@ export function ApiKeySettings() {
       if (!response.ok) throw new Error("Unable to load API keys. Try again.");
       const page: KeyPage = await response.json();
       if (current !== sequence.current) return;
-      setLocked(false);
       const visible = page.api_keys.filter(
         (key) => key.status !== "revoked" && !revoked.current.has(key.id),
       );
@@ -175,9 +174,6 @@ export function ApiKeySettings() {
     setGenerated(undefined);
     setCreating(false);
     setRevoking(undefined);
-    setLocked(true);
-    setKeys([]);
-    setNextOffset(null);
     setVerifying(true);
   }
   async function create() {
@@ -252,15 +248,9 @@ export function ApiKeySettings() {
   return (
     <ApplicationPage
       title="API Keys"
-      breadcrumbAncestors={[
-        { label: "Settings" },
-        { label: "Account settings", href: "/settings/api-keys" },
-      ]}
+      breadcrumbAncestors={[{ label: "Settings" }, { label: "API & MCP" }]}
       actions={
-        <Button
-          isDisabled={pending || busy}
-          onPress={() => (locked ? setVerifying(true) : setCreating(true))}
-        >
+        <Button isDisabled={pending || busy} onPress={() => setCreating(true)}>
           <HugeiconsIcon icon={PlusSignIcon} aria-hidden="true" />
           Create API key
         </Button>
@@ -271,20 +261,7 @@ export function ApiKeySettings() {
         aria-busy={pending}
         className="content-grid"
       >
-        {locked ? (
-          <Widget>
-            <Widget.Content>
-              <div className="content-grid">
-                <p className="text-sm text-muted">
-                  Verify your identity to manage API keys.
-                </p>
-                <Button className="w-fit" onPress={() => setVerifying(true)}>
-                  Verify identity
-                </Button>
-              </div>
-            </Widget.Content>
-          </Widget>
-        ) : keys.length || (!pending && !error) ? (
+        {keys.length || (!pending && !error) ? (
           <ResourceTable
             ariaLabel="API keys"
             items={keys}
