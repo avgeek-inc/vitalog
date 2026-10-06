@@ -2,15 +2,8 @@
 
 import { Button } from "./ui/button";
 
-import {
-  Card,
-  FieldError,
-  Form,
-  Input,
-  Label,
-  TextField,
-  toast,
-} from "@heroui/react";
+import { Card, FieldError, Form, Input, Label, TextField } from "@heroui/react";
+import { toast } from "@heroui/react/toast";
 import { useEffect, useState, type FormEvent } from "react";
 import { Brand } from "./brand";
 

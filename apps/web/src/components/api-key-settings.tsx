@@ -15,8 +15,8 @@ import {
   Modal,
   Table,
   TextField,
-  toast,
 } from "@heroui/react";
+import { toast } from "@heroui/react/toast";
 import {
   useCallback,
   useEffect,

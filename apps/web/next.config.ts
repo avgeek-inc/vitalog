@@ -11,7 +11,15 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   agentRules: false,
   allowedDevOrigins: ["localhost", "127.0.0.1"],
-  experimental: { cpus: 1, webpackMemoryOptimizations: true },
+  experimental: {
+    cpus: 1,
+    webpackMemoryOptimizations: true,
+    optimizePackageImports: [
+      "@heroui/react",
+      "@heroui/styles",
+      "react-aria-components",
+    ],
+  },
   async headers() {
     return [
       {

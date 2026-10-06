@@ -1,6 +1,6 @@
 "use client";
 
-import { Toast } from "@heroui/react";
+import { Toast } from "@heroui/react/toast";
 import { useEffect, type ReactNode } from "react";
 
 export function Providers({ children }: { children: ReactNode }) {

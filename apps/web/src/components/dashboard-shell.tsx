@@ -6,7 +6,7 @@ import Key01Icon from "@hugeicons/core-free-icons/Key01Icon";
 import Logout03Icon from "@hugeicons/core-free-icons/Logout03Icon";
 import WeightScaleIcon from "@hugeicons/core-free-icons/WeightScaleIcon";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { toast } from "@heroui/react";
+import { toast } from "@heroui/react/toast";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { Button } from "./ui/button";

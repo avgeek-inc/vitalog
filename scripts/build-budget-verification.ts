@@ -20,6 +20,7 @@ const docker = (args: string[]) =>
     timeout: 600_000,
   }).trim();
 const checks = [];
+const peakMemory = `node -e 'const fs = require("node:fs"); const path = "/sys/fs/cgroup/memory.peak"; console.log(JSON.stringify({peak_memory_bytes: fs.existsSync(path) ? Number(fs.readFileSync(path, "utf8")) : null}))'`;
 
 for (const name of ["api", "web"] as const) {
   const manifest = parse(
@@ -76,8 +77,8 @@ for (const name of ["api", "web"] as const) {
       "sh",
       "-c",
       name === "api"
-        ? `npm ci --workspaces=false && npm run build:api && npm prune --omit=dev --workspaces=false && node --input-type=module -e 'await import("./dist/src/app.js")'`
-        : "npm ci && npm run build:web",
+        ? `npm ci --workspaces=false && npm run build:api && npm prune --omit=dev --workspaces=false && node --input-type=module -e 'await import("./dist/src/app.js")' && ${peakMemory}`
+        : `npm ci && npm run build:web && ${peakMemory}`,
     ]);
     created = true;
     docker(["cp", context + "/.", container + ":/app"]);
@@ -98,6 +99,8 @@ for (const name of ["api", "web"] as const) {
     );
     assert.equal(state.OOMKilled, false);
     assert.equal(state.Status, "exited");
+    const peak = /^\{"peak_memory_bytes":(\d+|null)\}$/m.exec(output);
+    assert(peak, "The builder must report whether peak memory is available");
     checks.push({
       name,
       memory,
@@ -106,6 +109,7 @@ for (const name of ["api", "web"] as const) {
       swap: false,
       image,
       status: "passed",
+      peak_memory_bytes: peak[1] === "null" ? null : Number(peak[1]),
     });
     process.stdout.write(
       `PASS ${name} ${platform} production build within ${memory} and ${cpus} CPU without swap\n`,

@@ -10,8 +10,8 @@ import {
   Label,
   TextArea,
   TextField,
-  toast,
 } from "@heroui/react";
+import { toast } from "@heroui/react/toast";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Brand } from "./brand";
 
