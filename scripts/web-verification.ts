@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
 import { once } from "node:events";
-import { mkdir, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { Server } from "node:http";
 import { createServer } from "node:net";
 import { serve } from "@hono/node-server";
@@ -17,8 +20,13 @@ import { examples } from "../tests/fixtures.js";
 import { keyManagementCreated } from "../src/auth/key-management-contracts.js";
 import { OAuthStore, pkceChallenge } from "../src/auth/oauth-store.js";
 import { sessionCreated, sessionInfo } from "../src/auth/session-contracts.js";
-import { dateLabel, dateOffset } from "../apps/web/src/lib/health.js";
+import { dateOffset } from "../apps/web/src/lib/health.js";
 import { operations } from "../src/registry/operations.js";
+import {
+  defaultDateTimePreferences,
+  dateFormatOptions,
+  timeFormatOptions,
+} from "../src/auth/account-contracts.js";
 import { migrateDatabase } from "./migrate.js";
 
 const preview = process.argv.includes("--preview");
@@ -309,7 +317,68 @@ try {
       await new Promise((resolve) => setTimeout(resolve, 250));
     }
   }
-  await migrateDatabase(connection.pool.options.connectionString!);
+  if (!preview) {
+    await check(
+      "Display preference default migration preserves existing saved values",
+      async () => {
+        const baseline = await mkdtemp(
+          join(tmpdir(), "vitalog-account-baseline-"),
+        );
+        try {
+          await cp("drizzle", baseline, { recursive: true });
+          const journalPath = join(baseline, "meta/_journal.json");
+          const journal = JSON.parse(await readFile(journalPath, "utf8")) as {
+            entries: { idx: number; tag: string }[];
+          };
+          const change = journal.entries.find(({ tag }) =>
+            tag.endsWith("account_preference_defaults"),
+          );
+          assert(change);
+          journal.entries = journal.entries.filter(
+            ({ idx }) => idx < change.idx,
+          );
+          await writeFile(journalPath, JSON.stringify(journal));
+          await migrate(connection!.db, { migrationsFolder: baseline });
+          const legacy = {
+            name: "Existing profile",
+            date_format: "short-month-day-year",
+            time_format: "12-hour",
+            time_zone: "Asia/Kolkata",
+          };
+          await connection!.pool.query(
+            "insert into account_settings (id,name,date_format,time_format,time_zone) values (1,$1,$2,$3,$4)",
+            Object.values(legacy),
+          );
+          await migrateDatabase(connection!.pool.options.connectionString!);
+          const existing = await connection!.pool.query(
+            "select name,date_format,time_format,time_zone from account_settings where id=1",
+          );
+          assert.deepEqual(existing.rows, [legacy]);
+          await connection!.pool.query(
+            "delete from account_settings where id=1",
+          );
+          await connection!.pool.query(
+            "insert into account_settings (id,name) values (1,'New profile')",
+          );
+          const defaults = await connection!.pool.query(
+            "select date_format,time_format,time_zone from account_settings where id=1",
+          );
+          assert.deepEqual(defaults.rows, [
+            {
+              date_format: defaultDateTimePreferences.dateFormat,
+              time_format: defaultDateTimePreferences.timeFormat,
+              time_zone: defaultDateTimePreferences.timeZone,
+            },
+          ]);
+          await connection!.pool.query(
+            "delete from account_settings where id=1",
+          );
+        } finally {
+          await rm(baseline, { recursive: true, force: true });
+        }
+      },
+    );
+  } else await migrateDatabase(connection.pool.options.connectionString!);
   apiUrl = `http://127.0.0.1:${await port()}`;
   uiUrl = `http://127.0.0.1:${await port()}`;
   const service = await startApi();
@@ -1245,10 +1314,34 @@ try {
         )!.value;
         const before = (await api("/auth/session", token)).data;
         const original = object(object(before.account).preferences);
+        assert.deepEqual(original, defaultDateTimePreferences);
+        for (const date of dateFormatOptions) {
+          for (const time of timeFormatOptions) {
+            const preference = {
+              dateFormat: date.id,
+              timeFormat: time.id,
+              timeZone: "UTC",
+            };
+            const updated = await api(
+              "/auth/preferences",
+              token,
+              "PUT",
+              preference,
+            );
+            assert.equal(updated.status, 200);
+            assert.deepEqual(object(updated.data).preferences, preference);
+            assert.deepEqual(
+              object((await api("/auth/session", token)).data.account)
+                .preferences,
+              preference,
+            );
+          }
+        }
+        await api("/auth/preferences", token, "PUT", original);
         const originalName = String(object(before.account).name);
         for (const path of ["/auth/profile", "/auth/preferences"]) {
           const method = path.endsWith("profile") ? "PATCH" : "PUT";
-          const body = path.endsWith("profile")
+          const body: Data = path.endsWith("profile")
             ? { name: "Updated name" }
             : original;
           assert.equal((await api(path, primary, method, body)).status, 401);
@@ -1495,7 +1588,9 @@ try {
                 .getByRole("heading", {
                   name:
                     view === "daily"
-                      ? new RegExp(`^${dateLabel(yesterday)}\\s+Choose date$`)
+                      ? new RegExp(
+                          `^${new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(yesterday + "T12:00:00Z"))}\\s+Choose date$`,
+                        )
                       : "Weight",
                   exact: true,
                 })

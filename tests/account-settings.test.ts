@@ -2,10 +2,58 @@ import { describe, expect, it } from "vitest";
 import {
   profileSchema,
   preferencesSchema,
+  dateFormatOptions,
+  timeFormatOptions,
+  defaultDateTimePreferences,
+  availableTimeZones,
 } from "../src/auth/account-contracts.js";
 import { formatDateTime } from "../apps/web/src/lib/date-time.js";
 
 describe("account settings", () => {
+  it("uses the common display preference IDs and defaults", () => {
+    expect(dateFormatOptions.map(({ id }) => id)).toEqual([
+      "day-short-month-year",
+      "short-month-day-year",
+      "year-month-day",
+      "day-month-year",
+      "month-day-year",
+    ]);
+    expect(timeFormatOptions.map(({ id }) => id)).toEqual([
+      "24-hour",
+      "12-hour",
+      "24-hour-seconds",
+      "12-hour-seconds",
+    ]);
+    expect(defaultDateTimePreferences).toEqual({
+      dateFormat: "day-short-month-year",
+      timeFormat: "24-hour",
+      timeZone: "UTC",
+    });
+    expect(preferencesSchema.parse(defaultDateTimePreferences)).toEqual(
+      defaultDateTimePreferences,
+    );
+    expect(availableTimeZones()[0]).toBe("UTC");
+    expect(availableTimeZones()).toContain("Asia/Kolkata");
+  });
+  it.each(
+    dateFormatOptions.flatMap((date) =>
+      timeFormatOptions.map((time) => ({ date, time })),
+    ),
+  )(
+    "formats and validates common date/time choices $date.id and $time.id",
+    ({ date, time }) => {
+      const preferences = preferencesSchema.parse({
+        dateFormat: date.id,
+        timeFormat: time.id,
+        timeZone: "UTC",
+      });
+      expect(formatDateTime("2026-09-16T14:30:45Z", preferences)).toEqual({
+        date: date.label,
+        time: time.label,
+        dateTime: `${time.label}, ${date.label}`,
+      });
+    },
+  );
   it("validates a display name without accepting credential changes", () => {
     expect(profileSchema.parse({ name: "  Praveen Thirumurugan  " })).toEqual({
       name: "Praveen Thirumurugan",
@@ -45,7 +93,13 @@ describe("account settings", () => {
       time: "21:00:05",
       dateTime: "21:00:05, 2026-10-06",
     });
-    expect(formatDateTime("2026-10-07", preferences).date).toBe("2026-10-07");
+    expect(formatDateTime("2026-10-07", preferences)).toEqual({
+      date: "2026-10-07",
+      time: null,
+      dateTime: null,
+    });
+    expect(formatDateTime("0001-01-01", preferences).date).toBe("0001-01-01");
+    expect(() => formatDateTime("2026-02-30", preferences)).toThrow(RangeError);
     expect(
       formatDateTime("2026-10-07T04:00:05Z", {
         ...preferences,

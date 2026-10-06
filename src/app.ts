@@ -56,11 +56,7 @@ export function application(
   const keys = new ApiKeys(service.db);
   const root = new RootAuthentication(config.rootCredentials);
   const sessions = new BrowserSessions(service.db);
-  const account = new RootAccount(
-    service.db,
-    config.rootCredentials?.email,
-    config.timezone,
-  );
+  const account = new RootAccount(service.db, config.rootCredentials?.email);
   const keyManagement = new KeyManagementSessions(service.db);
   const oauth = config.publicBaseUrl
     ? new OAuthStore(service.db, config.publicBaseUrl + "/mcp")

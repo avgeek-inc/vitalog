@@ -67694,28 +67694,13 @@
                       "type": "object",
                       "properties": {
                         "dateFormat": {
-                          "type": "string",
-                          "enum": [
-                            "day-short-month-year",
-                            "short-month-day-year",
-                            "year-month-day",
-                            "day-month-year",
-                            "month-day-year"
-                          ]
+                          "$ref": "#/components/schemas/Schema_2dc3849296b6___schema0"
                         },
                         "timeFormat": {
-                          "type": "string",
-                          "enum": [
-                            "24-hour",
-                            "12-hour",
-                            "24-hour-seconds",
-                            "12-hour-seconds"
-                          ]
+                          "$ref": "#/components/schemas/Schema_2dc3849296b6___schema1"
                         },
                         "timeZone": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 100
+                          "$ref": "#/components/schemas/Schema_2dc3849296b6___schema2"
                         }
                       },
                       "required": [
@@ -67723,7 +67708,8 @@
                         "timeFormat",
                         "timeZone"
                       ],
-                      "additionalProperties": false
+                      "additionalProperties": false,
+                      "description": "Display preferences default to day-short-month-year, 24-hour and UTC. Saved choices and recorded dates remain unchanged."
                     }
                   },
                   "required": [
@@ -67831,28 +67817,13 @@
                 "type": "object",
                 "properties": {
                   "dateFormat": {
-                    "type": "string",
-                    "enum": [
-                      "day-short-month-year",
-                      "short-month-day-year",
-                      "year-month-day",
-                      "day-month-year",
-                      "month-day-year"
-                    ]
+                    "$ref": "#/components/schemas/Schema_88b24940f32e___schema0"
                   },
                   "timeFormat": {
-                    "type": "string",
-                    "enum": [
-                      "24-hour",
-                      "12-hour",
-                      "24-hour-seconds",
-                      "12-hour-seconds"
-                    ]
+                    "$ref": "#/components/schemas/Schema_88b24940f32e___schema1"
                   },
                   "timeZone": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 100
+                    "$ref": "#/components/schemas/Schema_88b24940f32e___schema2"
                   }
                 },
                 "required": [
@@ -67860,7 +67831,8 @@
                   "timeFormat",
                   "timeZone"
                 ],
-                "additionalProperties": false
+                "additionalProperties": false,
+                "description": "Display preferences default to day-short-month-year, 24-hour and UTC. Saved choices and recorded dates remain unchanged."
               }
             }
           }
@@ -67888,28 +67860,13 @@
                       "type": "object",
                       "properties": {
                         "dateFormat": {
-                          "type": "string",
-                          "enum": [
-                            "day-short-month-year",
-                            "short-month-day-year",
-                            "year-month-day",
-                            "day-month-year",
-                            "month-day-year"
-                          ]
+                          "$ref": "#/components/schemas/Schema_d6e05ace6be6___schema0"
                         },
                         "timeFormat": {
-                          "type": "string",
-                          "enum": [
-                            "24-hour",
-                            "12-hour",
-                            "24-hour-seconds",
-                            "12-hour-seconds"
-                          ]
+                          "$ref": "#/components/schemas/Schema_d6e05ace6be6___schema1"
                         },
                         "timeZone": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 100
+                          "$ref": "#/components/schemas/Schema_d6e05ace6be6___schema2"
                         }
                       },
                       "required": [
@@ -67917,7 +67874,8 @@
                         "timeFormat",
                         "timeZone"
                       ],
-                      "additionalProperties": false
+                      "additionalProperties": false,
+                      "description": "Display preferences default to day-short-month-year, 24-hour and UTC. Saved choices and recorded dates remain unchanged."
                     }
                   },
                   "required": [
@@ -68191,28 +68149,13 @@
                           "type": "object",
                           "properties": {
                             "dateFormat": {
-                              "type": "string",
-                              "enum": [
-                                "day-short-month-year",
-                                "short-month-day-year",
-                                "year-month-day",
-                                "day-month-year",
-                                "month-day-year"
-                              ]
+                              "$ref": "#/components/schemas/Schema_6728b482d4a4___schema0"
                             },
                             "timeFormat": {
-                              "type": "string",
-                              "enum": [
-                                "24-hour",
-                                "12-hour",
-                                "24-hour-seconds",
-                                "12-hour-seconds"
-                              ]
+                              "$ref": "#/components/schemas/Schema_6728b482d4a4___schema1"
                             },
                             "timeZone": {
-                              "type": "string",
-                              "minLength": 1,
-                              "maxLength": 100
+                              "$ref": "#/components/schemas/Schema_6728b482d4a4___schema2"
                             }
                           },
                           "required": [
@@ -68220,7 +68163,8 @@
                             "timeFormat",
                             "timeZone"
                           ],
-                          "additionalProperties": false
+                          "additionalProperties": false,
+                          "description": "Display preferences default to day-short-month-year, 24-hour and UTC. Saved choices and recorded dates remain unchanged."
                         }
                       },
                       "required": [
@@ -237805,6 +237749,102 @@
         "type": "string",
         "format": "date-time",
         "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+      },
+      "Schema_2dc3849296b6___schema0": {
+        "type": "string",
+        "enum": [
+          "day-short-month-year",
+          "short-month-day-year",
+          "year-month-day",
+          "day-month-year",
+          "month-day-year"
+        ]
+      },
+      "Schema_2dc3849296b6___schema1": {
+        "type": "string",
+        "enum": [
+          "24-hour",
+          "12-hour",
+          "24-hour-seconds",
+          "12-hour-seconds"
+        ]
+      },
+      "Schema_2dc3849296b6___schema2": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 100
+      },
+      "Schema_88b24940f32e___schema0": {
+        "type": "string",
+        "enum": [
+          "day-short-month-year",
+          "short-month-day-year",
+          "year-month-day",
+          "day-month-year",
+          "month-day-year"
+        ]
+      },
+      "Schema_88b24940f32e___schema1": {
+        "type": "string",
+        "enum": [
+          "24-hour",
+          "12-hour",
+          "24-hour-seconds",
+          "12-hour-seconds"
+        ]
+      },
+      "Schema_88b24940f32e___schema2": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 100
+      },
+      "Schema_d6e05ace6be6___schema0": {
+        "type": "string",
+        "enum": [
+          "day-short-month-year",
+          "short-month-day-year",
+          "year-month-day",
+          "day-month-year",
+          "month-day-year"
+        ]
+      },
+      "Schema_d6e05ace6be6___schema1": {
+        "type": "string",
+        "enum": [
+          "24-hour",
+          "12-hour",
+          "24-hour-seconds",
+          "12-hour-seconds"
+        ]
+      },
+      "Schema_d6e05ace6be6___schema2": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 100
+      },
+      "Schema_6728b482d4a4___schema0": {
+        "type": "string",
+        "enum": [
+          "day-short-month-year",
+          "short-month-day-year",
+          "year-month-day",
+          "day-month-year",
+          "month-day-year"
+        ]
+      },
+      "Schema_6728b482d4a4___schema1": {
+        "type": "string",
+        "enum": [
+          "24-hour",
+          "12-hour",
+          "24-hour-seconds",
+          "12-hour-seconds"
+        ]
+      },
+      "Schema_6728b482d4a4___schema2": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 100
       },
       "Schema_7b76de12ee47___schema0": {
         "type": "string",

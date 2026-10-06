@@ -234845,28 +234845,13 @@
                       "type": "object",
                       "properties": {
                         "dateFormat": {
-                          "type": "string",
-                          "enum": [
-                            "day-short-month-year",
-                            "short-month-day-year",
-                            "year-month-day",
-                            "day-month-year",
-                            "month-day-year"
-                          ]
+                          "$ref": "#/$defs/__schema0"
                         },
                         "timeFormat": {
-                          "type": "string",
-                          "enum": [
-                            "24-hour",
-                            "12-hour",
-                            "24-hour-seconds",
-                            "12-hour-seconds"
-                          ]
+                          "$ref": "#/$defs/__schema1"
                         },
                         "timeZone": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 100
+                          "$ref": "#/$defs/__schema2"
                         }
                       },
                       "required": [
@@ -234874,7 +234859,8 @@
                         "timeFormat",
                         "timeZone"
                       ],
-                      "additionalProperties": false
+                      "additionalProperties": false,
+                      "description": "Display preferences default to day-short-month-year, 24-hour and UTC. Saved choices and recorded dates remain unchanged."
                     }
                   },
                   "required": [
@@ -234882,7 +234868,33 @@
                     "email",
                     "preferences"
                   ],
-                  "additionalProperties": false
+                  "additionalProperties": false,
+                  "$defs": {
+                    "__schema0": {
+                      "type": "string",
+                      "enum": [
+                        "day-short-month-year",
+                        "short-month-day-year",
+                        "year-month-day",
+                        "day-month-year",
+                        "month-day-year"
+                      ]
+                    },
+                    "__schema1": {
+                      "type": "string",
+                      "enum": [
+                        "24-hour",
+                        "12-hour",
+                        "24-hour-seconds",
+                        "12-hour-seconds"
+                      ]
+                    },
+                    "__schema2": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    }
+                  }
                 }
               }
             }
@@ -234981,6 +234993,24 @@
                 "type": "object",
                 "properties": {
                   "dateFormat": {
+                    "$ref": "#/$defs/__schema0"
+                  },
+                  "timeFormat": {
+                    "$ref": "#/$defs/__schema1"
+                  },
+                  "timeZone": {
+                    "$ref": "#/$defs/__schema2"
+                  }
+                },
+                "required": [
+                  "dateFormat",
+                  "timeFormat",
+                  "timeZone"
+                ],
+                "additionalProperties": false,
+                "description": "Display preferences default to day-short-month-year, 24-hour and UTC. Saved choices and recorded dates remain unchanged.",
+                "$defs": {
+                  "__schema0": {
                     "type": "string",
                     "enum": [
                       "day-short-month-year",
@@ -234990,7 +235020,7 @@
                       "month-day-year"
                     ]
                   },
-                  "timeFormat": {
+                  "__schema1": {
                     "type": "string",
                     "enum": [
                       "24-hour",
@@ -234999,18 +235029,12 @@
                       "12-hour-seconds"
                     ]
                   },
-                  "timeZone": {
+                  "__schema2": {
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 100
                   }
-                },
-                "required": [
-                  "dateFormat",
-                  "timeFormat",
-                  "timeZone"
-                ],
-                "additionalProperties": false
+                }
               }
             }
           }
@@ -235038,28 +235062,13 @@
                       "type": "object",
                       "properties": {
                         "dateFormat": {
-                          "type": "string",
-                          "enum": [
-                            "day-short-month-year",
-                            "short-month-day-year",
-                            "year-month-day",
-                            "day-month-year",
-                            "month-day-year"
-                          ]
+                          "$ref": "#/$defs/__schema0"
                         },
                         "timeFormat": {
-                          "type": "string",
-                          "enum": [
-                            "24-hour",
-                            "12-hour",
-                            "24-hour-seconds",
-                            "12-hour-seconds"
-                          ]
+                          "$ref": "#/$defs/__schema1"
                         },
                         "timeZone": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 100
+                          "$ref": "#/$defs/__schema2"
                         }
                       },
                       "required": [
@@ -235067,7 +235076,8 @@
                         "timeFormat",
                         "timeZone"
                       ],
-                      "additionalProperties": false
+                      "additionalProperties": false,
+                      "description": "Display preferences default to day-short-month-year, 24-hour and UTC. Saved choices and recorded dates remain unchanged."
                     }
                   },
                   "required": [
@@ -235075,7 +235085,33 @@
                     "email",
                     "preferences"
                   ],
-                  "additionalProperties": false
+                  "additionalProperties": false,
+                  "$defs": {
+                    "__schema0": {
+                      "type": "string",
+                      "enum": [
+                        "day-short-month-year",
+                        "short-month-day-year",
+                        "year-month-day",
+                        "day-month-year",
+                        "month-day-year"
+                      ]
+                    },
+                    "__schema1": {
+                      "type": "string",
+                      "enum": [
+                        "24-hour",
+                        "12-hour",
+                        "24-hour-seconds",
+                        "12-hour-seconds"
+                      ]
+                    },
+                    "__schema2": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    }
+                  }
                 }
               }
             }
@@ -235339,28 +235375,13 @@
                           "type": "object",
                           "properties": {
                             "dateFormat": {
-                              "type": "string",
-                              "enum": [
-                                "day-short-month-year",
-                                "short-month-day-year",
-                                "year-month-day",
-                                "day-month-year",
-                                "month-day-year"
-                              ]
+                              "$ref": "#/$defs/__schema0"
                             },
                             "timeFormat": {
-                              "type": "string",
-                              "enum": [
-                                "24-hour",
-                                "12-hour",
-                                "24-hour-seconds",
-                                "12-hour-seconds"
-                              ]
+                              "$ref": "#/$defs/__schema1"
                             },
                             "timeZone": {
-                              "type": "string",
-                              "minLength": 1,
-                              "maxLength": 100
+                              "$ref": "#/$defs/__schema2"
                             }
                           },
                           "required": [
@@ -235368,7 +235389,8 @@
                             "timeFormat",
                             "timeZone"
                           ],
-                          "additionalProperties": false
+                          "additionalProperties": false,
+                          "description": "Display preferences default to day-short-month-year, 24-hour and UTC. Saved choices and recorded dates remain unchanged."
                         }
                       },
                       "required": [
@@ -235385,7 +235407,33 @@
                     "today",
                     "account"
                   ],
-                  "additionalProperties": false
+                  "additionalProperties": false,
+                  "$defs": {
+                    "__schema0": {
+                      "type": "string",
+                      "enum": [
+                        "day-short-month-year",
+                        "short-month-day-year",
+                        "year-month-day",
+                        "day-month-year",
+                        "month-day-year"
+                      ]
+                    },
+                    "__schema1": {
+                      "type": "string",
+                      "enum": [
+                        "24-hour",
+                        "12-hour",
+                        "24-hour-seconds",
+                        "12-hour-seconds"
+                      ]
+                    },
+                    "__schema2": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 100
+                    }
+                  }
                 }
               }
             }

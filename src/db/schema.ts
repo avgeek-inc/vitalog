@@ -396,9 +396,9 @@ export const accountSettings = pgTable(
   {
     id: integer("id").primaryKey(),
     name: text("name").notNull(),
-    dateFormat: text("date_format").notNull(),
-    timeFormat: text("time_format").notNull(),
-    timeZone: text("time_zone").notNull(),
+    dateFormat: text("date_format").notNull().default("day-short-month-year"),
+    timeFormat: text("time_format").notNull().default("24-hour"),
+    timeZone: text("time_zone").notNull().default("UTC"),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

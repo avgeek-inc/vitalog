@@ -92,6 +92,13 @@
       "when": 1791319046142,
       "tag": "0012_root_account_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1791327679800,
+      "tag": "0013_account_preference_defaults",
+      "breakpoints": true
     }
   ]
 }

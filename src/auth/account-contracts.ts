@@ -13,6 +13,11 @@ export const timeFormatOptions = [
   { id: "24-hour-seconds", label: "14:30:45" },
   { id: "12-hour-seconds", label: "2:30:45 PM" },
 ] as const;
+export const defaultDateTimePreferences = {
+  dateFormat: "day-short-month-year",
+  timeFormat: "24-hour",
+  timeZone: "UTC",
+} as const;
 export function isTimeZone(value: string) {
   if (!value || value.length > 100 || /^[+-]/.test(value)) return false;
   try {
@@ -22,15 +27,37 @@ export function isTimeZone(value: string) {
     return false;
   }
 }
-export const preferencesSchema = z.strictObject({
-  dateFormat: z.enum(dateFormatOptions.map((option) => option.id)),
-  timeFormat: z.enum(timeFormatOptions.map((option) => option.id)),
-  timeZone: z
-    .string()
-    .min(1)
-    .max(100)
-    .refine(isTimeZone, "Choose a valid time zone"),
-});
+export function availableTimeZones() {
+  return [
+    ...new Set(
+      [
+        "UTC",
+        ...Intl.supportedValuesOf("timeZone"),
+        "Asia/Kolkata",
+        "Asia/Kathmandu",
+        "Asia/Yangon",
+        "Europe/Kyiv",
+        "America/Nuuk",
+        "Pacific/Kanton",
+      ].filter(isTimeZone),
+    ),
+  ].sort((left, right) =>
+    left === "UTC" ? -1 : right === "UTC" ? 1 : left.localeCompare(right),
+  );
+}
+export const preferencesSchema = z
+  .strictObject({
+    dateFormat: z.enum(dateFormatOptions.map((option) => option.id)),
+    timeFormat: z.enum(timeFormatOptions.map((option) => option.id)),
+    timeZone: z
+      .string()
+      .min(1)
+      .max(100)
+      .refine(isTimeZone, "Choose a valid time zone"),
+  })
+  .describe(
+    "Display preferences default to day-short-month-year, 24-hour and UTC. Saved choices and recorded dates remain unchanged.",
+  );
 export const profileSchema = z.strictObject({
   name: z.string().trim().min(1).max(120),
 });
