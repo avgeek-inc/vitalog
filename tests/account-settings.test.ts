@@ -8,8 +8,18 @@ import {
   availableTimeZones,
 } from "../src/auth/account-contracts.js";
 import { formatDateTime } from "../apps/web/src/lib/date-time.js";
+import {
+  dateFormatOptions as sharedDateFormats,
+  timeFormatOptions as sharedTimeFormats,
+  defaultDateTimePreferences as sharedDefaults,
+} from "@avgeek-oss/design-system/utilities/date-time-preferences";
 
 describe("account settings", () => {
+  it("keeps the REST contract aligned with the published UI preference catalog", () => {
+    expect(dateFormatOptions).toEqual(sharedDateFormats);
+    expect(timeFormatOptions).toEqual(sharedTimeFormats);
+    expect(defaultDateTimePreferences).toEqual(sharedDefaults);
+  });
   it("uses the common display preference IDs and defaults", () => {
     expect(dateFormatOptions.map(({ id }) => id)).toEqual([
       "day-short-month-year",

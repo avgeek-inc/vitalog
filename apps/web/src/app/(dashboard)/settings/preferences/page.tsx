@@ -2,8 +2,8 @@ import { PreferencesPage } from "../../../../components/account-settings";
 import {
   dateFormatOptions,
   timeFormatOptions,
-  availableTimeZones,
-} from "../../../../../../../src/auth/account-contracts";
+} from "@avgeek-oss/design-system/utilities/date-time-preferences";
+import { availableTimeZones } from "../../../../../../../src/auth/account-contracts";
 import { requireSession } from "../../../../lib/session";
 export const metadata = { title: "Preferences" };
 export default async function Preferences() {

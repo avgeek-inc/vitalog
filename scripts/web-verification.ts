@@ -1477,6 +1477,136 @@ try {
       },
     );
     await check(
+      "Shared profile saves preserve expired-session drafts and retries without stale navigation notifications",
+      async () => {
+        const token = (await context.cookies()).find(
+          (cookie) => cookie.name === "vitalog-session",
+        )!.value;
+        const originalName = String(
+          object((await api("/auth/session", token)).data.account).name,
+        );
+        const profileContext = await browser!.newContext({
+          viewport: { width: 1280, height: 900 },
+        });
+        const profilePage = await profileContext.newPage();
+        const signIn = async () => {
+          const response = await profileContext.request.post(
+            uiUrl + "/auth/login",
+            { data: credentials, headers: { Origin: uiUrl } },
+          );
+          assert.equal(response.status(), 200);
+        };
+        try {
+          await signIn();
+          await profilePage.goto(uiUrl + "/settings/profile");
+          const name = profilePage.getByLabel("Full name", { exact: true });
+          await name.fill("Retry Reader");
+          assert.equal(
+            (
+              await profileContext.request.post(uiUrl + "/auth/logout", {
+                headers: { Origin: uiUrl },
+              })
+            ).status(),
+            200,
+          );
+          await profilePage
+            .getByRole("button", { name: "Save", exact: true })
+            .click();
+          await profilePage
+            .getByText("Your session expired. Sign in again.", { exact: true })
+            .waitFor();
+          assert.equal(await name.inputValue(), "Retry Reader");
+          assert(
+            await profilePage
+              .getByRole("button", { name: "Save", exact: true })
+              .isEnabled(),
+          );
+          await profilePage
+            .getByRole("button", { name: "Close", exact: true })
+            .click();
+          await signIn();
+          await profilePage
+            .getByRole("button", { name: "Save", exact: true })
+            .click();
+          await profilePage
+            .getByRole("button", {
+              name: "Account menu for Retry Reader",
+              exact: true,
+            })
+            .waitFor();
+          assert.equal(
+            object((await api("/auth/session", token)).data.account).name,
+            "Retry Reader",
+          );
+          await api("/auth/profile", token, "PATCH", { name: originalName });
+          for (const status of [401, 200]) {
+            await profilePage.goto(uiUrl + "/settings/profile");
+            let release!: () => void;
+            let captured!: () => void;
+            const held = new Promise<void>((resolve) => {
+              release = resolve;
+            });
+            const requested = new Promise<void>((resolve) => {
+              captured = resolve;
+            });
+            const endpoint = uiUrl + "/auth/profile";
+            await profilePage.route(endpoint, async (route) => {
+              captured();
+              await held;
+              await route.fulfill({
+                status,
+                contentType: "application/json",
+                body: JSON.stringify({ name: "Delayed Reader" }),
+              });
+            });
+            try {
+              await name.fill("Delayed Reader");
+              await profilePage
+                .getByRole("button", { name: "Save", exact: true })
+                .click();
+              await requested;
+              const response = profilePage.waitForResponse(endpoint);
+              await profilePage
+                .getByRole("link", { name: "Daily View", exact: true })
+                .click();
+              await profilePage
+                .getByRole("heading", { name: "Daily nutrition", exact: true })
+                .waitFor();
+              release();
+              await (await response).finished();
+              // Let the delivered fetch response and React feedback settle.
+              await profilePage.evaluate(
+                () =>
+                  new Promise<void>((resolve) =>
+                    requestAnimationFrame(() =>
+                      requestAnimationFrame(() => resolve()),
+                    ),
+                  ),
+              );
+              for (const message of [
+                "Changes saved",
+                "Your session expired. Sign in again.",
+              ])
+                assert.equal(
+                  await profilePage.getByText(message, { exact: true }).count(),
+                  0,
+                );
+              assert.equal(
+                object((await api("/auth/session", token)).data.account).name,
+                originalName,
+              );
+            } finally {
+              release();
+              await profilePage.unroute(endpoint);
+            }
+          }
+        } finally {
+          await api("/auth/profile", token, "PATCH", { name: originalName });
+          await profileContext.close();
+        }
+      },
+    );
+    await check(
       "Daily shows real metrics and mixed logs with the agreed responsive card layout",
       async () => {
         await page
