@@ -85,9 +85,6 @@ await new Promise<void>((resolve, reject) => {
 const address = reservation.address();
 assert(address && typeof address === "object");
 const publishedPort = address.port;
-await new Promise<void>((resolve, reject) =>
-  reservation.close((error) => (error ? reject(error) : resolve())),
-);
 const uiReservation = createServer();
 await new Promise<void>((resolve) =>
   uiReservation.listen(0, "127.0.0.1", resolve),
@@ -95,6 +92,9 @@ await new Promise<void>((resolve) =>
 const uiAddress = uiReservation.address();
 assert(uiAddress && typeof uiAddress === "object");
 const uiPort = uiAddress.port;
+await new Promise<void>((resolve, reject) =>
+  reservation.close((error) => (error ? reject(error) : resolve())),
+);
 await new Promise<void>((resolve, reject) =>
   uiReservation.close((error) => (error ? reject(error) : resolve())),
 );

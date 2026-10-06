@@ -1014,6 +1014,109 @@ try {
       },
     );
     await check(
+      "Shared sign-in retains pending credentials, clears failed passwords and allows retries on desktop/mobile in both themes",
+      async () => {
+        for (const width of [390, 1280]) {
+          for (const colorScheme of ["light", "dark"] as const) {
+            const signInContext = await browser!.newContext({
+              viewport: { width, height: 900 },
+              colorScheme,
+            });
+            let releaseResponse!: () => void;
+            const responseGate = new Promise<void>((resolve) => {
+              releaseResponse = resolve;
+            });
+            try {
+              const signInPage = await signInContext.newPage();
+              let requestSeen!: () => void;
+              const received = new Promise<void>((resolve) => {
+                requestSeen = resolve;
+              });
+              let requests = 0;
+              await signInPage.route(uiUrl + "/auth/login", async (route) => {
+                requests++;
+                requestSeen();
+                await responseGate;
+                await route.fulfill({ status: 401, json: {} });
+              });
+              await signInPage.goto(uiUrl + "/login");
+              const email = signInPage.getByLabel("Email", { exact: true });
+              const password = signInPage.getByLabel("Password", {
+                exact: true,
+              });
+              await email.fill(credentials.email);
+              await password.fill("incorrect-password");
+              await signInPage
+                .getByRole("button", { name: "Sign in", exact: true })
+                .click();
+              await received;
+              const pending = signInPage.getByRole("button", {
+                name: /^Signing in/,
+              });
+              await pending.waitFor();
+              assert(await pending.isDisabled());
+              assert(await email.isDisabled());
+              assert(await password.isDisabled());
+              assert.equal(await email.inputValue(), credentials.email);
+              assert.equal(await password.inputValue(), "incorrect-password");
+              releaseResponse();
+              await signInPage
+                .getByText("Invalid credentials", { exact: true })
+                .waitFor();
+              await signInPage.waitForFunction(
+                () =>
+                  document.querySelector<HTMLInputElement>(
+                    'input[type="password"]',
+                  )?.value === "",
+              );
+              assert.equal(await email.inputValue(), credentials.email);
+              assert.equal(
+                await signInPage
+                  .getByRole("button", {
+                    name: /forgot password|passkey|verify email/i,
+                  })
+                  .count(),
+                0,
+              );
+              assert.equal(
+                await signInPage.locator("html").getAttribute("data-theme"),
+                colorScheme,
+              );
+              assert(
+                await signInPage.evaluate(
+                  () => document.documentElement.scrollWidth <= innerWidth,
+                ),
+                "Sign-in must fit the viewport",
+              );
+              await password.fill("retry-password");
+              const retry = signInPage.waitForResponse(
+                (response) => response.url() === uiUrl + "/auth/login",
+              );
+              await signInPage
+                .getByRole("button", { name: "Sign in", exact: true })
+                .click();
+              assert.equal((await retry).status(), 401);
+              await signInPage.waitForFunction(
+                () =>
+                  document.querySelector<HTMLInputElement>(
+                    'input[type="password"]',
+                  )?.value === "",
+              );
+              assert.equal(requests, 2);
+              assert.equal(await email.inputValue(), credentials.email);
+              await signInPage.screenshot({
+                path: `.test-artifacts/web/sign-in-${width}-${colorScheme}.png`,
+                animations: "disabled",
+              });
+            } finally {
+              releaseResponse();
+              await signInContext.close();
+            }
+          }
+        }
+      },
+    );
+    await check(
       "Login protects both routes, rejects bad credentials with a toast, and uses an HttpOnly cookie",
       async () => {
         await startApi();
