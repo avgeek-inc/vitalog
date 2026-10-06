@@ -29,6 +29,7 @@ jobs:
       - run: npm run verify
       - run: npm run test:integration
       - run: npm run test:goals
+      - run: npm run test:attachments
       - run: npm run test:auth
       - run: npm run test:oauth
       - run: npx playwright install --with-deps chromium
@@ -48,6 +49,7 @@ jobs:
           path: |
             .test-artifacts/verification.json
             .test-artifacts/goals-verification.json
+            .test-artifacts/attachments.json
             .test-artifacts/web-verification.json
             .test-artifacts/web/*.png
             .test-artifacts/container.json

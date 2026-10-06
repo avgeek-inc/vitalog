@@ -21,6 +21,12 @@ async function save(path: string, contents: string | Buffer) {
 }
 const pages = [
   [
+    "attachments",
+    "attachments",
+    "Reusable attachments",
+    "Upload private images and PDFs once and reuse them across health records.",
+  ],
+  [
     "web",
     "dashboard",
     "Daily View and Weight Management",
@@ -71,7 +77,7 @@ for (const [file, route, title, description] of pages) {
       const siteRoute = routes.get(normalized);
       return siteRoute
         ? `](/${siteRoute}${anchor})`
-        : `](https://github.com/avgeek-inc/vitalog/blob/main/${target.startsWith("docs/") || target.startsWith("apps/") || target.startsWith("scripts/") ? target : `docs/${normalized}`}${anchor})`;
+        : `](https://github.com/avgeek-oss/vitalog/blob/main/${target.startsWith("docs/") || target.startsWith("apps/") || target.startsWith("scripts/") ? target : `docs/${normalized}`}${anchor})`;
     },
   );
   body = body.replace(
@@ -168,6 +174,8 @@ for (const [path, methods] of Object.entries(
     operation.operationId = id;
     if (path.startsWith("/v1/goals") || path.endsWith("/goal-progress"))
       operation.tags = ["Goals"];
+    else if (path.startsWith("/v1/attachments"))
+      operation.tags = ["Attachments"];
     else if (path === "/v1/catalog") operation.tags = ["Catalog"];
     else if (id.startsWith("health_")) operation.tags = ["Health records"];
     else if (!operation.tags) operation.tags = ["Service"];

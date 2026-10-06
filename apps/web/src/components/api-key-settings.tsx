@@ -1,12 +1,10 @@
 "use client";
 
 // Adapted from Towbar and Mill's Apache-2.0 API key settings. See ui/NOTICE.md.
-import {
-  Copy01Icon,
-  Key01Icon,
-  PlusSignIcon,
-  ShieldBanIcon,
-} from "@hugeicons/core-free-icons";
+import Copy01Icon from "@hugeicons/core-free-icons/Copy01Icon";
+import Key01Icon from "@hugeicons/core-free-icons/Key01Icon";
+import PlusSignIcon from "@hugeicons/core-free-icons/PlusSignIcon";
+import ShieldBanIcon from "@hugeicons/core-free-icons/ShieldBanIcon";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Chip,

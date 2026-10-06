@@ -1,12 +1,10 @@
 "use client";
 
-import {
-  BookOpen01Icon,
-  Calendar01Icon,
-  Key01Icon,
-  Logout03Icon,
-  WeightScaleIcon,
-} from "@hugeicons/core-free-icons";
+import BookOpen01Icon from "@hugeicons/core-free-icons/BookOpen01Icon";
+import Calendar01Icon from "@hugeicons/core-free-icons/Calendar01Icon";
+import Key01Icon from "@hugeicons/core-free-icons/Key01Icon";
+import Logout03Icon from "@hugeicons/core-free-icons/Logout03Icon";
+import WeightScaleIcon from "@hugeicons/core-free-icons/WeightScaleIcon";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { toast } from "@heroui/react";
 import { usePathname, useRouter } from "next/navigation";

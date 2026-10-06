@@ -1,11 +1,9 @@
 "use client";
 
 // Adapted from Towbar's Apache-2.0 CodeBlock; see NOTICE.
-import {
-  Copy01Icon,
-  SourceCodeIcon,
-  Tick02Icon,
-} from "@hugeicons/core-free-icons";
+import Copy01Icon from "@hugeicons/core-free-icons/Copy01Icon";
+import SourceCodeIcon from "@hugeicons/core-free-icons/SourceCodeIcon";
+import Tick02Icon from "@hugeicons/core-free-icons/Tick02Icon";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { toast } from "@heroui/react";
 import {

@@ -486,7 +486,17 @@ try {
       const exported = execFileSync(
         process.execPath,
         ["--import", "tsx", "scripts/export.ts"],
-        { encoding: "utf8", env: { ...process.env, DATABASE_URL: url } },
+        {
+          encoding: "utf8",
+          env: {
+            ...process.env,
+            S3_BUCKET: "",
+            S3_ENDPOINT: "",
+            S3_ACCESS_KEY_ID: "",
+            S3_SECRET_ACCESS_KEY: "",
+            DATABASE_URL: url,
+          },
+        },
       )
         .trim()
         .split("\n")
@@ -552,6 +562,10 @@ try {
           {
             env: {
               ...process.env,
+              S3_BUCKET: "",
+              S3_ENDPOINT: "",
+              S3_ACCESS_KEY_ID: "",
+              S3_SECRET_ACCESS_KEY: "",
               DATABASE_URL: url.replace(/\/vitalog$/, "/restored"),
             },
             stdio: "pipe",

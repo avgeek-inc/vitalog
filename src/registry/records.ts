@@ -15,6 +15,7 @@ import {
   studyComponentKeys,
 } from "./definitions.js";
 import * as p from "./primitives.js";
+import { attachmentIds } from "./attachments.js";
 
 export const nutrients = z.strictObject(
   Object.fromEntries(
@@ -1294,6 +1295,7 @@ export const recordInputSchemas = {
   lab_result: labResultInput,
 };
 export const commonEnvelope = {
+  attachment_ids: attachmentIds.optional(),
   occurred_on: p.date.nullable().optional(),
   occurred_at: p.instant.nullable().optional(),
   ended_at: p.instant.nullable().optional(),

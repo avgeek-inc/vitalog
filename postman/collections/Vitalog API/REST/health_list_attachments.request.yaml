@@ -1,0 +1,11 @@
+$kind: http-request
+id: 5a74dc27-9d83-5358-8ccb-d871e987fa57
+description: List reusable attachments with cursor pagination. Optionally filter
+  by a record and its version; without a version, use that record's current
+  attachments. Omitting record_id lists the ledger's attachments. No file
+  contents or signed URLs are returned.
+method: GET
+url: "{{baseUrl}}/v1/attachments"
+headers:
+  Accept: application/json
+order: 26000

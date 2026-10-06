@@ -3,7 +3,7 @@
 import { Button } from "./ui/button";
 
 import { Calendar, Popover, Tooltip } from "@heroui/react";
-import { Calendar as CalendarIcon } from "@gravity-ui/icons";
+import CalendarIcon from "@gravity-ui/icons/Calendar";
 import { parseDate } from "@internationalized/date";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";

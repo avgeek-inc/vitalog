@@ -1,0 +1,17 @@
+$kind: http-request
+id: bdc454e1-9344-51f5-8237-acfdbca465d2
+description: Verify an uploaded file's bytes, size, SHA-256 and image/PDF type,
+  and make the attachment immutable and ready. Only ready IDs can be supplied in
+  attachment_ids when logging or correcting any record. Reuse one ID across
+  nutrition, measurements or a lab-results batch without uploading again. Retry
+  failures with the same idempotency key.
+method: POST
+url: "{{baseUrl}}/v1/attachments/{{attachmentId}}/complete"
+headers:
+  Accept: application/json
+  Content-Type: application/json
+  Idempotency-Key: "{{idempotencyKey}}"
+body:
+  type: json
+  content: "{}"
+order: 24000

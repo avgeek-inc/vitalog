@@ -1,6 +1,9 @@
 import { sql } from "drizzle-orm";
 import { database } from "../src/db/client.js";
 import { WRITE_LOCK } from "../src/domain/store.js";
+import { attachments } from "../src/db/schema.js";
+import { attachmentStorageConfiguration } from "../src/attachments/config.js";
+import { S3AttachmentStorage } from "../src/attachments/storage.js";
 async function eraseDatabase() {
   if (!process.argv.includes("--confirm-permanent-erasure=ERASE_VITALOG"))
     throw new Error("Explicit erasure flag is required");
@@ -8,14 +11,26 @@ async function eraseDatabase() {
   if (!url) throw new Error("DATABASE_URL is required");
   const { pool, db } = database(url);
   try {
+    const rows = await db
+      .select({ storage: attachments.storage })
+      .from(attachments);
+    const storageConfig = attachmentStorageConfiguration(process.env);
+    if (rows.length && !storageConfig)
+      throw new Error(
+        "Attachment storage configuration is required for erasure",
+      );
+    if (storageConfig)
+      await new S3AttachmentStorage(storageConfig).erase(
+        rows.map((row) => row.storage),
+      );
     await db.transaction(async (tx) => {
       await tx.execute(WRITE_LOCK);
       await tx.execute(
-        sql`truncate table record_revisions, idempotency_requests, health_records, goal_revisions, goal_idempotency_requests, goals`,
+        sql`truncate table record_attachments, attachment_idempotency_requests, attachments, record_revisions, idempotency_requests, health_records, goal_revisions, goal_idempotency_requests, goals`,
       );
     });
     process.stdout.write(
-      '{"event":"permanent_database_erasure_committed","backup_erasure_required":true}\n',
+      '{"event":"permanent_ledger_erasure_committed","backup_erasure_required":true,"object_versions_erasure_required":true}\n',
     );
   } finally {
     await pool.end();

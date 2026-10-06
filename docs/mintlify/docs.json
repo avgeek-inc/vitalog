@@ -28,7 +28,7 @@
         "groups": [
           {
             "group": "Your health ledger",
-            "pages": ["dashboard", "goals", "records"]
+            "pages": ["dashboard", "goals", "records", "attachments"]
           }
         ]
       },
@@ -65,7 +65,7 @@
   },
   "navbar": {
     "links": [
-      { "type": "github", "href": "https://github.com/avgeek-inc/vitalog" }
+      { "type": "github", "href": "https://github.com/avgeek-oss/vitalog" }
     ],
     "primary": {
       "type": "button",
@@ -74,7 +74,7 @@
     }
   },
   "footer": {
-    "socials": { "github": "https://github.com/avgeek-inc/vitalog" },
+    "socials": { "github": "https://github.com/avgeek-oss/vitalog" },
     "links": [
       {
         "header": "Documentation",
@@ -89,7 +89,7 @@
         "items": [
           {
             "label": "GitHub",
-            "href": "https://github.com/avgeek-inc/vitalog"
+            "href": "https://github.com/avgeek-oss/vitalog"
           },
           { "label": "Operations and security", "href": "/operations" }
         ]

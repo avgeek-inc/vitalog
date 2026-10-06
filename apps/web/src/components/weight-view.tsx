@@ -3,7 +3,8 @@
 import { Button } from "./ui/button";
 
 import { Card, ProgressBar } from "@heroui/react";
-import { ChartLine, ScalesBalanced } from "@gravity-ui/icons";
+import ChartLine from "@gravity-ui/icons/ChartLine";
+import ScalesBalanced from "@gravity-ui/icons/ScalesBalanced";
 import { useState } from "react";
 import {
   dateLabel,

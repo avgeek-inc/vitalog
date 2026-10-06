@@ -1,0 +1,9 @@
+$kind: http-request
+id: 4e7abc88-545c-56b9-864f-dab9c63f3802
+description: Get attachment metadata and upload state. This does not return file
+  bytes or a download URL.
+method: GET
+url: "{{baseUrl}}/v1/attachments/{{attachmentId}}"
+headers:
+  Accept: application/json
+order: 25000

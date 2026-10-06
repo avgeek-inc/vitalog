@@ -8,7 +8,7 @@ Vitalog resolves the client's metadata and shows **Connect ChatGPT** when its va
 
 Tool discovery advertises bounded, self-contained JSON Schema 2020-12 descriptions. Large clinical dictionaries and nested record variants are summarized with a pointer to `health_get_catalog({category: "record_schemas", key: "measurement", include_schema: true})` or the appropriate catalog category and key. Fetch the complete schema before an unfamiliar write. The service still validates every input and output against the full shared domain schema. Discovery schemas describe the transport without duplicating the complete clinical catalog across every tool.
 
-After a server update, refresh the MCP connection in ChatGPT and confirm that all 22 tools appear. A successful OAuth exchange alone does not verify tool discovery. See [OpenAI's connection testing guide](https://developers.openai.com/plugins/deploy/connect-chatgpt#refresh-metadata).
+After a server update, refresh the MCP connection in ChatGPT and confirm that all 27 tools appear. A successful OAuth exchange alone does not verify tool discovery. See [OpenAI's connection testing guide](https://developers.openai.com/plugins/deploy/connect-chatgpt#refresh-metadata).
 
 The MCP server uses the [MCP authorization specification](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization); it does not identify clients from a fixed ChatGPT name or callback. ChatGPT's `https://chatgpt.com/oauth/client.json` is one Client ID Metadata Document. Other clients can use their own public HTTPS metadata document, configured registration or dynamic registration. See [MCP OAuth](oauth.md) for discovery, client authentication, callbacks, scopes and verification.
 

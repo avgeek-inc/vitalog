@@ -1,7 +1,7 @@
 "use client";
 
 // Adapted from Mill's Apache-2.0 MCP guide composition. See ui/NOTICE.md.
-import { BookOpen01Icon } from "@hugeicons/core-free-icons";
+import BookOpen01Icon from "@hugeicons/core-free-icons/BookOpen01Icon";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Label, ListBox, Select } from "@heroui/react";
 import Link from "next/link";

@@ -4,6 +4,7 @@ import { application } from "./app.js";
 import { configuration } from "./config.js";
 import { database } from "./db/client.js";
 import { Service } from "./service.js";
+import { S3AttachmentStorage } from "./attachments/storage.js";
 
 async function start() {
   const config = configuration();
@@ -12,6 +13,9 @@ async function start() {
     db,
     config.timezone,
     config.authDigest.toString("hex"),
+    config.attachmentStorage
+      ? new S3AttachmentStorage(config.attachmentStorage)
+      : undefined,
   );
   if (!(await service.ready())) {
     await pool.end();

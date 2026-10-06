@@ -40,13 +40,18 @@
     "start:web": "npm run start --workspace @vitalog/web",
     "test:build-budget": "tsx scripts/build-budget-verification.ts",
     "docs:site:check": "npm run docs:check && cd docs/mintlify && npx --yes mint@4.2.986 validate && npx --yes mint@4.2.986 broken-links",
-    "docs:dev": "npm run docs:generate && cd docs/mintlify && npx --yes mint@4.2.986 dev --port 4175"
+    "docs:dev": "npm run docs:generate && cd docs/mintlify && npx --yes mint@4.2.986 dev --port 4175",
+    "test:attachments": "tsx scripts/attachments-verification.ts",
+    "operator:attachments:prune": "node --env-file-if-exists=.env --import tsx scripts/attachments-prune.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1146.0",
+    "@aws-sdk/s3-request-presigner": "3.1146.0",
     "@hono/node-server": "2.1.3",
     "@modelcontextprotocol/sdk": "1.31.0",
     "decimal.js": "10.6.0",
     "drizzle-orm": "0.45.3",
+    "file-type": "22.1.1",
     "hono": "4.13.12",
     "jose": "6.2.12",
     "pg": "8.23.1",

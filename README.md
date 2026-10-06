@@ -2,9 +2,11 @@
 
 Vitalog stores one person's supplied health observations in PostgreSQL. Hono serves `/v1` REST routes and one `/mcp` endpoint at `vitalog-api.praveent.com`. A separate Next.js app serves OAuth consent and API-key creation at `vitalog.praveent.com`. Both interfaces call the same domain services, validators and transactions.
 
-The service has eight record types, nine supported goal metrics and 22 MCP tools. The registry contains 182 nutrient keys, 424 laboratory analyte keys in 30 discovery groups, and 110 measurement/study keys. The database starts empty. All examples and verification fixtures are synthetic.
+The service has eight record types, nine supported goal metrics and 27 MCP tools. The registry contains 182 nutrient keys, 424 laboratory analyte keys in 30 discovery groups, and 110 measurement/study keys. The database starts empty. All examples and verification fixtures are synthetic.
 
 Mood check-ins use the existing check-in record type and REST/MCP operations. `data.mood` accepts `very_low`, `low`, `neutral`, `good` or `great`; daily summaries include the latest valid mood and retain individual observations. See the [mood check-in contract](docs/integration.md#mood-check-ins).
+
+Reusable [image/PDF attachments](docs/attachments.md) live in private S3-compatible storage, with a 20 MB limit per file. Upload once and reference the same ready ID from multiple logs or lab results; immutable revision links preserve the evidence for corrected and voided records.
 
 ## Run with Docker Compose
 
@@ -54,7 +56,7 @@ Set `ROOT_EMAIL` and `ROOT_PASSWORD` to enable generation at `/api-keys`, browse
 
 The page submits root credentials to `POST /auth/api-keys` over HTTPS (loopback HTTP is supported for development). It shows the complete token once and clears the password after submission. Tokens use 32 random bytes and are stored only as SHA-256 hashes in PostgreSQL. They are opaque, not JWTs. Every authenticated request checks expiry and revocation using the database clock; a revoke affects subsequent requests, including requests from an existing MCP client. Requests already authenticated may complete.
 
-The primary key manages generated keys and OAuth connection records through `GET /v1/api-keys`, `DELETE /v1/api-keys/{id}`, and `DELETE /v1/api-keys`. Listing is paginated and returns short token hints, timestamps and status, never token values or hashes. Revoke-all also cancels pending OAuth authorization codes; it leaves `AUTH_KEY` valid and does not prevent new issuance with the root credentials. Settings → API Keys permits generated-key and MCP-connection management after a separate 30-minute root-credential verification. Its management session cannot access health records or MCP, and its revoke-all preserves browser sessions. Root credentials cannot authenticate ledger requests. Key management remains REST-only; the 22 MCP tools cover records, discovery and user goals.
+The primary key manages generated keys and OAuth connection records through `GET /v1/api-keys`, `DELETE /v1/api-keys/{id}`, and `DELETE /v1/api-keys`. Listing is paginated and returns short token hints, timestamps and status, never token values or hashes. Revoke-all also cancels pending OAuth authorization codes; it leaves `AUTH_KEY` valid and does not prevent new issuance with the root credentials. Settings → API Keys permits generated-key and MCP-connection management after a separate 30-minute root-credential verification. Its management session cannot access health records or MCP, and its revoke-all preserves browser sessions. Root credentials cannot authenticate ledger requests. Key management remains REST-only; the 27 MCP tools cover records, discovery and user goals.
 
 See [API-key setup and contracts](docs/api-keys.md) for request examples and operational behavior. These features extend the original specification's authentication exclusions. The [MCP OAuth implementation](docs/oauth.md) supports Client ID Metadata Documents, configured clients and dynamic registration. It uses discovery and authorization-code exchange with S256 PKCE. Sign in on Vitalog's consent page with your root email and password; your MCP client receives its token automatically. The consent title, button and destination come from the validated client metadata. The token is created only at code exchange and has a revocable management record in the same API-key list.
 
@@ -70,7 +72,7 @@ Start discovery with authenticated `GET /v1/catalog` or `health_get_catalog({})`
 
 The [integration guide](docs/integration.md) describes REST/MCP mappings, filtering, dates, provenance, result variants, summaries and retries. The [goals guide](docs/goals.md) covers weight targets, daily nutrition limits, water and exercise targets, and observed progress. [OpenAPI JSON](docs/openapi.json), [complete record schemas](docs/record-schemas.json) and [executable examples](docs/examples.json) are generated from the shared definitions.
 
-[Postman instructions](postman/README.md) cover the Native Git workspace layout used by Towbar and the importable v2.1 JSON collection. The collection contains 72 requests across REST, technical endpoints, MCP initialization, tool discovery, all 22 tools, API-key generation/administration, OAuth, browser sessions and UI key management. Secret values are blank in the repository.
+[Postman instructions](postman/README.md) cover the Native Git workspace layout used by Towbar and the importable v2.1 JSON collection. The collection contains 82 requests across REST, technical endpoints, MCP initialization, tool discovery, all 27 tools, API-key generation/administration, OAuth, browser sessions and UI key management. Secret values are blank in the repository.
 
 Run `npm run plugin:package` to build `dist/vitalog-plugin.zip` for ChatGPT upload. The [plugin guide](docs/chatgpt-plugin.md) covers deployment and direct root sign-in through OAuth. The connection expires after 30 days and is revoked through the same API-key management APIs. The archive includes the [Vitalog mark](docs/branding.md) and contains no credentials.
 
@@ -84,6 +86,7 @@ npm run test:auth
 npm run test:oauth
 npm run test:summaries
 npm run test:goals
+npm run test:attachments
 npm run test:container
 npm run test:towbar
 npm run build
@@ -94,11 +97,11 @@ npm audit --omit=dev --audit-level=moderate
 
 [The acceptance traceability](docs/acceptance.md) maps all 76 requirements to implementation and verification. [The coverage report](docs/coverage.json) lists every implemented key and its tests. [The verification report](docs/verification-report.json) records the executed interoperability run, exact SDK/protocol/client versions, and database backup/restore result. [The container report](docs/container-report.json), [security report](docs/security-report.json) and [summary report](docs/summary-report.json) record the additional deployment checks. Current runs write their reports to ignored `.test-artifacts/`; they do not rewrite checked-in evidence automatically.
 
-The GitHub verification workflow runs these checks on pushes and pull requests. A separate tag workflow verifies the repository and publishes `ghcr.io/avgeek-inc/vitalog:<tag>` and `ghcr.io/avgeek-inc/vitalog-web:<tag>` for a pushed `v*` tag. Publishing an image does not deploy a server. There are no production credentials checked into this repository.
+The GitHub verification workflow runs these checks on pushes and pull requests. A separate tag workflow verifies the repository and publishes `ghcr.io/avgeek-oss/vitalog:<tag>` and `ghcr.io/avgeek-oss/vitalog-web:<tag>` for a pushed `v*` tag. Publishing an image does not deploy a server. There are no production credentials checked into this repository.
 
 ## Export, backups and erasure
 
-The operator export streams a consistent, read-only snapshot as JSON Lines to stdout. It includes records and goals with their immutable revisions and idempotency metadata. The command accepts no output path; the operator controls redirection and access permissions.
+The operator export streams a consistent, read-only snapshot as JSON Lines to stdout. It includes records and goals with their immutable revisions and idempotency metadata, plus attachment metadata and revision links. File bytes require a separate private bucket backup. The command accepts no output path; the operator controls redirection and access permissions.
 
 ```sh
 npm run --silent operator:export > vitalog-export.jsonl
@@ -116,6 +119,8 @@ docker compose exec -T postgres pg_dump -U vitalog -d vitalog --format=custom > 
 docker compose exec -T postgres pg_restore -U vitalog -d vitalog --no-owner --no-privileges < vitalog.dump
 ```
 
+Back up attachment objects separately and preserve their stored keys when restoring. See [attachment operations](docs/attachments.md#backups-cleanup-and-erasure) for staging cleanup and storage erasure.
+
 A real backup/restore test is part of integration verification. It compares all restored record, revision and idempotency values, retrieves immutable history, and replays committed creation, correction and void requests without new rows. Choose an encrypted backup location, a retention period and a restore drill cadence through the deployment's infrastructure. Backups include revisions and idempotency data. A restored older backup may resurrect corrected or erased observations and may lack newer retry keys. Review the backup date before allowing writes after a restore.
 
 Voiding preserves history and removes a record from effective calculations. Permanent erasure is an operator operation. Stop the API, confirm the intended database, and run:
@@ -126,11 +131,11 @@ npm run operator:erase -- --confirm-permanent-erasure=ERASE_VITALOG
 docker compose run --rm --no-deps api node dist/scripts/erase.js --confirm-permanent-erasure=ERASE_VITALOG
 ```
 
-The erasure transaction truncates records and goals with their revisions and idempotency metadata. It keeps the database schema. For complete operational erasure, also remove exports, expired backups, snapshots and any accidental sensitive logs or traces. Database truncation does not erase copies in retained backups, WAL archives or storage snapshots. Follow the storage provider's deletion and retention policy. Do not resume from an older backup without applying the same erasure decision.
+Erasure removes attachment objects first, then truncates records, goals and attachments with their revisions, links and idempotency metadata. It keeps the database schema. Matching storage configuration is required when attachments exist. For complete operational erasure, also remove object versions, exports, expired backups, snapshots and any accidental sensitive logs or traces. Database truncation does not erase copies in retained backups, WAL archives or storage snapshots. Follow the storage provider's deletion and retention policy. Do not resume from an older backup without applying the same erasure decision.
 
 ## Definition and version policy
 
-The current catalog version is `1.0.3`. It retains existing identifiers and adds goal operations, an explicit `exercise_seconds` workout field and enum-based mood check-ins. REST `/v1`, MCP negotiation, record schema versions and record revision numbers are separate. Record schema version 1 represents preserved legacy snapshot semantics; version 2 is the revision-5 contract. Stored version-2 data keeps its original typed shape, while fresh writes and corrections use the current input schemas. Existing broad nutrient names keep their supplied or unknown definition. `upgradeSnapshot` makes an explicit lossless copy and does not add measurements, nutrient bases or clinical identity. Current writes use version 2. Historical snapshots and committed retries are read without fresh-event clock validation.
+The current catalog version is `1.0.4`. It retains existing identifiers and adds reusable attachment operations alongside goals, an explicit `exercise_seconds` workout field and enum-based mood check-ins. REST `/v1`, MCP negotiation, record schema versions and record revision numbers are separate. Record schema version 1 represents preserved legacy snapshot semantics; version 2 is the revision-5 contract. Stored version-2 data keeps its original typed shape, while fresh writes and corrections use the current input schemas. Existing broad nutrient names keep their supplied or unknown definition. `upgradeSnapshot` makes an explicit lossless copy and does not add measurements, nutrient bases or clinical identity. Current writes use version 2. Historical snapshots and committed retries are read without fresh-event clock validation.
 
 The embedded inventory was supplied with [specification revision 5](docs/specification.md). Its research/source register is preserved there. Registry identifiers are application keys. No unverified LOINC/UCUM crosswalk or clinical reference intervals are installed. The code stores original units, reference information, source statuses and context rather than guessing assay equivalence. The chosen [official TypeScript MCP SDK](https://github.com/modelcontextprotocol/typescript-sdk/tree/v1.x) is pinned to `1.31.0`; its tested protocol revision is recorded in the verification report.
 

@@ -35,7 +35,27 @@ async function save(path: string, content: string) {
   }
 }
 const json = (data: unknown) => JSON.stringify(data, null, 2) + "\n";
+const requestJson = (data: unknown) =>
+  json(data).replaceAll(
+    '"{{attachmentByteLength}}"',
+    "{{attachmentByteLength}}",
+  );
 const requestArgs = (operation: (typeof operations)[number]): Data => {
+  if (operation.name === "health_create_attachment_upload")
+    return {
+      idempotency_key: "{{idempotencyKey}}",
+      filename: "meal.jpg",
+      content_type: "image/jpeg",
+      byte_length: "{{attachmentByteLength}}",
+      sha256: "{{attachmentSha256}}",
+    };
+  if (operation.name === "health_complete_attachment_upload")
+    return { id: "{{attachmentId}}", idempotency_key: "{{idempotencyKey}}" };
+  if (
+    operation.domain === "attachments" &&
+    operation.name !== "health_list_attachments"
+  )
+    return { id: "{{attachmentId}}" };
   if (operation.record_type) {
     const input = examples[operation.record_type];
     return {
@@ -131,6 +151,12 @@ await save(
         })),
     },
     record_types: [...recordTypes],
+    attachments: {
+      maximum_file_bytes: 20_000_000,
+      reusable_record_references: true,
+      test: "tests/attachments.test.ts",
+      integration_command: "npm run test:attachments",
+    },
     goal_metrics: goalMetrics.map((metric) => ({
       ...metric,
       test: "tests/goals.test.ts",
@@ -176,6 +202,9 @@ await save(
       idempotencyKey: "",
       apiKeyId: "",
       goalId: "",
+      attachmentId: "",
+      attachmentByteLength: "",
+      attachmentSha256: "",
     },
     auth: [
       {
@@ -219,7 +248,11 @@ for (const [index, operation] of operations.entries()) {
   const path = operation.path
     .replace(
       "{id}",
-      operation.domain === "goals" ? "{{goalId}}" : "{{recordId}}",
+      operation.domain === "goals"
+        ? "{{goalId}}"
+        : operation.domain === "attachments"
+          ? "{{attachmentId}}"
+          : "{{recordId}}",
     )
     .replace("{date}", "{{date}}");
   const queryText = Object.keys(query).length
@@ -235,7 +268,7 @@ for (const [index, operation] of operations.entries()) {
       : {}),
   };
   const body =
-    operation.method === "POST" ? json(restArgs).trimEnd() : undefined;
+    operation.method === "POST" ? requestJson(restArgs).trimEnd() : undefined;
   const item = {
     name: operation.name,
     request: {
@@ -671,7 +704,7 @@ for (const { name, payload } of requests) {
       header: Object.entries(headers).map(([key, value]) => ({ key, value })),
       body: {
         mode: "raw",
-        raw: json(payload).trimEnd(),
+        raw: requestJson(payload).trimEnd(),
         options: { raw: { language: "json" } },
       },
     },
@@ -686,7 +719,7 @@ for (const { name, payload } of requests) {
       method: "POST",
       url: "{{baseUrl}}/mcp",
       headers,
-      body: { type: "json", content: json(payload).trimEnd() },
+      body: { type: "json", content: requestJson(payload).trimEnd() },
     }),
   );
 }
@@ -708,6 +741,9 @@ await save(
       { key: "idempotencyKey", value: "" },
       { key: "apiKeyId", value: "" },
       { key: "goalId", value: "" },
+      { key: "attachmentId", value: "" },
+      { key: "attachmentByteLength", value: "" },
+      { key: "attachmentSha256", value: "" },
     ],
     item: [
       { name: "REST", item: items },

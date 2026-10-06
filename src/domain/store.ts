@@ -3,6 +3,8 @@ import { and, eq, sql } from "drizzle-orm";
 import type { Database, Transaction } from "../db/client.js";
 import {
   healthRecords,
+  attachments,
+  recordAttachments,
   idempotencyRequests,
   revisions,
   type MutationMetadata,
@@ -20,6 +22,7 @@ import { object, type Data, type HealthRecord } from "./types.js";
 export function fromRow(row: typeof healthRecords.$inferSelect): HealthRecord {
   return {
     id: row.id,
+    attachment_ids: row.attachmentIds,
     record_type: row.recordType,
     schema_version: row.schemaVersion,
     version: row.version,
@@ -41,6 +44,7 @@ export function fromRow(row: typeof healthRecords.$inferSelect): HealthRecord {
 function toRow(record: HealthRecord): typeof healthRecords.$inferInsert {
   return {
     id: record.id,
+    attachmentIds: record.attachment_ids ?? [],
     recordType: record.record_type,
     schemaVersion: record.schema_version,
     version: record.version,
@@ -181,6 +185,7 @@ export class Store {
               changedAt: now.toISOString(),
               reason: "created",
             });
+            await this.saveAttachments(tx, record);
             records.push(record);
           }
         } else {
@@ -238,6 +243,7 @@ export class Store {
             changedAt: now.toISOString(),
             reason: String(command.reason),
           });
+          await this.saveAttachments(tx, record);
           records = [record];
         }
         const metadata: MutationMetadata = {
@@ -342,6 +348,18 @@ export class Store {
     tx: Transaction,
     record: HealthRecord,
   ): Promise<void> {
+    for (const [index, id] of (record.attachment_ids ?? []).entries()) {
+      const [attachment] = await tx
+        .select({ status: attachments.status })
+        .from(attachments)
+        .where(eq(attachments.id, id));
+      if (!attachment || attachment.status !== "ready")
+        fail(
+          `/attachment_ids/${index}`,
+          "Attachment must exist and be ready before it can be linked",
+          "attachment_not_ready",
+        );
+    }
     const links =
       (record.data.related_record_ids as
         { record_id: string; relationship: string }[] | undefined) ?? [];
@@ -395,5 +413,16 @@ export class Store {
             pending.push(parent.record_id);
       }
     }
+  }
+  private async saveAttachments(tx: Transaction, record: HealthRecord) {
+    const ids = record.attachment_ids ?? [];
+    if (ids.length)
+      await tx.insert(recordAttachments).values(
+        ids.map((attachmentId) => ({
+          recordId: record.id,
+          recordVersion: record.version,
+          attachmentId,
+        })),
+      );
   }
 }

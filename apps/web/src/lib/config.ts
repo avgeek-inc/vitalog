@@ -22,7 +22,7 @@ export function webConfiguration(env: NodeJS.ProcessEnv = process.env) {
 export function mcpDocumentationUrl(env: NodeJS.ProcessEnv = process.env) {
   return env.DOCS_BASE_URL
     ? publicOrigin(env.DOCS_BASE_URL, "DOCS_BASE_URL") + "/mcp-guide"
-    : "https://github.com/avgeek-inc/vitalog/blob/main/docs/mintlify/mcp-guide.mdx";
+    : "https://github.com/avgeek-oss/vitalog/blob/main/docs/mintlify/mcp-guide.mdx";
 }
 
 export function serverApiBaseUrl(env: NodeJS.ProcessEnv = process.env) {

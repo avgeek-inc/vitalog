@@ -828,6 +828,10 @@ export function normalizeInput(
     warnings.push("source_status_excluded_by_default");
   return {
     occurred_on: occurredOn,
+    attachment_ids:
+      (input.attachment_ids as string[] | undefined)?.map((id) =>
+        id.toLowerCase(),
+      ) ?? [],
     occurred_at: occurredAt ? new Date(occurredAt).toISOString() : null,
     ended_at: endedAt ? new Date(endedAt).toISOString() : null,
     timezone,
@@ -864,6 +868,7 @@ export const validationRules = [
   "referential_integrity_and_hierarchy_cycles",
   "optimistic_version_check",
   "durable_cross_transport_idempotency",
+  "ready_reusable_attachments",
 ];
 export function readStoredSnapshot(
   snapshot: unknown,

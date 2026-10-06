@@ -24,7 +24,8 @@ import { ApiKeys } from "../src/auth/keys.js";
 import { database } from "../src/db/client.js";
 import { Service } from "../src/service.js";
 import { object, type Data } from "../src/domain/types.js";
-import { examples } from "../tests/fixtures.js";
+import { examples, record } from "../tests/fixtures.js";
+import { hash } from "../src/domain/canonical.js";
 import { migrateDatabase } from "./migrate.js";
 import { operations } from "../src/registry/operations.js";
 
@@ -181,13 +182,40 @@ try {
         "Asia/Kolkata",
         "synthetic-cursor",
       );
-      const saved = object(
-        (
-          await previous.execute("health_log_hydration", {
-            ...examples.hydration,
-            idempotency_key: "auth-upgrade",
-          })
-        ).record,
+      const legacy = record("hydration", examples.hydration.data, {
+        time_context: {
+          original_occurred_at: null,
+          original_ended_at: null,
+          supplied_timezone: null,
+        },
+      });
+      const saved = { ...legacy, attachment_ids: [] };
+      await connection!.pool.query(
+        "insert into health_records (id, record_type, schema_version, version, occurred_on, timezone, time_precision, date_basis, recorded_at, updated_at, status, validity, provenance, payload) values ($1, 'hydration', 2, 1, $2, 'Asia/Kolkata', 'date', 'reported_date', $3, $3, 'active', 'valid', $4, $5)",
+        [
+          saved.id,
+          saved.occurred_on,
+          saved.recorded_at,
+          JSON.stringify(saved.provenance),
+          JSON.stringify(saved.data),
+        ],
+      );
+      await connection!.pool.query(
+        "insert into record_revisions (record_id, version, snapshot, changed_at, reason) values ($1, 1, $2, $3, 'created')",
+        [legacy.id, JSON.stringify(legacy), legacy.recorded_at],
+      );
+      await connection!.pool.query(
+        "insert into idempotency_requests (operation, idempotency_key, request_hash, result_metadata, committed_at) values ('health_log_hydration', 'auth-upgrade', $1, $2, $3)",
+        [
+          hash(examples.hydration),
+          JSON.stringify({
+            ids: [legacy.id],
+            versions: [1],
+            warnings: [],
+            batch: false,
+          }),
+          legacy.recorded_at,
+        ],
       );
       assert.equal(await previous.ready(), false);
       const keyJournal = JSON.parse(
@@ -264,6 +292,12 @@ try {
         ),
         saved,
       );
+      const replay = await previous.execute("health_log_hydration", {
+        ...examples.hydration,
+        idempotency_key: "auth-upgrade",
+      });
+      assert.equal(replay.idempotent_replay, true);
+      assert.deepEqual(replay.record, legacy);
       assert.equal(
         (
           await connection!.pool.query(

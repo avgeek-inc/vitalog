@@ -19,6 +19,7 @@ export type Provenance = {
   >;
 };
 export type RecordInput = {
+  attachment_ids?: string[];
   occurred_on?: string | null;
   occurred_at?: string | null;
   ended_at?: string | null;
@@ -36,6 +37,7 @@ export type RecordInput = {
   data: Data;
 };
 export type HealthRecord = {
+  attachment_ids?: string[];
   id: string;
   record_type: RecordType;
   schema_version: number;

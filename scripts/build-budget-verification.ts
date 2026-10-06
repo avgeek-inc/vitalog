@@ -76,7 +76,7 @@ for (const name of ["api", "web"] as const) {
       "sh",
       "-c",
       name === "api"
-        ? "npm ci --workspaces=false && npm run build:api && npm prune --omit=dev --workspaces=false"
+        ? `npm ci --workspaces=false && npm run build:api && npm prune --omit=dev --workspaces=false && node --input-type=module -e 'await import("./dist/src/app.js")'`
         : "npm ci && npm run build:web",
     ]);
     created = true;

@@ -2,14 +2,12 @@
 
 import { Accordion, Button, Card } from "@heroui/react";
 import { useState } from "react";
-import {
-  Calendar,
-  Droplet,
-  Flame,
-  HeartPulse,
-  Pill,
-  ScalesBalanced,
-} from "@gravity-ui/icons";
+import Calendar from "@gravity-ui/icons/Calendar";
+import Droplet from "@gravity-ui/icons/Droplet";
+import Flame from "@gravity-ui/icons/Flame";
+import HeartPulse from "@gravity-ui/icons/HeartPulse";
+import Pill from "@gravity-ui/icons/Pill";
+import ScalesBalanced from "@gravity-ui/icons/ScalesBalanced";
 import type { Log } from "../lib/health";
 
 const icons = {

@@ -73,7 +73,7 @@ async function insert(records: HealthRecord[]) {
 }
 async function reset() {
   await connection!.db.execute(
-    sql`truncate health_records, record_revisions, idempotency_requests`,
+    sql`truncate record_attachments, health_records, record_revisions, idempotency_requests`,
   );
 }
 async function read(name: string, input: Data): Promise<Data> {

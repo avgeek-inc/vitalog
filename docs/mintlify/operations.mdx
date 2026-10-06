@@ -25,7 +25,7 @@ docker compose exec -T postgres pg_dump -U vitalog -d vitalog -Fc > vitalog.dump
 
 Restore into a separate database while the API is stopped or disconnected. Verify migrations/readiness, record history, goals and authentication metadata before switching the API to it. An older backup can restore revoked credentials or previously erased observations; review its age before permitting access or new writes.
 
-Operator exports and erasure commands are documented in the [repository README](https://github.com/avgeek-inc/vitalog#export-backups-and-erasure). Voiding a record retains history and removes it from effective calculations. Permanent erasure is a separate operator action.
+Operator exports and erasure commands are documented in the [repository README](https://github.com/avgeek-oss/vitalog#export-backups-and-erasure). Voiding a record retains history and removes it from effective calculations. Permanent erasure is a separate operator action.
 
 ## Credential boundaries
 
@@ -38,3 +38,7 @@ Operator exports and erasure commands are documented in the [repository README](
 Tokens are opaque and stored as hashes. They are checked for expiry and revocation on authenticated requests. Revoke a compromised credential immediately; rotating root sign-in credentials alone does not revoke already issued tokens.
 
 Serve public services through HTTPS, restrict accepted hosts/origins, and keep PostgreSQL private. The production containers run as non-root with health checks and bounded resources. See [Towbar deployment](/towbar) for workload limits and required runtime secrets.
+
+## File storage
+
+Back up attachment objects alongside PostgreSQL; database backups and JSONL exports contain only metadata and links. `operator:attachments:prune` clears expired staging uploads without removing ready files. Stop the API before permanent erasure; the erasure command removes ledger objects before database metadata and preserves unrelated prefixes. See [attachment operations](/attachments#backups-cleanup-and-erasure).

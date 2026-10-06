@@ -2,7 +2,7 @@
 
 // Adapted from Towbar and Mill's Apache-2.0 application shell. See NOTICE.md.
 import { Drawer, Tooltip } from "@heroui/react";
-import { Menu01Icon } from "@hugeicons/core-free-icons";
+import Menu01Icon from "@hugeicons/core-free-icons/Menu01Icon";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   createContext,

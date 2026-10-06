@@ -26,7 +26,7 @@ Configure `Authorization: Bearer <AUTH_KEY or active generated API key>` private
 | `health_correct_record`    | `POST /v1/records/{id}/corrections` |
 | `health_void_record`       | `POST /v1/records/{id}/voids`       |
 
-All 22 tools have input/output schemas and structured responses with a JSON text fallback. Reads have `readOnlyHint=true`. Corrections, voids and goal mutations carry a destructive hint. Annotations do not change authorization. The service publishes no UI resources or vendor-specific client routes. The six additional goal operations are documented in the [goals guide](/goals); goals remain separate from recorded observations.
+All 27 tools have input/output schemas and structured responses with a JSON text fallback. Reads have `readOnlyHint=true`. Corrections, voids and goal mutations carry a destructive hint. Annotations do not change authorization. The service publishes no UI resources or vendor-specific client routes. The five attachment operations and reusable `attachment_ids` are documented in the [attachments guide](/attachments). The six additional goal operations are documented in the [goals guide](/goals); goals remain separate from recorded observations.
 
 Vitalog uses the official TypeScript SDK's stateless Streamable HTTP transport with JSON responses. Every request creates a fresh server/transport. Initialization negotiates the selected SDK's supported protocol; the captured run uses `2025-11-25`. Set both JSON and SSE in Accept for MCP POST requests. The SDK handles JSON-RPC, initialization, negotiation and transport errors. There is no resumable event store or persistent MCP session. Unknown methods, unsupported media types and protocol revisions follow the SDK's error contract.
 

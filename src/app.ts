@@ -713,6 +713,7 @@ export function application(
               "lookback_days",
               "history_limit",
               "history_before_version",
+              "record_version",
             ].includes(key)
           ) {
             if (!/^(0|[1-9]\d*)$/.test(value))

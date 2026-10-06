@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import {
   check,
   date,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -16,6 +17,70 @@ import type { Data, HealthRecord, Provenance } from "../domain/types.js";
 import type { ClientMetadata } from "../auth/oauth-clients.js";
 import { recordTypes } from "../registry/definitions.js";
 import type { Goal } from "../registry/goals.js";
+import {
+  MAX_ATTACHMENT_BYTES,
+  type Attachment,
+} from "../registry/attachments.js";
+import type { StorageLocation } from "../attachments/storage.js";
+
+export const attachments = pgTable(
+  "attachments",
+  {
+    id: uuid("id").primaryKey(),
+    filename: text("filename").notNull(),
+    contentType: text("content_type")
+      .$type<Attachment["content_type"]>()
+      .notNull(),
+    byteLength: integer("byte_length").notNull(),
+    sha256: text("sha256").notNull(),
+    status: text("status", { enum: ["pending", "ready", "expired"] }).notNull(),
+    storage: jsonb("storage").$type<StorageLocation>().notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    uploadExpiresAt: timestamp("upload_expires_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    readyAt: timestamp("ready_at", { withTimezone: true, mode: "string" }),
+    uploadPrunedAt: timestamp("upload_pruned_at", {
+      withTimezone: true,
+      mode: "string",
+    }),
+  },
+  (t) => [
+    check(
+      "attachment_size",
+      sql`${t.byteLength} > 0 and ${t.byteLength} <= ${sql.raw(String(MAX_ATTACHMENT_BYTES))}`,
+    ),
+    check("attachment_sha256", sql`${t.sha256} ~ '^[0-9a-f]{64}$'`),
+    check(
+      "attachment_state",
+      sql`(${t.status} = 'ready' and ${t.readyAt} is not null) or (${t.status} in ('pending', 'expired') and ${t.readyAt} is null)`,
+    ),
+    check(
+      "attachment_lifetime",
+      sql`${t.uploadExpiresAt} = ${t.createdAt} + interval '15 minutes'`,
+    ),
+    index("attachment_creation_order").on(t.createdAt, t.id),
+    index("attachment_status_expiry").on(t.status, t.uploadExpiresAt),
+  ],
+);
+
+export const attachmentIdempotency = pgTable(
+  "attachment_idempotency_requests",
+  {
+    operation: text("operation").notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    requestHash: text("request_hash").notNull(),
+    attachmentId: uuid("attachment_id")
+      .notNull()
+      .references(() => attachments.id),
+    snapshot: jsonb("snapshot").$type<Attachment>().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.operation, t.idempotencyKey] })],
+);
 
 export const goals = pgTable(
   "goals",
@@ -90,6 +155,10 @@ export const healthRecords = pgTable(
     }).notNull(),
     provenance: jsonb("provenance").$type<Provenance>().notNull(),
     payload: jsonb("payload").$type<Data>().notNull(),
+    attachmentIds: uuid("attachment_ids")
+      .array()
+      .notNull()
+      .default(sql`'{}'::uuid[]`),
     timeContext: jsonb("time_context")
       .$type<HealthRecord["time_context"]>()
       .notNull()
@@ -140,6 +209,28 @@ export const revisions = pgTable(
   (t) => [
     primaryKey({ columns: [t.recordId, t.version] }),
     check("revision_positive", sql`${t.version} > 0`),
+  ],
+);
+export const recordAttachments = pgTable(
+  "record_attachments",
+  {
+    recordId: uuid("record_id").notNull(),
+    recordVersion: integer("record_version").notNull(),
+    attachmentId: uuid("attachment_id")
+      .notNull()
+      .references(() => attachments.id),
+  },
+  (t) => [
+    primaryKey({ columns: [t.recordId, t.recordVersion, t.attachmentId] }),
+    foreignKey({
+      columns: [t.recordId, t.recordVersion],
+      foreignColumns: [revisions.recordId, revisions.version],
+    }).onDelete("cascade"),
+    index("attachment_record_references").on(
+      t.attachmentId,
+      t.recordId,
+      t.recordVersion,
+    ),
   ],
 );
 export type MutationMetadata = {
@@ -284,6 +375,9 @@ export const oauthClientAssertions = pgTable(
   ],
 );
 export const schema = {
+  attachments,
+  attachmentIdempotency,
+  recordAttachments,
   goals,
   goalRevisions,
   goalIdempotency,

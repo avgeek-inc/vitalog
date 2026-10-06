@@ -174,7 +174,7 @@ async function mcpFailure(name: string, args: Data): Promise<Data> {
 }
 async function reset() {
   await connection!.pool.query(
-    "TRUNCATE record_revisions, idempotency_requests, health_records",
+    "TRUNCATE record_attachments, record_revisions, idempotency_requests, health_records",
   );
 }
 async function counts() {
@@ -1608,7 +1608,17 @@ try {
       const exported = execFileSync(
         process.execPath,
         ["--import", "tsx", "scripts/export.ts"],
-        { encoding: "utf8", env: { ...process.env, DATABASE_URL: dbUrl } },
+        {
+          encoding: "utf8",
+          env: {
+            ...process.env,
+            S3_BUCKET: "",
+            S3_ENDPOINT: "",
+            S3_ACCESS_KEY_ID: "",
+            S3_SECRET_ACCESS_KEY: "",
+            DATABASE_URL: dbUrl,
+          },
+        },
       );
       const rows = exported
         .trim()
@@ -1724,7 +1734,17 @@ try {
           "scripts/erase.ts",
           "--confirm-permanent-erasure=ERASE_VITALOG",
         ],
-        { env: { ...process.env, DATABASE_URL: dbUrl }, stdio: "pipe" },
+        {
+          env: {
+            ...process.env,
+            S3_BUCKET: "",
+            S3_ENDPOINT: "",
+            S3_ACCESS_KEY_ID: "",
+            S3_SECRET_ACCESS_KEY: "",
+            DATABASE_URL: dbUrl,
+          },
+          stdio: "pipe",
+        },
       );
       assert.deepEqual(await counts(), {
         records: 0,

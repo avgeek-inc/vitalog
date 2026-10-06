@@ -1,4 +1,4 @@
-import { McpServerIcon } from "@hugeicons/core-free-icons";
+import McpServerIcon from "@hugeicons/core-free-icons/McpServerIcon";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { cn } from "./ui/utils";
 

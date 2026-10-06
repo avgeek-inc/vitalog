@@ -17,6 +17,7 @@ import {
 import * as p from "./primitives.js";
 import { catalogOutputSchema } from "./catalog-output.js";
 import { goalOperations } from "./goals.js";
+import { attachmentIds, attachmentOperations } from "./attachments.js";
 
 export const idempotencyKey = p
   .text(128)
@@ -104,6 +105,7 @@ const trendInput = z.strictObject({
     .optional(),
 });
 const storedEnvelope = {
+  attachment_ids: attachmentIds.optional(),
   id: z.uuid(),
   record_type: z.enum(recordTypes),
   version: z.number().int().positive(),
@@ -614,7 +616,7 @@ export type Operation = {
   mutation: boolean;
   record_type?: RecordType;
   batch?: boolean;
-  domain?: "goals";
+  domain?: "goals" | "attachments";
 };
 export const operations: Operation[] = [
   {
@@ -803,6 +805,12 @@ operations.push(
   ...goalOperations(idempotencyKey).map((operation) => ({
     ...operation,
     domain: "goals" as const,
+  })),
+);
+operations.push(
+  ...attachmentOperations(idempotencyKey).map((operation) => ({
+    ...operation,
+    domain: "attachments" as const,
   })),
 );
 export const operationByName = new Map(

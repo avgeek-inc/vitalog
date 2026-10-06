@@ -15,7 +15,7 @@ import {
 } from "./primitives.js";
 
 export { inventory };
-export const CATALOG_VERSION = "1.0.3";
+export const CATALOG_VERSION = "1.0.4";
 export const fieldConditionSemantics = {
   missing: "True when the field at field_path is not supplied.",
   not_equals:

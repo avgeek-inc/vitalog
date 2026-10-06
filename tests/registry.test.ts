@@ -38,7 +38,7 @@ describe("Inventory and schema parity", () => {
     expect(new Set(analyteKeys).size).toBe(424);
     expect(new Set(measurementKeys).size).toBe(110);
     expect(inventory.lab_panels).toHaveLength(30);
-    expect(operations).toHaveLength(22);
+    expect(operations).toHaveLength(27);
     expect(recordTypes).toHaveLength(8);
     expect(
       new Set(inventory.lab_panels.flatMap((panel) => panel.analyte_keys)),
@@ -226,11 +226,11 @@ describe("Catalog invariants", () => {
     const doc = openapi();
     const text = JSON.stringify(doc);
     expect(text).not.toContain("example-nutrition-event-001");
-    for (const term of ["/users", "/uploads", "/recipes", "/catalog/metrics"])
+    for (const term of ["/users", "/recipes", "/catalog/metrics"])
       expect(text.includes(term), `Generated interfaces contain ${term}`).toBe(
         false,
       );
-    expect(Object.keys(doc.paths as object)).toHaveLength(40);
+    expect(Object.keys(doc.paths as object)).toHaveLength(45);
     expect(Object.keys(doc.paths as object)).toEqual(
       expect.arrayContaining([
         "/auth/key-management/session",

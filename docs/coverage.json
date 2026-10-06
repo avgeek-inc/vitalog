@@ -1,5 +1,5 @@
 {
-  "catalog_version": "1.0.3",
+  "catalog_version": "1.0.4",
   "specification_revision": 5,
   "inventory_counts": {
     "nutrient_keys": 182,
@@ -4507,6 +4507,12 @@
     "intake",
     "lab_result"
   ],
+  "attachments": {
+    "maximum_file_bytes": 20000000,
+    "reusable_record_references": true,
+    "test": "tests/attachments.test.ts",
+    "integration_command": "npm run test:attachments"
+  },
   "goal_metrics": [
     {
       "metric": "measurement:weight",
@@ -4749,6 +4755,36 @@
       "tool": "health_get_goal_progress",
       "method": "GET",
       "path": "/v1/days/{date}/goal-progress",
+      "shared_domain_service": true
+    },
+    {
+      "tool": "health_create_attachment_upload",
+      "method": "POST",
+      "path": "/v1/attachments/uploads",
+      "shared_domain_service": true
+    },
+    {
+      "tool": "health_complete_attachment_upload",
+      "method": "POST",
+      "path": "/v1/attachments/{id}/complete",
+      "shared_domain_service": true
+    },
+    {
+      "tool": "health_get_attachment",
+      "method": "GET",
+      "path": "/v1/attachments/{id}",
+      "shared_domain_service": true
+    },
+    {
+      "tool": "health_list_attachments",
+      "method": "GET",
+      "path": "/v1/attachments",
+      "shared_domain_service": true
+    },
+    {
+      "tool": "health_get_attachment_download",
+      "method": "GET",
+      "path": "/v1/attachments/{id}/download",
       "shared_domain_service": true
     }
   ],

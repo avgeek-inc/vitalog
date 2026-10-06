@@ -35,6 +35,18 @@
     {
       "key": "goalId",
       "value": ""
+    },
+    {
+      "key": "attachmentId",
+      "value": ""
+    },
+    {
+      "key": "attachmentByteLength",
+      "value": ""
+    },
+    {
+      "key": "attachmentSha256",
+      "value": ""
     }
   ],
   "item": [
@@ -551,6 +563,110 @@
             ],
             "url": "{{baseUrl}}/v1/days/{{date}}/goal-progress",
             "description": "Compare goals effective on a local date with qualified observed values. Unknown stays null. Nutrition uses limit utilization; water and exercise use target completion; weight uses an explicit baseline. Daily totals take precedence, gross calories are excluded, and elapsed time is never inferred as active minutes."
+          }
+        },
+        {
+          "name": "health_create_attachment_upload",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/attachments/uploads",
+            "description": "Reserve one reusable image or PDF attachment (maximum 20 MB / 20,000,000 bytes). Supply its actual filename, MIME type, byte length and SHA-256. Send the original binary file with HTTP PUT to the returned signed URL and headers within 15 minutes; do not send ledger credentials to storage. Then call health_complete_attachment_upload. Files are not automatically transferred by MCP. Never invent a file or checksum.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"filename\": \"meal.jpg\",\n  \"content_type\": \"image/jpeg\",\n  \"byte_length\": {{attachmentByteLength}},\n  \"sha256\": \"{{attachmentSha256}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "health_complete_attachment_upload",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/attachments/{{attachmentId}}/complete",
+            "description": "Verify an uploaded file's bytes, size, SHA-256 and image/PDF type, and make the attachment immutable and ready. Only ready IDs can be supplied in attachment_ids when logging or correcting any record. Reuse one ID across nutrition, measurements or a lab-results batch without uploading again. Retry failures with the same idempotency key.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "health_get_attachment",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/attachments/{{attachmentId}}",
+            "description": "Get attachment metadata and upload state. This does not return file bytes or a download URL."
+          }
+        },
+        {
+          "name": "health_list_attachments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/attachments",
+            "description": "List reusable attachments with cursor pagination. Optionally filter by a record and its version; without a version, use that record's current attachments. Omitting record_id lists the ledger's attachments. No file contents or signed URLs are returned."
+          }
+        },
+        {
+          "name": "health_get_attachment_download",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/attachments/{{attachmentId}}/download",
+            "description": "Get a private, signed download URL for a ready attachment, valid for five minutes. Treat the URL as sensitive temporary access and do not save it in records. Download the file outside MCP; health data and attachment metadata stay separate."
           }
         },
         {
@@ -1324,6 +1440,156 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 24,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"health_get_goal_progress\",\n    \"arguments\": {\n      \"date\": \"{{date}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "health_create_attachment_upload",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/mcp",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "2025-11-25"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 25,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"health_create_attachment_upload\",\n    \"arguments\": {\n      \"idempotency_key\": \"{{idempotencyKey}}\",\n      \"filename\": \"meal.jpg\",\n      \"content_type\": \"image/jpeg\",\n      \"byte_length\": {{attachmentByteLength}},\n      \"sha256\": \"{{attachmentSha256}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "health_complete_attachment_upload",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/mcp",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "2025-11-25"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 26,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"health_complete_attachment_upload\",\n    \"arguments\": {\n      \"id\": \"{{attachmentId}}\",\n      \"idempotency_key\": \"{{idempotencyKey}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "health_get_attachment",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/mcp",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "2025-11-25"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 27,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"health_get_attachment\",\n    \"arguments\": {\n      \"id\": \"{{attachmentId}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "health_list_attachments",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/mcp",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "2025-11-25"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 28,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"health_list_attachments\",\n    \"arguments\": {}\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "health_get_attachment_download",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/mcp",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "2025-11-25"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 29,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"health_get_attachment_download\",\n    \"arguments\": {\n      \"id\": \"{{attachmentId}}\"\n    }\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"

@@ -36,6 +36,15 @@ async function exportDatabase() {
       await client.query(
         "DECLARE goal_idempotency NO SCROLL CURSOR FOR SELECT row_to_json(r) AS data FROM goal_idempotency_requests r ORDER BY operation, idempotency_key",
       );
+      await client.query(
+        "DECLARE attachments NO SCROLL CURSOR FOR SELECT row_to_json(r) AS data FROM attachments r ORDER BY id",
+      );
+      await client.query(
+        "DECLARE record_attachments NO SCROLL CURSOR FOR SELECT row_to_json(r) AS data FROM record_attachments r ORDER BY record_id, record_version, attachment_id",
+      );
+      await client.query(
+        "DECLARE attachment_idempotency NO SCROLL CURSOR FOR SELECT row_to_json(r) AS data FROM attachment_idempotency_requests r ORDER BY operation, idempotency_key",
+      );
       for (const [table, query] of [
         ["health_records", "FETCH 100 FROM records"],
         ["record_revisions", "FETCH 100 FROM revisions"],
@@ -43,6 +52,12 @@ async function exportDatabase() {
         ["goals", "FETCH 100 FROM goals"],
         ["goal_revisions", "FETCH 100 FROM goal_revisions"],
         ["goal_idempotency_requests", "FETCH 100 FROM goal_idempotency"],
+        ["attachments", "FETCH 100 FROM attachments"],
+        ["record_attachments", "FETCH 100 FROM record_attachments"],
+        [
+          "attachment_idempotency_requests",
+          "FETCH 100 FROM attachment_idempotency",
+        ],
       ]) {
         while (true) {
           const result = await client.query(query!);

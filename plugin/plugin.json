@@ -5,7 +5,7 @@
   "description": "Log and retrieve your personal health observations through Vitalog.",
   "author": { "name": "Avgeek, Inc." },
   "homepage": "https://vitalog.praveent.com/api-keys",
-  "repository": "https://github.com/avgeek-inc/vitalog",
+  "repository": "https://github.com/avgeek-oss/vitalog",
   "keywords": ["health", "ledger", "observations"],
   "extensions": {
     "com.openai": {

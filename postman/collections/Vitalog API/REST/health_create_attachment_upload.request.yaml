@@ -1,0 +1,24 @@
+$kind: http-request
+id: 2f157f23-17d1-56e3-83d8-06340d2a274a
+description: Reserve one reusable image or PDF attachment (maximum 20 MB /
+  20,000,000 bytes). Supply its actual filename, MIME type, byte length and
+  SHA-256. Send the original binary file with HTTP PUT to the returned signed
+  URL and headers within 15 minutes; do not send ledger credentials to storage.
+  Then call health_complete_attachment_upload. Files are not automatically
+  transferred by MCP. Never invent a file or checksum.
+method: POST
+url: "{{baseUrl}}/v1/attachments/uploads"
+headers:
+  Accept: application/json
+  Content-Type: application/json
+  Idempotency-Key: "{{idempotencyKey}}"
+body:
+  type: json
+  content: |-
+    {
+      "filename": "meal.jpg",
+      "content_type": "image/jpeg",
+      "byte_length": {{attachmentByteLength}},
+      "sha256": "{{attachmentSha256}}"
+    }
+order: 23000

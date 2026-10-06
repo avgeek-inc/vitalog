@@ -38,3 +38,7 @@ Root credentials are used for issuance and consent. They cannot authenticate hea
 The UI does not need `AUTH_KEY`, database credentials or root credentials in its environment. Origin settings are read at runtime, so the same image can serve different installations.
 
 See [API keys](/api-keys) for issuance and management, and [MCP OAuth](/oauth) for client registration, token lifetimes and scopes.
+
+## Attachment storage
+
+Set optional `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_ENDPOINT`, `S3_REGION`, `S3_FORCE_PATH_STYLE` and `S3_PREFIX` on the API. A private bucket enables reusable image/PDF uploads capped at 20 MB per file. See [attachments](/attachments) for provider setup, private URLs, backups and cleanup. The web app does not receive these credentials.
