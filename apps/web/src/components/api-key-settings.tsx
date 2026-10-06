@@ -1,33 +1,21 @@
 "use client";
 
-// Adapted from Towbar and Mill's Apache-2.0 API key settings. See ui/NOTICE.md.
+import { Chip } from "@avgeek-oss/design-system/data-display/chip";
+import { Field } from "@avgeek-oss/design-system/forms/field";
+import { Input } from "@avgeek-oss/design-system/forms/input";
+import { Label } from "@avgeek-oss/design-system/forms/label";
+import { Modal } from "@avgeek-oss/design-system/overlays/modal";
+import { toast } from "@avgeek-oss/design-system/overlays/toast";
+import { ActionConfirmation } from "@avgeek-oss/design-system/patterns/actions/action-confirmation";
+import { ConfirmIdentityDialog } from "@avgeek-oss/design-system/patterns/auth/confirm-identity-dialog";
+import { ApplicationPage } from "@avgeek-oss/design-system/patterns/pages/page";
+import { ResourceTable } from "@avgeek-oss/design-system/patterns/resource-table";
 import Copy01Icon from "@hugeicons/core-free-icons/Copy01Icon";
-import Key01Icon from "@hugeicons/core-free-icons/Key01Icon";
 import PlusSignIcon from "@hugeicons/core-free-icons/PlusSignIcon";
-import ShieldBanIcon from "@hugeicons/core-free-icons/ShieldBanIcon";
 import { HugeiconsIcon } from "@hugeicons/react";
-import {
-  Chip,
-  FieldError,
-  Form,
-  Input,
-  Label,
-  Modal,
-  Table,
-  TextField,
-} from "@heroui/react";
-import { toast } from "@heroui/react/toast";
-import {
-  useCallback,
-  useEffect,
-  useId,
-  useRef,
-  useState,
-  type FormEvent,
-  type ReactNode,
-} from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { CredentialsForm, type Credentials } from "./credentials-form";
 import { Button } from "./ui/button";
-import { PageHeading } from "./ui/page-heading";
 import { Widget } from "./ui/widget";
 
 type ApiKey = {
@@ -48,42 +36,6 @@ const endpoint = "/auth/key-management/api-keys";
 const date = (value: string) =>
   new Date(value).toLocaleDateString(undefined, { dateStyle: "medium" });
 
-function SettingsDialog({
-  title,
-  children,
-  footer,
-  onClose,
-  pending = false,
-}: {
-  title: string;
-  children: ReactNode;
-  footer: ReactNode;
-  onClose: () => void;
-  pending?: boolean;
-}) {
-  return (
-    <Modal.Backdrop
-      isOpen
-      isDismissable={!pending}
-      isKeyboardDismissDisabled={pending}
-      onOpenChange={(open) => {
-        if (!open && !pending) onClose();
-      }}
-    >
-      <Modal.Container size="sm">
-        <Modal.Dialog>
-          <Modal.Header>
-            <Modal.Heading>{title}</Modal.Heading>
-            <Modal.CloseTrigger isDisabled={pending} />
-          </Modal.Header>
-          <Modal.Body>{children}</Modal.Body>
-          <Modal.Footer>{footer}</Modal.Footer>
-        </Modal.Dialog>
-      </Modal.Container>
-    </Modal.Backdrop>
-  );
-}
-
 function VerifyIdentity({
   onClose,
   onVerified,
@@ -91,103 +43,52 @@ function VerifyIdentity({
   onClose: () => void;
   onVerified: () => void;
 }) {
-  const formId = useId();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [pending, setPending] = useState(false);
-  const [invalid, setInvalid] = useState(false);
-  useEffect(() => {
-    const clear = () => setPassword("");
-    window.addEventListener("pagehide", clear);
-    return () => window.removeEventListener("pagehide", clear);
-  }, []);
-  async function verify(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (pending) return;
+  async function verify(credentials: Credentials) {
     setPending(true);
-    setInvalid(false);
     try {
       const response = await fetch("/auth/key-management/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(credentials),
         cache: "no-store",
         redirect: "error",
+      }).catch(() => {
+        throw new Error("Unable to connect. Try again.");
       });
-      if (!response.ok) {
-        setInvalid(response.status === 401);
-        toast.danger(
+      if (!response.ok)
+        throw new Error(
           response.status === 401
             ? "Invalid credentials"
             : response.status === 429
               ? "Too many attempts. Wait a minute and try again."
               : "Unable to verify your identity. Try again.",
         );
-        return;
-      }
       const result: { signed_in?: boolean } = await response.json();
-      if (!result.signed_in) throw new Error("Identity verification failed");
+      if (!result.signed_in)
+        throw new Error("Unable to verify your identity. Try again.");
       onVerified();
-    } catch {
-      toast.danger("Unable to connect. Try again.");
     } finally {
-      setPassword("");
       setPending(false);
     }
   }
   return (
-    <SettingsDialog
-      title="Verify your identity"
-      onClose={onClose}
-      pending={pending}
-      footer={
-        <>
-          <Button variant="secondary" isDisabled={pending} onPress={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" form={formId} isPending={pending}>
-            Continue
-          </Button>
-        </>
-      }
+    <ConfirmIdentityDialog
+      isOpen
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+      method="custom"
+      isPending={pending}
     >
-      <Form id={formId} onSubmit={verify} className="content-grid">
-        <TextField
-          name="email"
-          type="email"
-          autoComplete="username"
-          isRequired
-          isDisabled={pending}
-          isInvalid={invalid || undefined}
-          value={email}
-          onChange={(value) => {
-            setEmail(value);
-            setInvalid(false);
-          }}
-        >
-          <Label>Email</Label>
-          <Input autoFocus variant="secondary" maxLength={254} />
-          <FieldError />
-        </TextField>
-        <TextField
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          isRequired
-          isDisabled={pending}
-          isInvalid={invalid || undefined}
-          value={password}
-          onChange={(value) => {
-            setPassword(value);
-            setInvalid(false);
-          }}
-        >
-          <Label>Password</Label>
-          <Input variant="secondary" maxLength={256} />
-          <FieldError />
-        </TextField>
-      </Form>
-    </SettingsDialog>
+      <CredentialsForm
+        variant="secondary"
+        autoFocus
+        isDisabled={pending}
+        onSubmit={verify}
+        submitLabel="Continue"
+      />
+    </ConfirmIdentityDialog>
   );
 }
 
@@ -198,17 +99,18 @@ export function ApiKeySettings() {
   const [busy, setBusy] = useState(false);
   const [locked, setLocked] = useState(false);
   const [verifying, setVerifying] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(false);
   const [creating, setCreating] = useState(false);
   const [generated, setGenerated] = useState<GeneratedKey>();
   const [revoking, setRevoking] = useState<ApiKey | "all">();
   const sequence = useRef(0);
   const revoked = useRef(new Set<string>());
   const secretInput = useRef<HTMLInputElement>(null);
+  const secretId = useId();
   const load = useCallback(async (offset = 0) => {
     const current = ++sequence.current;
     setPending(true);
-    setError("");
+    setError(false);
     try {
       const response = await fetch(endpoint + `?limit=50&offset=${offset}`, {
         cache: "no-store",
@@ -244,8 +146,10 @@ export function ApiKeySettings() {
           : null,
       );
     } catch {
-      if (current === sequence.current)
-        setError("Unable to load API keys. Try again.");
+      if (current === sequence.current) {
+        setError(true);
+        toast.danger("Unable to load API keys. Try again.");
+      }
     } finally {
       if (current === sequence.current) setPending(false);
     }
@@ -264,7 +168,10 @@ export function ApiKeySettings() {
     window.addEventListener("pagehide", clear);
     return () => window.removeEventListener("pagehide", clear);
   }, []);
+
   function managementExpired() {
+    sequence.current++;
+    setPending(false);
     setGenerated(undefined);
     setCreating(false);
     setRevoking(undefined);
@@ -281,18 +188,19 @@ export function ApiKeySettings() {
         method: "POST",
         cache: "no-store",
         redirect: "error",
+      }).catch(() => {
+        throw new Error("Unable to create an API key. Try again.");
       });
       if (response.status === 401) {
         managementExpired();
-        return;
+        throw new Error("Verify your identity to manage API keys.");
       }
-      if (!response.ok) throw new Error("Unable to create an API key");
+      if (!response.ok)
+        throw new Error("Unable to create an API key. Try again.");
       const result: GeneratedKey = await response.json();
       setGenerated(result);
       setCreating(false);
       void load();
-    } catch {
-      toast.danger("Unable to create an API key. Try again.");
     } finally {
       setBusy(false);
     }
@@ -316,12 +224,15 @@ export function ApiKeySettings() {
       const response = await fetch(
         endpoint + (target === "all" ? "" : "/" + target.id),
         { method: "DELETE", cache: "no-store", redirect: "error" },
-      );
+      ).catch(() => {
+        throw new Error("Unable to revoke API keys. Try again.");
+      });
       if (response.status === 401) {
         managementExpired();
-        return;
+        throw new Error("Verify your identity to manage API keys.");
       }
-      if (!response.ok) throw new Error("Unable to revoke the API key");
+      if (!response.ok)
+        throw new Error("Unable to revoke API keys. Try again.");
       sequence.current++;
       if (target === "all") keys.forEach((key) => revoked.current.add(key.id));
       else revoked.current.add(target.id);
@@ -333,27 +244,28 @@ export function ApiKeySettings() {
         target === "all" ? "API keys revoked." : "API key revoked.",
       );
       void load();
-    } catch {
-      toast.danger("Unable to revoke API keys. Try again.");
     } finally {
       setBusy(false);
     }
   }
+
   return (
-    <section className="min-w-0">
-      <PageHeading
-        title="API Keys"
-        icon={<HugeiconsIcon icon={Key01Icon} />}
-        actions={
-          <Button
-            isDisabled={pending || busy}
-            onPress={() => (locked ? setVerifying(true) : setCreating(true))}
-          >
-            <HugeiconsIcon icon={PlusSignIcon} aria-hidden="true" />
-            Create API key
-          </Button>
-        }
-      />
+    <ApplicationPage
+      title="API Keys"
+      breadcrumbAncestors={[
+        { label: "Settings" },
+        { label: "Account settings", href: "/settings/api-keys" },
+      ]}
+      actions={
+        <Button
+          isDisabled={pending || busy}
+          onPress={() => (locked ? setVerifying(true) : setCreating(true))}
+        >
+          <HugeiconsIcon icon={PlusSignIcon} aria-hidden="true" />
+          Create API key
+        </Button>
+      }
+    >
       <section
         aria-label="API keys"
         aria-busy={pending}
@@ -372,125 +284,123 @@ export function ApiKeySettings() {
               </div>
             </Widget.Content>
           </Widget>
-        ) : keys.length ? (
-          <>
-            <Table>
-              <Table.ScrollContainer>
-                <Table.Content
-                  aria-label="API keys"
-                  className="w-full table-fixed"
-                >
-                  <Table.Header>
-                    <Table.Column isRowHeader>Key</Table.Column>
-                    <Table.Column className="hidden md:table-cell">
-                      Status
-                    </Table.Column>
-                    <Table.Column className="hidden md:table-cell">
-                      Created
-                    </Table.Column>
-                    <Table.Column className="hidden md:table-cell">
-                      Expires
-                    </Table.Column>
-                    <Table.Column className="w-24">Action</Table.Column>
-                  </Table.Header>
-                  <Table.Body>
-                    {keys.map((key) => (
-                      <Table.Row key={key.id} id={key.id}>
-                        <Table.Cell>
-                          <div className="grid gap-1">
-                            <span className="font-mono text-sm">
-                              {key.token_hint}
-                            </span>
-                            <span className="text-xs text-muted md:hidden">
-                              {key.status === "active" ? "Active" : "Expired"} ·
-                              Expires {date(key.expires_at)}
-                            </span>
-                          </div>
-                        </Table.Cell>
-                        <Table.Cell className="hidden md:table-cell">
-                          <Chip
-                            size="sm"
-                            color={
-                              key.status === "active" ? "success" : "warning"
-                            }
-                            variant="soft"
-                          >
-                            {key.status === "active" ? "Active" : "Expired"}
-                          </Chip>
-                        </Table.Cell>
-                        <Table.Cell className="hidden md:table-cell">
-                          <time
-                            dateTime={key.created_at}
-                            className="text-sm text-muted"
-                          >
-                            {date(key.created_at)}
-                          </time>
-                        </Table.Cell>
-                        <Table.Cell className="hidden md:table-cell">
-                          <time
-                            dateTime={key.expires_at}
-                            className="text-sm text-muted"
-                          >
-                            {date(key.expires_at)}
-                          </time>
-                        </Table.Cell>
-                        <Table.Cell>
-                          <Button
-                            variant="danger"
-                            isDisabled={busy}
-                            onPress={() => setRevoking(key)}
-                          >
-                            Revoke
-                          </Button>
-                        </Table.Cell>
-                      </Table.Row>
-                    ))}
-                  </Table.Body>
-                </Table.Content>
-              </Table.ScrollContainer>
-            </Table>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                {nextOffset !== null ? (
-                  <Button
-                    variant="secondary"
-                    isPending={pending}
-                    onPress={() => void load(nextOffset)}
+        ) : keys.length || (!pending && !error) ? (
+          <ResourceTable
+            ariaLabel="API keys"
+            items={keys}
+            getRowKey={(key) => key.id}
+            emptyTitle="No API keys yet"
+            emptyDescription="Create an API key for your scripts or apps."
+            tableClassName="w-full table-fixed"
+            columns={[
+              {
+                key: "key",
+                header: "Key",
+                isRowHeader: true,
+                cell: (key) => (
+                  <div className="grid gap-1">
+                    <span className="font-mono text-sm">{key.token_hint}</span>
+                    <span className="text-xs text-muted md:hidden">
+                      {key.status === "active" ? "Active" : "Expired"} · Expires{" "}
+                      {date(key.expires_at)}
+                    </span>
+                  </div>
+                ),
+              },
+              {
+                key: "status",
+                header: "Status",
+                className: "hidden md:table-cell",
+                headerClassName: "hidden md:table-cell",
+                cell: (key) => (
+                  <Chip
+                    size="sm"
+                    color={key.status === "active" ? "success" : "warning"}
+                    variant="soft"
                   >
-                    Load more API keys
+                    {key.status === "active" ? "Active" : "Expired"}
+                  </Chip>
+                ),
+              },
+              {
+                key: "created",
+                header: "Created",
+                className: "hidden md:table-cell",
+                headerClassName: "hidden md:table-cell",
+                cell: (key) => (
+                  <time
+                    dateTime={key.created_at}
+                    className="text-sm text-muted"
+                  >
+                    {date(key.created_at)}
+                  </time>
+                ),
+              },
+              {
+                key: "expires",
+                header: "Expires",
+                className: "hidden md:table-cell",
+                headerClassName: "hidden md:table-cell",
+                cell: (key) => (
+                  <time
+                    dateTime={key.expires_at}
+                    className="text-sm text-muted"
+                  >
+                    {date(key.expires_at)}
+                  </time>
+                ),
+              },
+              {
+                key: "action",
+                header: "Action",
+                headerClassName: "w-24 text-end",
+                className: "text-end",
+                cell: (key) => (
+                  <Button
+                    size="sm"
+                    variant="danger-soft"
+                    isDisabled={busy}
+                    onPress={() => setRevoking(key)}
+                  >
+                    Revoke
                   </Button>
-                ) : null}
-              </div>
-              <Button
-                variant="danger"
-                isDisabled={pending || busy}
-                onPress={() => setRevoking("all")}
-              >
-                Revoke all API keys
-              </Button>
-            </div>
-          </>
-        ) : !pending && !error ? (
-          <div className="grid gap-2 py-12 text-center">
-            <h2 className="text-sm font-medium">No API keys yet</h2>
-            <p className="text-sm text-muted">
-              Create an API key for your scripts or apps.
-            </p>
-          </div>
+                ),
+              },
+            ]}
+            footer={
+              keys.length ? (
+                <div className="flex w-full flex-wrap items-center justify-between gap-3">
+                  <div>
+                    {nextOffset !== null ? (
+                      <Button
+                        variant="secondary"
+                        isPending={pending}
+                        onPress={() => void load(nextOffset)}
+                      >
+                        Load more API keys
+                      </Button>
+                    ) : null}
+                  </div>
+                  <Button
+                    variant="danger-soft"
+                    isDisabled={pending || busy}
+                    onPress={() => setRevoking("all")}
+                  >
+                    Revoke all API keys
+                  </Button>
+                </div>
+              ) : undefined
+            }
+          />
         ) : null}
         {error ? (
-          <div className="content-grid">
-            <p className="text-sm text-danger" role="alert">
-              {error}
-            </p>
-            <Button
-              variant="secondary"
-              className="w-fit"
-              onPress={() => void load()}
-            >
-              Retry loading API keys
-            </Button>
-          </div>
+          <Button
+            variant="secondary"
+            className="w-fit"
+            onPress={() => void load()}
+          >
+            Retry loading API keys
+          </Button>
         ) : null}
       </section>
       {verifying ? (
@@ -502,100 +412,83 @@ export function ApiKeySettings() {
           }}
         />
       ) : null}
-      {creating ? (
-        <SettingsDialog
-          title="Create API key"
-          onClose={() => setCreating(false)}
-          pending={busy}
-          footer={
-            <>
-              <Button
-                variant="secondary"
-                isDisabled={busy}
-                onPress={() => setCreating(false)}
-              >
-                Cancel
-              </Button>
-              <Button isPending={busy} onPress={create}>
-                Create API key
-              </Button>
-            </>
-          }
-        >
-          <p className="text-sm text-muted">
-            Create an API key for your scripts or apps. This key expires in 30
-            days.
-          </p>
-        </SettingsDialog>
-      ) : null}
+      <ActionConfirmation
+        isOpen={creating}
+        onOpenChange={setCreating}
+        title="Create API key"
+        description="Create an API key for your scripts or apps. This key expires in 30 days."
+        confirmLabel="Create API key"
+        variant="primary"
+        onConfirm={create}
+      />
       {generated ? (
-        <SettingsDialog
-          title="Copy your API key"
-          onClose={() => setGenerated(undefined)}
-          footer={
-            <>
-              <Button variant="secondary" onPress={copy}>
-                <HugeiconsIcon icon={Copy01Icon} aria-hidden="true" />
-                Copy API key
-              </Button>
-              <Button onPress={() => setGenerated(undefined)}>Done</Button>
-            </>
-          }
+        <Modal.Backdrop
+          isOpen
+          onOpenChange={(open) => {
+            if (!open) setGenerated(undefined);
+          }}
         >
-          <div className="content-grid">
-            <p className="text-sm text-muted">
-              Save this key in your secret storage. It is shown only in this
-              dialog and cannot be viewed again after you close it.
-            </p>
-            <TextField isReadOnly value={generated.api_key} name="api-key">
-              <Label>API key</Label>
-              <Input
-                ref={secretInput}
-                className="font-mono"
-                variant="secondary"
-                autoComplete="off"
-                spellCheck={false}
-              />
-            </TextField>
-            <p className="text-sm text-muted">
-              Expires{" "}
-              <time dateTime={generated.expires_at}>
-                {date(generated.expires_at)}
-              </time>
-            </p>
-          </div>
-        </SettingsDialog>
+          <Modal.Container size="sm">
+            <Modal.Dialog>
+              <Modal.Header>
+                <Modal.Heading>Copy your API key</Modal.Heading>
+                <Modal.CloseTrigger />
+              </Modal.Header>
+              <Modal.Body>
+                <div className="content-grid">
+                  <p className="text-sm text-muted">
+                    Save this key in your secret storage. It is shown only in
+                    this dialog and cannot be viewed again after you close it.
+                  </p>
+                  <Field>
+                    <Label htmlFor={secretId}>API key</Label>
+                    <Input
+                      ref={secretInput}
+                      id={secretId}
+                      name="api-key"
+                      readOnly
+                      value={generated.api_key}
+                      className="font-mono"
+                      variant="secondary"
+                      autoComplete="off"
+                      spellCheck={false}
+                    />
+                  </Field>
+                  <p className="text-sm text-muted">
+                    Expires{" "}
+                    <time dateTime={generated.expires_at}>
+                      {date(generated.expires_at)}
+                    </time>
+                  </p>
+                </div>
+              </Modal.Body>
+              <Modal.Footer>
+                <Button variant="secondary" onPress={copy}>
+                  <HugeiconsIcon icon={Copy01Icon} aria-hidden="true" />
+                  Copy API key
+                </Button>
+                <Button onPress={() => setGenerated(undefined)}>Done</Button>
+              </Modal.Footer>
+            </Modal.Dialog>
+          </Modal.Container>
+        </Modal.Backdrop>
       ) : null}
-      {revoking ? (
-        <SettingsDialog
-          title={
-            revoking === "all" ? "Revoke all API keys?" : "Revoke API key?"
-          }
-          onClose={() => setRevoking(undefined)}
-          pending={busy}
-          footer={
-            <>
-              <Button
-                variant="secondary"
-                isDisabled={busy}
-                onPress={() => setRevoking(undefined)}
-              >
-                Cancel
-              </Button>
-              <Button variant="danger" isPending={busy} onPress={revoke}>
-                <HugeiconsIcon icon={ShieldBanIcon} aria-hidden="true" />
-                {revoking === "all" ? "Revoke all API keys" : "Revoke API key"}
-              </Button>
-            </>
-          }
-        >
-          <p className="text-sm text-muted">
-            {revoking === "all"
-              ? "All API keys and MCP connections will stop working immediately. Your current browser session will stay signed in."
-              : "This API key or MCP connection will stop working immediately."}
-          </p>
-        </SettingsDialog>
-      ) : null}
-    </section>
+      <ActionConfirmation
+        isOpen={!!revoking}
+        onOpenChange={(open) => {
+          if (!open) setRevoking(undefined);
+        }}
+        title={revoking === "all" ? "Revoke all API keys?" : "Revoke API key?"}
+        description={
+          revoking === "all"
+            ? "All API keys and MCP connections will stop working immediately. Your current browser session will stay signed in."
+            : "This API key or MCP connection will stop working immediately."
+        }
+        confirmLabel={
+          revoking === "all" ? "Revoke all API keys" : "Revoke API key"
+        }
+        onConfirm={revoke}
+      />
+    </ApplicationPage>
   );
 }

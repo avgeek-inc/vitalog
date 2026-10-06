@@ -3,13 +3,15 @@
 // Adapted from Mill's Apache-2.0 MCP guide composition. See ui/NOTICE.md.
 import BookOpen01Icon from "@hugeicons/core-free-icons/BookOpen01Icon";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { Label, ListBox, Select } from "@heroui/react";
+import { Label } from "@avgeek-oss/design-system/forms/label";
+import { Select } from "@avgeek-oss/design-system/forms/select";
+import { ListBox } from "@avgeek-oss/design-system/collections/list-box";
+import { ApplicationPage } from "@avgeek-oss/design-system/patterns/pages/page";
 import Link from "next/link";
 import { useState } from "react";
 import { McpClientLogo } from "./mcp-client-logo";
 import { ButtonLink } from "./ui/button";
 import { CodeBlock } from "./ui/code-block";
-import { PageHeading } from "./ui/page-heading";
 import { Widget } from "./ui/widget";
 
 const clients = [
@@ -74,11 +76,13 @@ export function McpGuide({
   };
   const config = configs[client];
   return (
-    <section className="min-w-0">
-      <PageHeading
-        title="MCP Guide"
-        icon={<HugeiconsIcon icon={BookOpen01Icon} />}
-      />
+    <ApplicationPage
+      title="MCP Guide"
+      breadcrumbAncestors={[
+        { label: "Settings" },
+        { label: "Account settings", href: "/settings/api-keys" },
+      ]}
+    >
       <Widget aria-label="Connect your MCP client" role="region">
         <Widget.Header>
           <Widget.Title>
@@ -125,12 +129,9 @@ export function McpGuide({
               </Select.Popover>
             </Select>
             <CodeBlock>
-              <CodeBlock.Header
-                endContent={
-                  <CodeBlock.CopyButton key={client} code={config.code} />
-                }
-              >
+              <CodeBlock.Header>
                 <CodeBlock.Filename>{config.title}</CodeBlock.Filename>
+                <CodeBlock.CopyButton key={client} code={config.code} />
               </CodeBlock.Header>
               <CodeBlock.Code
                 code={config.code}
@@ -157,7 +158,7 @@ export function McpGuide({
               target="_blank"
               rel="noopener noreferrer"
               variant="secondary"
-              className="w-fit"
+              className="w-fit gap-2"
             >
               <HugeiconsIcon aria-hidden="true" icon={BookOpen01Icon} />
               MCP setup and troubleshooting
@@ -165,6 +166,6 @@ export function McpGuide({
           </div>
         </Widget.Content>
       </Widget>
-    </section>
+    </ApplicationPage>
   );
 }

@@ -47,7 +47,7 @@ for (const name of ["api", "web"] as const) {
       "tsconfig.build.json",
     ])
       await cp(file, join(context, file));
-    for (const folder of ["src", "scripts", "drizzle"])
+    for (const folder of ["src", "scripts", "drizzle", "vendor"])
       await cp(folder, join(context, folder), { recursive: true });
     await mkdir(join(context, "apps"));
     await cp("apps/web", join(context, "apps/web"), {

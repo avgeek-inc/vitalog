@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ApplicationPage } from "@avgeek-oss/design-system/patterns/pages/page";
 import { Suspense } from "react";
 import { DashboardSkeleton } from "../../../components/dashboard-skeleton";
 import { WeightView } from "../../../components/weight-view";
@@ -9,14 +10,15 @@ export const metadata: Metadata = { title: "Weight" };
 export default async function Weight() {
   const { today } = await requireSession();
   return (
-    <>
-      <div className="page-heading">
-        <h1>Weight</h1>
-      </div>
+    <ApplicationPage
+      title="Weight"
+      breadcrumbAncestors={[{ label: "Stats" }]}
+      breadcrumbLabel="Weight Management"
+    >
       <Suspense fallback={<DashboardSkeleton view="weight" />}>
         <WeightData today={today} />
       </Suspense>
-    </>
+    </ApplicationPage>
   );
 }
 async function WeightData({ today }: { today: string }) {

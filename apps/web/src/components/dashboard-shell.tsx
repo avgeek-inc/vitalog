@@ -1,21 +1,29 @@
 "use client";
 
-import BookOpen01Icon from "@hugeicons/core-free-icons/BookOpen01Icon";
-import Calendar01Icon from "@hugeicons/core-free-icons/Calendar01Icon";
-import Key01Icon from "@hugeicons/core-free-icons/Key01Icon";
-import Logout03Icon from "@hugeicons/core-free-icons/Logout03Icon";
-import WeightScaleIcon from "@hugeicons/core-free-icons/WeightScaleIcon";
-import { HugeiconsIcon } from "@hugeicons/react";
-import { toast } from "@heroui/react/toast";
-import { usePathname, useRouter } from "next/navigation";
-import { useState, type ReactNode } from "react";
-import { Button } from "./ui/button";
+import { RouteProvider } from "@avgeek-oss/design-system/hooks/route-context";
 import {
-  AppLayout,
+  AppShell,
   ApplicationNavbar,
   ApplicationSidebar,
   usePersistentAppSidebar,
-} from "./ui/shell";
+} from "@avgeek-oss/design-system/layouts/app-shell";
+import { AppLayout } from "@avgeek-oss/design-system/navigation/app-layout";
+import { SecondarySidebarLayout } from "@avgeek-oss/design-system/navigation/secondary-sidebar";
+import { toast } from "@avgeek-oss/design-system/overlays/toast";
+import Calendar01Icon from "@hugeicons/core-free-icons/Calendar01Icon";
+import Logout03Icon from "@hugeicons/core-free-icons/Logout03Icon";
+import Settings01Icon from "@hugeicons/core-free-icons/Settings01Icon";
+import WeightScaleIcon from "@hugeicons/core-free-icons/WeightScaleIcon";
+import { usePathname, useRouter } from "next/navigation";
+import { useState, type ReactNode } from "react";
+import { AccountSettingsNavigation } from "./account-settings-navigation";
+
+const brand = {
+  id: "vitalog",
+  accessibleLabel: "Vitalog",
+  title: "Vitalog",
+  logoSrc: "/brand/vitalog-mark.png",
+};
 
 const sections = [
   {
@@ -24,12 +32,14 @@ const sections = [
     items: [
       {
         id: "daily",
+        kind: "link" as const,
         href: "/daily",
         label: "Daily View",
         icon: Calendar01Icon,
       },
       {
         id: "weight",
+        kind: "link" as const,
         href: "/weight",
         label: "Weight Management",
         icon: WeightScaleIcon,
@@ -41,16 +51,13 @@ const sections = [
     label: "Settings",
     items: [
       {
-        id: "api-keys",
+        id: "account-settings",
+        kind: "link" as const,
         href: "/settings/api-keys",
-        label: "API Keys",
-        icon: Key01Icon,
-      },
-      {
-        id: "mcp",
-        href: "/settings/mcp",
-        label: "MCP Guide",
-        icon: BookOpen01Icon,
+        activePath: "/settings",
+        preserveSubroute: true,
+        label: "Account settings",
+        icon: Settings01Icon,
       },
     ],
   },
@@ -60,11 +67,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [pending, setPending] = useState(false);
-  const sidebarState = usePersistentAppSidebar();
-  const group = sections.find((section) =>
-    section.items.some((item) => item.href === pathname),
-  );
-  const item = group?.items.find((item) => item.href === pathname);
+  const sidebarState = usePersistentAppSidebar("vitalog:sidebar-open");
   async function signOut() {
     if (pending) return;
     setPending(true);
@@ -89,77 +92,60 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     }
   }
   return (
-    <>
+    <RouteProvider pathname={pathname} navigate={router.push}>
       <a href="#main-content" className="skip-link">
         Skip to content
       </a>
-      <AppLayout
-        {...sidebarState}
-        path={pathname}
-        navigate={router.push}
-        navbar={
-          <ApplicationNavbar
-            title={
-              <>
-                <span className="font-normal text-muted">{group?.label}</span>
-                <span aria-hidden="true" className="mx-2 text-muted">
-                  /
-                </span>
-                {item?.label}
-              </>
-            }
-            sidebarOpen={sidebarState.sidebarOpen}
-            onSidebarToggle={() =>
-              sidebarState.onSidebarOpenChange(!sidebarState.sidebarOpen)
-            }
-          />
-        }
-        sidebar={
-          <ApplicationSidebar
-            config={{
-              accessibleLabel: "Primary navigation",
-              homeHref: "/daily",
-              brand: {
-                title: "Vitalog",
-                logo: (
-                  <img
-                    src="/brand/vitalog-mark.png"
-                    width={32}
-                    height={32}
-                    alt=""
-                  />
-                ),
-              },
-              groups: sections.map((section) => ({
-                ...section,
-                items: section.items.map((entry) => ({
-                  ...entry,
-                  icon: (
-                    <HugeiconsIcon
-                      aria-hidden="true"
-                      icon={entry.icon}
-                      size={16}
-                    />
-                  ),
-                })),
-              })),
-              footerContent: (
-                <Button
-                  className="w-full justify-start text-muted"
-                  variant="ghost"
-                  isPending={pending}
-                  onPress={signOut}
-                >
-                  <HugeiconsIcon aria-hidden="true" icon={Logout03Icon} />
-                  Sign out
-                </Button>
-              ),
-            }}
-          />
-        }
+      <AppShell
+        contentWidth="broad"
+        policy={{ kind: "product", toasts: false, themeControl: "header" }}
       >
-        <div className="dashboard-main">{children}</div>
-      </AppLayout>
-    </>
+        <AppLayout
+          {...sidebarState}
+          navigate={router.push}
+          toggleShortcut
+          navbar={
+            <ApplicationNavbar
+              config={{ brand, homeHref: "/daily" }}
+              hasSidebar
+              showThemeSwitcher
+              sidebarOpen={sidebarState.sidebarOpen}
+              onSidebarToggle={() =>
+                sidebarState.onSidebarOpenChange(!sidebarState.sidebarOpen)
+              }
+            />
+          }
+          sidebar={
+            <ApplicationSidebar
+              config={{
+                accessibleLabel: "Primary navigation",
+                homeHref: "/daily",
+                brand,
+                groups: sections,
+                footerActions: [
+                  {
+                    kind: "action",
+                    id: "sign-out",
+                    label: pending ? "Signing out…" : "Sign out",
+                    icon: Logout03Icon,
+                    disabled: pending,
+                    onSelect: () => void signOut(),
+                  },
+                ],
+              }}
+            />
+          }
+        >
+          <SecondarySidebarLayout>
+            {pathname.startsWith("/settings/") ? (
+              <AccountSettingsNavigation />
+            ) : null}
+            <AppShell.Content id="main-content" tabIndex={-1}>
+              {children}
+            </AppShell.Content>
+          </SecondarySidebarLayout>
+        </AppLayout>
+      </AppShell>
+    </RouteProvider>
   );
 }

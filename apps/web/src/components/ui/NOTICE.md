@@ -1,4 +1,8 @@
-Vitalog sidebar, navbar, buttons, page headings, widgets, and code blocks are adapted from Towbar and Mill, Copyright Avgeek, Inc., under Apache License 2.0.
+Vitalog uses the Apache-2.0 `@avgeek-oss/design-system` package for its application shell, page layouts, authentication forms, settings navigation, dialogs, buttons, widgets, and code blocks. The unmodified release archive, provenance, and integrity hash are in `vendor/`. Its LICENSE and NOTICE are included in the web image.
+
+https://github.com/avgeek-oss/oss-design-system
+
+The MCP guide composition is adapted from Towbar and Mill, Copyright Avgeek, Inc., under Apache License 2.0.
 
 https://github.com/avgeek-inc/towbar
 https://github.com/avgeek-inc/mill

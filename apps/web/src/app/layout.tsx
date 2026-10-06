@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
+import { themeBootstrapScript } from "@avgeek-oss/design-system/lib/theme";
 import { Providers } from "../components/providers";
 import "./globals.css";
 
@@ -27,8 +28,7 @@ export default async function Layout({
         <script
           nonce={nonce}
           dangerouslySetInnerHTML={{
-            __html:
-              "document.documentElement.classList.add(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light')",
+            __html: themeBootstrapScript,
           }}
         />
       </head>

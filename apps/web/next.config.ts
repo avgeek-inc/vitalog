@@ -18,6 +18,7 @@ const nextConfig: NextConfig = {
       "@heroui/react",
       "@heroui/styles",
       "react-aria-components",
+      "@hugeicons/core-free-icons",
     ],
   },
   async headers() {

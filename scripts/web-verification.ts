@@ -93,6 +93,13 @@ async function startApi() {
   const app = application(service, config, (entry) => requestLogs.push(entry));
   const instance = serve({
     fetch: async (request) => {
+      if (new URL(request.url).pathname === "/oauth-browser-callback")
+        return new Response("MCP client callback received", {
+          headers: {
+            "Content-Type": "text/plain",
+            "Cache-Control": "no-store",
+          },
+        });
       if (new URL(request.url).pathname.startsWith("/v1/"))
         await healthReadGate;
       return app.fetch(request);
@@ -139,7 +146,11 @@ async function check(name: string, run: () => Promise<void>) {
     if (page)
       await page.screenshot({
         path: ".test-artifacts/web/failure.png",
-        mask: [page.locator('input[type="password"], input[name="api-key"]')],
+        mask: [
+          page.locator(
+            'input[type="password"], input[name="api-key"], textarea[name="api-key"]',
+          ),
+        ],
       });
     throw error;
   }
@@ -765,8 +776,230 @@ try {
       failures.push(`${page.url()}: ${error.message}`),
     );
     await check(
+      "Shared API-key authentication validates credentials and reveals a nameless 30-day key only once",
+      async () => {
+        await page.goto(uiUrl + "/api-keys");
+        await page
+          .getByRole("heading", { name: "Generate an API key", exact: true })
+          .waitFor();
+        assert.equal(await page.getByLabel("Name", { exact: true }).count(), 0);
+        await page.getByLabel("Email", { exact: true }).fill(credentials.email);
+        await page
+          .getByLabel("Password", { exact: true })
+          .fill("incorrect-password");
+        await page
+          .getByRole("button", { name: "Generate API key", exact: true })
+          .click();
+        await page.getByText("Invalid credentials", { exact: true }).waitFor();
+        assert.equal(
+          await page.getByLabel("Password", { exact: true }).inputValue(),
+          "",
+        );
+        await page
+          .getByLabel("Password", { exact: true })
+          .fill(credentials.password);
+        const issuance = page.waitForResponse(
+          (response) =>
+            response.url() === apiUrl + "/auth/api-keys" &&
+            response.request().method() === "POST",
+        );
+        await page
+          .getByRole("button", { name: "Generate API key", exact: true })
+          .click();
+        const issued = await issuance;
+        assert.equal(issued.status(), 201);
+        const metadata = await issued.json();
+        await page
+          .getByRole("heading", { name: "Your API key is ready", exact: true })
+          .waitFor();
+        const token = await page
+          .getByLabel("API key", { exact: true })
+          .inputValue();
+        assert.equal(token, metadata.api_key);
+        assert(/^vlk_[A-Za-z0-9_-]{43}$/.test(token));
+        assert.equal(
+          Date.parse(metadata.expires_at) - Date.parse(metadata.created_at),
+          30 * 86400000,
+        );
+        await page
+          .getByRole("button", { name: "Generate another key", exact: true })
+          .click();
+        await page.getByLabel("Password", { exact: true }).waitFor();
+        assert(!(await page.content()).includes(token));
+        assert.equal(
+          (await api("/v1/api-keys/" + metadata.id, primary, "DELETE")).status,
+          200,
+        );
+      },
+    );
+    await check(
+      "Shared MCP consent shows the registered client and completes PKCE approval and cancellation",
+      async () => {
+        const callback = apiUrl + "/oauth-browser-callback";
+        const registration = await api("/oauth/register", undefined, "POST", {
+          client_name: "Example MCP client",
+          redirect_uris: [callback],
+          token_endpoint_auth_method: "none",
+          grant_types: ["authorization_code"],
+          response_types: ["code"],
+        });
+        assert.equal(registration.status, 201);
+        const clientId = String(registration.data.client_id);
+        for (const action of ["allow", "deny"] as const) {
+          const verifier = randomBytes(32).toString("base64url");
+          const state = randomBytes(32).toString("base64url");
+          const parameters = new URLSearchParams({
+            response_type: "code",
+            client_id: clientId,
+            redirect_uri: callback,
+            resource: apiUrl + "/mcp",
+            scope: "health:read",
+            state,
+            code_challenge: pkceChallenge(verifier),
+            code_challenge_method: "S256",
+          });
+          await page.goto(apiUrl + "/oauth/authorize?" + parameters);
+          await page.waitForURL(uiUrl + "/oauth/authorize");
+          await page
+            .getByRole("heading", {
+              name: "Connect Example MCP client",
+              exact: true,
+            })
+            .waitFor();
+          await page
+            .getByText(
+              "Allow Example MCP client to read your health ledger for 30 days.",
+              { exact: true },
+            )
+            .waitFor();
+          const positions = await page.evaluate(() => {
+            const cancel = Array.from(document.querySelectorAll("button")).find(
+              (button) => button.textContent === "Cancel",
+            )!;
+            const returnTo = Array.from(document.querySelectorAll("p")).find(
+              (paragraph) => paragraph.textContent?.startsWith("Return to "),
+            )!;
+            return {
+              cancel: cancel.getBoundingClientRect().bottom,
+              returnTo: returnTo.getBoundingClientRect().top,
+            };
+          });
+          assert(positions.returnTo > positions.cancel);
+          if (action === "allow") {
+            await page
+              .getByLabel("Email", { exact: true })
+              .fill(credentials.email);
+            await page
+              .getByLabel("Password", { exact: true })
+              .fill("incorrect-password");
+            await page
+              .getByRole("button", {
+                name: "Connect Example MCP client",
+                exact: true,
+              })
+              .click();
+            await page
+              .getByText("Invalid credentials", { exact: true })
+              .waitFor();
+            assert.equal(
+              await page.getByLabel("Password", { exact: true }).inputValue(),
+              "",
+            );
+            await page
+              .getByLabel("Password", { exact: true })
+              .fill(credentials.password);
+            await page
+              .getByRole("button", {
+                name: "Connect Example MCP client",
+                exact: true,
+              })
+              .click();
+          } else
+            await page
+              .getByRole("button", { name: "Cancel", exact: true })
+              .click();
+          await page.waitForURL(callback + "?*");
+          const returned = new URL(page.url()).searchParams;
+          assert.equal(returned.get("state"), state);
+          assert.equal(returned.get("iss"), apiUrl);
+          assert(!returned.has("access_token"));
+          if (action === "allow") {
+            assert(/^voc_[A-Za-z0-9_-]{43}$/.test(returned.get("code") ?? ""));
+            const exchange = await context.request.post(
+              apiUrl + "/oauth/token",
+              {
+                form: {
+                  grant_type: "authorization_code",
+                  client_id: clientId,
+                  redirect_uri: callback,
+                  resource: apiUrl + "/mcp",
+                  code: returned.get("code")!,
+                  code_verifier: verifier,
+                },
+              },
+            );
+            assert.equal(exchange.status(), 200);
+            const token = (await exchange.json()).access_token as string;
+            const key = (
+              await connection!.pool.query(
+                "select id from api_keys where token_digest=$1",
+                [createHash("sha256").update(token).digest("hex")],
+              )
+            ).rows[0];
+            assert.equal(
+              (await api("/v1/api-keys/" + key.id, primary, "DELETE")).status,
+              200,
+            );
+          } else {
+            assert.equal(returned.get("error"), "access_denied");
+            assert(!returned.has("code"));
+          }
+        }
+        await startApi();
+        const longName = "M".repeat(100);
+        const longClient = await api("/oauth/register", undefined, "POST", {
+          client_name: longName,
+          redirect_uris: [callback],
+          token_endpoint_auth_method: "none",
+        });
+        assert.equal(longClient.status, 201);
+        const parameters = new URLSearchParams({
+          response_type: "code",
+          client_id: String(longClient.data.client_id),
+          redirect_uri: callback,
+          resource: apiUrl + "/mcp",
+          state: "long-name",
+          code_challenge: pkceChallenge(randomBytes(32).toString("base64url")),
+          code_challenge_method: "S256",
+        });
+        await page.setViewportSize({ width: 320, height: 844 });
+        await page.goto(apiUrl + "/oauth/authorize?" + parameters);
+        await page
+          .getByRole("heading", { name: "Connect " + longName, exact: true })
+          .waitFor();
+        assert(
+          !(await page.evaluate(
+            () => document.documentElement.scrollWidth > innerWidth,
+          )),
+          "Registered client names must wrap on mobile",
+        );
+        await page.getByRole("button", { name: "Cancel", exact: true }).click();
+        await page.waitForURL(callback + "?*");
+        await page.setViewportSize({ width: 1280, height: 1000 });
+        await page.goto(uiUrl + "/oauth/authorize");
+        await page.getByText("Connection expired", { exact: true }).waitFor();
+        assert.equal(
+          await page
+            .getByRole("button", { name: "Connect to Vitalog", exact: true })
+            .isDisabled(),
+          true,
+        );
+      },
+    );
+    await check(
       "Login protects both routes, rejects bad credentials with a toast, and uses an HttpOnly cookie",
       async () => {
+        await startApi();
         await page.goto(uiUrl + "/daily");
         await page.waitForURL("**/login");
         await page.getByLabel("Email", { exact: true }).fill(credentials.email);
@@ -940,7 +1173,10 @@ try {
               );
               await page
                 .getByRole("heading", {
-                  name: view === "daily" ? dateLabel(yesterday) : "Weight",
+                  name:
+                    view === "daily"
+                      ? new RegExp(`^${dateLabel(yesterday)}\\s+Choose date$`)
+                      : "Weight",
                   exact: true,
                 })
                 .waitFor();
@@ -957,11 +1193,16 @@ try {
                   ).backgroundColor,
                 }));
               assert.equal(surface.card, surface.skeleton);
+              assert.equal(await page.locator("h1 .skeleton").count(), 0);
               assert.equal(
-                await page.locator(".page-heading .skeleton").count(),
+                await page
+                  .locator("h1")
+                  .evaluate(
+                    (heading) =>
+                      heading.closest("header")?.querySelectorAll("p").length,
+                  ),
                 0,
               );
-              assert.equal(await page.locator(".page-heading p").count(), 0);
               await page.screenshot({
                 path: `.test-artifacts/web/loading-${view}-${colorScheme}.png`,
                 animations: "disabled",
@@ -986,10 +1227,12 @@ try {
         const endpointForKeys = "/auth/key-management/api-keys";
         await page.setViewportSize({ width: 1280, height: 900 });
         await page.goto(uiUrl + "/daily");
-        const nav = page.getByRole("navigation", {
-          name: "Primary navigation",
-          exact: true,
-        });
+        const nav = page
+          .locator("#application-navigation")
+          .getByRole("navigation", {
+            name: "Primary navigation",
+            exact: true,
+          });
         await nav
           .getByRole("link", { name: "Daily View", exact: true })
           .waitFor();
@@ -998,23 +1241,59 @@ try {
           0,
         );
         await page
-          .getByRole("button", { name: "Close navigation", exact: true })
+          .getByRole("button", { name: "Toggle navigation", exact: true })
           .click();
-        await page
-          .getByRole("button", { name: "Open navigation", exact: true })
-          .waitFor();
+        await page.waitForFunction(
+          () =>
+            document
+              .querySelector(".navigation-toggle")
+              ?.getAttribute("aria-expanded") === "false",
+        );
         assert.equal(
           await page.locator("#application-navigation").getAttribute("inert"),
           "",
         );
         await page.reload();
+        await page.waitForFunction(
+          () =>
+            document
+              .querySelector(".navigation-toggle")
+              ?.getAttribute("aria-expanded") === "false",
+        );
         await page
-          .getByRole("button", { name: "Open navigation", exact: true })
-          .waitFor();
-        await page
-          .getByRole("button", { name: "Open navigation", exact: true })
+          .getByRole("button", { name: "Toggle navigation", exact: true })
           .click();
-        await nav.getByRole("link", { name: "API Keys", exact: true }).click();
+        assert.equal(
+          await nav
+            .getByRole("link")
+            .allTextContents()
+            .then(
+              (labels) => labels.filter((label) => /team/i.test(label)).length,
+            ),
+          0,
+        );
+        await nav
+          .getByRole("link", { name: "Account settings", exact: true })
+          .click();
+        const settingsNav = page.getByRole("navigation", {
+          name: "Page navigation",
+          exact: true,
+        });
+        await settingsNav
+          .getByRole("link", { name: "API Keys", exact: true })
+          .waitFor();
+        assert.equal(
+          await nav
+            .getByRole("link", { name: "Account settings", exact: true })
+            .getAttribute("aria-current"),
+          "page",
+        );
+        assert.equal(
+          await settingsNav
+            .getByRole("link", { name: "API Keys", exact: true })
+            .getAttribute("aria-current"),
+          "page",
+        );
         await page
           .getByRole("heading", { name: "API Keys", exact: true })
           .waitFor();
@@ -1022,7 +1301,7 @@ try {
           .getByRole("button", { name: "Verify identity", exact: true })
           .click();
         const verification = page.getByRole("dialog", {
-          name: "Verify your identity",
+          name: "Confirm it’s you",
           exact: true,
         });
         await verification
@@ -1098,6 +1377,30 @@ try {
             await dialog.getByLabel("Name", { exact: true }).count(),
             0,
           );
+          if (index === 0) {
+            await page.route(uiUrl + endpointForKeys, async (route) => {
+              if (route.request().method() === "POST")
+                await route.fulfill({
+                  status: 503,
+                  contentType: "application/json",
+                  body: "{}",
+                });
+              else await route.continue();
+            });
+            await dialog
+              .getByRole("button", { name: "Create API key", exact: true })
+              .click();
+            await page
+              .getByText("Unable to create an API key. Try again.", {
+                exact: true,
+              })
+              .waitFor();
+            assert(
+              await dialog.isVisible(),
+              "A failed create must leave the shared confirmation open for retry",
+            );
+            await page.unroute(uiUrl + endpointForKeys);
+          }
           await dialog
             .getByRole("button", { name: "Create API key", exact: true })
             .click();
@@ -1159,10 +1462,29 @@ try {
           (await api("/auth/session", browserSession.value)).status,
           200,
         );
-        await nav.getByRole("link", { name: "MCP Guide", exact: true }).click();
+        await settingsNav
+          .getByRole("link", { name: "MCP Guide", exact: true })
+          .click();
         await page
           .getByRole("heading", { name: "MCP Guide", exact: true })
           .waitFor();
+        for (const client of [
+          "Codex",
+          "Claude Code",
+          "VS Code",
+          "Other clients",
+          "Cursor",
+        ]) {
+          await page.getByRole("button", { name: / Client$/ }).click();
+          await page.getByRole("option", { name: client, exact: true }).click();
+          assert(
+            (
+              await page
+                .getByLabel("MCP configuration", { exact: true })
+                .innerText()
+            ).includes(apiUrl + "/mcp"),
+          );
+        }
         assert(
           (
             await page
@@ -1177,13 +1499,22 @@ try {
         });
         await page.setViewportSize({ width: 390, height: 844 });
         await page
-          .getByRole("button", { name: "Open navigation", exact: true })
+          .getByRole("button", { name: "Toggle navigation", exact: true })
           .click();
         const drawer = page.getByRole("dialog", {
           name: "Navigation",
           exact: true,
         });
         await drawer.waitFor();
+        await drawer
+          .getByRole("link", { name: "MCP Guide", exact: true })
+          .waitFor();
+        assert.equal(
+          await drawer
+            .getByRole("link", { name: "MCP Guide", exact: true })
+            .getAttribute("aria-current"),
+          "page",
+        );
         assert(
           await drawer.evaluate((element) =>
             element.contains(document.activeElement),
@@ -1202,7 +1533,7 @@ try {
           true,
         );
         await page
-          .getByRole("button", { name: "Open navigation", exact: true })
+          .getByRole("button", { name: "Toggle navigation", exact: true })
           .click();
         await drawer
           .getByRole("link", { name: "Daily View", exact: true })
@@ -1217,7 +1548,9 @@ try {
           )),
         );
         await page.setViewportSize({ width: 1280, height: 900 });
-        await nav.getByRole("link", { name: "API Keys", exact: true }).click();
+        await nav
+          .getByRole("link", { name: "Account settings", exact: true })
+          .click();
         await page.getByText("No API keys yet", { exact: true }).waitFor();
         await connection!.pool.query(
           "update oauth_access_tokens set created_at=created_at - interval '31 minutes', expires_at=expires_at - interval '31 minutes' where token_digest=$1",
@@ -1459,7 +1792,7 @@ try {
             .isVisible())
         ) {
           await page
-            .getByRole("button", { name: "Open navigation", exact: true })
+            .getByRole("button", { name: "Toggle navigation", exact: true })
             .click();
         }
         await page

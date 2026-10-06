@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ApplicationPage } from "@avgeek-oss/design-system/patterns/pages/page";
 import { Suspense } from "react";
 import { DailyView } from "../../../components/daily-view";
 import { DashboardSkeleton } from "../../../components/dashboard-skeleton";
@@ -15,17 +16,21 @@ export default async function Daily({
   const session = await requireSession();
   const date = selectedDate((await searchParams).date, session.today);
   return (
-    <>
-      <div className="page-heading">
-        <div className="daily-title">
-          <h1>{dateLabel(date)}</h1>
+    <ApplicationPage
+      title={dateLabel(date)}
+      breadcrumbAncestors={[{ label: "Stats" }]}
+      breadcrumbLabel="Daily View"
+      titleContent={
+        <span className="daily-title">
+          <span>{dateLabel(date)}</span>
           <DayNavigation date={date} today={session.today} />
-        </div>
-      </div>
+        </span>
+      }
+    >
       <Suspense key={date} fallback={<DashboardSkeleton view="daily" />}>
         <DailyData date={date} timezone={session.timezone} />
       </Suspense>
-    </>
+    </ApplicationPage>
   );
 }
 async function DailyData({
