@@ -175,7 +175,15 @@ try {
   let databaseReady = false;
   for (let attempt = 0; attempt < 60; attempt++) {
     try {
-      command(["exec", postgresContainer, "pg_isready", "-U", "vitalog"]);
+      command([
+        "exec",
+        postgresContainer,
+        "pg_isready",
+        "-h",
+        "127.0.0.1",
+        "-U",
+        "vitalog",
+      ]);
       databaseReady = true;
     } catch {
       /* Wait for this test container. */
@@ -207,8 +215,15 @@ try {
       const journal = JSON.parse(
         await readFile("drizzle/meta/_journal.json", "utf8"),
       );
+      const attachmentMigration = journal.entries.find(
+        (entry: { tag: string }) => entry.tag === "0011_reusable_attachments",
+      );
+      assert(
+        attachmentMigration,
+        "Attachment migration must exist in the journal",
+      );
       journal.entries = journal.entries.filter(
-        (entry: { tag: string }) => entry.tag !== "0011_reusable_attachments",
+        (entry: { idx: number }) => entry.idx < attachmentMigration.idx,
       );
       await writeFile(
         join(baselineFolder, "meta/_journal.json"),
