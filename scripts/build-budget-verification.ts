@@ -78,7 +78,7 @@ for (const name of ["api", "web"] as const) {
       "-c",
       name === "api"
         ? `npm ci --workspaces=false && npm run build:api && npm prune --omit=dev --workspaces=false && node --input-type=module -e 'await import("./dist/src/app.js")' && ${peakMemory}`
-        : `npm ci && npm run build:web && ${peakMemory}`,
+        : `npm ci && node --run build:web && ${peakMemory}`,
     ]);
     created = true;
     docker(["cp", context + "/.", container + ":/app"]);

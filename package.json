@@ -11,7 +11,7 @@
     "dev": "node --watch --env-file-if-exists=.env --import tsx src/main.ts",
     "dev:web": "npm run dev --workspace @vitalog/web",
     "build": "npm run build:api && npm run build:web",
-    "build:web": "node --max-old-space-size=384 node_modules/next/dist/bin/next build apps/web --webpack",
+    "build:web": "node --max-old-space-size=448 node_modules/next/dist/bin/next build apps/web --webpack",
     "start": "node dist/src/main.js",
     "typecheck": "tsc --noEmit && npm run typecheck --workspace @vitalog/web",
     "format": "prettier --write .",

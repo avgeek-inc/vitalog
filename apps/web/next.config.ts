@@ -13,6 +13,7 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: ["localhost", "127.0.0.1"],
   experimental: {
     cpus: 1,
+    webpackBuildWorker: false,
     webpackMemoryOptimizations: true,
     optimizePackageImports: [
       "@heroui/react",
