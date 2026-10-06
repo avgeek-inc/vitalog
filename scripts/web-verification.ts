@@ -1040,6 +1040,12 @@ try {
                 await route.fulfill({ status: 401, json: {} });
               });
               await signInPage.goto(uiUrl + "/login");
+              await signInPage
+                .getByRole("heading", { name: "Sign in", exact: true })
+                .waitFor();
+              await signInPage
+                .getByText("Sign in to your account.", { exact: true })
+                .waitFor();
               const email = signInPage.getByLabel("Email", { exact: true });
               const password = signInPage.getByLabel("Password", {
                 exact: true,
@@ -1073,7 +1079,7 @@ try {
               assert.equal(
                 await signInPage
                   .getByRole("button", {
-                    name: /forgot password|passkey|verify email/i,
+                    name: /forgot password|passkey|verification email|verify email/i,
                   })
                   .count(),
                 0,

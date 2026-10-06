@@ -1,10 +1,12 @@
 "use client";
 
-import { AuthScreen } from "@avgeek-oss/design-system/patterns/auth/auth-screen";
+import {
+  SignIn,
+  type SignInProps,
+} from "@avgeek-oss/design-system/patterns/auth/sign-in";
 import { toast } from "@avgeek-oss/design-system/overlays/toast";
 import { useEffect } from "react";
 import { Brand } from "./brand";
-import { CredentialsForm, type Credentials } from "./credentials-form";
 
 export function LoginPage({
   localSignOut = false,
@@ -17,13 +19,13 @@ export function LoginPage({
         "Signed out on this browser. The session could not be revoked.",
       );
   }, [localSignOut]);
-  async function signIn(credentials: Credentials) {
+  const signIn: SignInProps["onSubmit"] = async ({ identifier, password }) => {
     let response: Response;
     try {
       response = await fetch("/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(credentials),
+        body: JSON.stringify({ email: identifier, password }),
         cache: "no-store",
         redirect: "error",
       });
@@ -39,20 +41,10 @@ export function LoginPage({
             : "Unable to sign in. Try again.",
       );
     window.location.assign("/daily");
-  }
+  };
   return (
     <main className="vitalog-auth">
-      <AuthScreen
-        brand={<Brand />}
-        title="Sign in to Vitalog"
-        description="See your day, one log at a time."
-      >
-        <CredentialsForm
-          onSubmit={signIn}
-          submitLabel="Sign in"
-          busyLabel="Signing in…"
-        />
-      </AuthScreen>
+      <SignIn brand={<Brand />} onSubmit={signIn} />
     </main>
   );
 }
