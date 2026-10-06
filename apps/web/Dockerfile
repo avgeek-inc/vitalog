@@ -6,6 +6,7 @@ COPY apps/web/package.json ./apps/web/package.json
 COPY vendor ./vendor
 RUN npm ci
 COPY apps/web ./apps/web
+COPY src/auth/account-contracts.ts ./src/auth/account-contracts.ts
 RUN npm run build:web
 
 FROM node:24.16.0-bookworm-slim AS runtime
