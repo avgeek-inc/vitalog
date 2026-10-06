@@ -40,6 +40,8 @@ import { migrateDatabase } from "./migrate.js";
 
 const postgresContainer = `vitalog-attachments-pg-${process.pid}`;
 const minioContainer = `vitalog-attachments-s3-${process.pid}`;
+const minioImage =
+  "cgr.dev/chainguard/minio@sha256:a05a4497e8dce3cb7a7a1bf1872ba5d30ea988f1e8c22c9e0920503761c4b5f1";
 const password = randomBytes(32).toString("hex");
 const key = randomBytes(48).toString("base64url");
 const accessKey = randomBytes(16).toString("hex");
@@ -151,9 +153,11 @@ try {
       "MINIO_ROOT_USER",
       "-e",
       "MINIO_ROOT_PASSWORD",
+      "--tmpfs",
+      "/data:rw,size=1g,mode=1777",
       "-p",
       "127.0.0.1::9000",
-      "quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z",
+      minioImage,
       "server",
       "/data",
     ],
@@ -988,7 +992,8 @@ try {
         executed_at: new Date().toISOString(),
         transport: "REST and generic MCP SDK client",
         database: "PostgreSQL 17.11",
-        object_storage: "MinIO RELEASE.2025-09-07T16-13-09Z",
+        object_storage: "MinIO (Chainguard)",
+        object_storage_image: minioImage,
         maximum_file_bytes: MAX_ATTACHMENT_BYTES,
         checks,
       },
