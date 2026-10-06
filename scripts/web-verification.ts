@@ -1117,6 +1117,54 @@ try {
       },
     );
     await check(
+      "Native authentication submissions cannot put credentials in URLs before hydration",
+      async () => {
+        const nativeContext = await browser!.newContext({
+          javaScriptEnabled: false,
+        });
+        try {
+          const nativePage = await nativeContext.newPage();
+          const requestedUrls: string[] = [];
+          nativePage.on("request", (request) =>
+            requestedUrls.push(request.url()),
+          );
+          for (const [path, submitLabel] of [
+            ["/login", "Sign in"],
+            ["/api-keys", "Generate API key"],
+          ]) {
+            const response = await nativePage.goto(uiUrl + path);
+            assert.match(
+              response!.headers()["content-security-policy"]!,
+              /form-action 'none'/,
+            );
+            await nativePage
+              .getByLabel("Email", { exact: true })
+              .fill("nojs@example.test");
+            await nativePage
+              .getByLabel("Password", { exact: true })
+              .fill("native-must-not-be-a-query");
+            const blocked = nativePage.waitForEvent("console", {
+              predicate: (message) => message.text().includes("form-action"),
+            });
+            await nativePage
+              .getByRole("button", { name: submitLabel, exact: true })
+              .click({ noWaitAfter: true });
+            await blocked;
+            assert.equal(nativePage.url(), uiUrl + path);
+            assert(
+              requestedUrls.every(
+                (url) =>
+                  !url.includes("native-must-not-be-a-query") &&
+                  !url.includes("nojs%40example.test"),
+              ),
+            );
+          }
+        } finally {
+          await nativeContext.close();
+        }
+      },
+    );
+    await check(
       "Login protects both routes, rejects bad credentials with a toast, and uses an HttpOnly cookie",
       async () => {
         await startApi();
