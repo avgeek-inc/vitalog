@@ -5,6 +5,7 @@ import { catalog, boundedResponse } from "./domain/catalog.js";
 import { Cursors } from "./domain/cursor.js";
 import { Reads } from "./domain/reads.js";
 import { Store } from "./domain/store.js";
+import { Goals } from "./domain/goals.js";
 import type { Data } from "./domain/types.js";
 import { operationByName } from "./registry/operations.js";
 
@@ -12,6 +13,7 @@ export class Service {
   private store: Store;
   private reads: Reads;
   private cursors: Cursors;
+  private goals: Goals;
   constructor(
     public db: Database,
     timezone: string,
@@ -20,6 +22,7 @@ export class Service {
     this.store = new Store(db, timezone);
     this.cursors = new Cursors(cursorKey);
     this.reads = new Reads(this.store, this.cursors);
+    this.goals = new Goals(db, timezone);
   }
   async ready(): Promise<boolean> {
     try {
@@ -35,6 +38,15 @@ export class Service {
       await this.db.execute(
         sql`select token_digest, resource, scopes, expires_at from oauth_access_tokens limit 0`,
       );
+      await this.db.execute(
+        sql`select id, metric, version, snapshot from goals limit 0`,
+      );
+      await this.db.execute(
+        sql`select goal_id, version, effective_on from goal_revisions limit 0`,
+      );
+      await this.db.execute(
+        sql`select operation, idempotency_key, request_hash from goal_idempotency_requests limit 0`,
+      );
       return true;
     } catch {
       return false;
@@ -44,6 +56,8 @@ export class Service {
     const operation = operationByName.get(name);
     if (!operation)
       throw new DomainError("NOT_FOUND", "Unknown domain operation");
+    if (operation.domain === "goals")
+      return this.goals.execute(operation, input);
     if (operation.mutation)
       return boundedResponse(await this.store.mutation(operation, input));
     const command = parse(operation.input, input) as Data;

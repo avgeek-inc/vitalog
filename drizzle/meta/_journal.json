@@ -64,6 +64,20 @@
       "when": 1791022133281,
       "tag": "0008_oauth_client_approval",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791149816729,
+      "tag": "0009_fantastic_demogoblin",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791191796973,
+      "tag": "0010_brainy_fat_cobra",
+      "breakpoints": true
     }
   ]
 }

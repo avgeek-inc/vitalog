@@ -367,13 +367,14 @@ function activityRules(data: Data, path: string): void {
   if (
     data.elapsed_seconds !== undefined &&
     (Number(data.moving_seconds ?? 0) > Number(data.elapsed_seconds) ||
+      Number(data.exercise_seconds ?? 0) > Number(data.elapsed_seconds) ||
       Number(data.paused_seconds ?? 0) > Number(data.elapsed_seconds) ||
       (data.moving_seconds !== undefined &&
         data.paused_seconds !== undefined &&
         Number(data.moving_seconds) + Number(data.paused_seconds) >
           Number(data.elapsed_seconds)))
   )
-    fail(path, "Moving/pause duration exceeds elapsed duration");
+    fail(path, "Moving, active or pause duration exceeds elapsed duration");
 }
 
 function periodConsistency(data: Data, path: string, timezone: string): void {

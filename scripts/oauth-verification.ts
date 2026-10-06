@@ -23,6 +23,7 @@ import { OAuthStore, pkceChallenge } from "../src/auth/oauth-store.js";
 import { object, type Data } from "../src/domain/types.js";
 import { examples } from "../tests/fixtures.js";
 import { migrateDatabase } from "./migrate.js";
+import { operations } from "../src/registry/operations.js";
 
 const container = `vitalog-oauth-${process.pid}`;
 const databasePassword = randomBytes(32).toString("hex");
@@ -682,7 +683,7 @@ try {
       const instance = await client(String(issued.access_token));
       try {
         const tools = await instance.listTools();
-        assert.equal(tools.tools.length, 16);
+        assert.equal(tools.tools.length, operations.length);
         assert(
           tools.tools.every((tool) =>
             Array.isArray(tool._meta?.securitySchemes),
@@ -1387,7 +1388,10 @@ try {
       await begin("health:read", nativeExtras);
       const sdkClient = await client(String(nativeToken.body.access_token));
       try {
-        assert.equal((await sdkClient.listTools()).tools.length, 16);
+        assert.equal(
+          (await sdkClient.listTools()).tools.length,
+          operations.length,
+        );
       } finally {
         await sdkClient.close();
       }
@@ -1682,7 +1686,10 @@ try {
           }),
         );
         try {
-          assert.equal((await instance.listTools()).tools.length, 16);
+          assert.equal(
+            (await instance.listTools()).tools.length,
+            operations.length,
+          );
           await instance.callTool({
             name: "health_get_catalog",
             arguments: {},
@@ -1841,7 +1848,10 @@ try {
       );
       const sdkClient = await client(String(issued.body.access_token));
       try {
-        assert.equal((await sdkClient.listTools()).tools.length, 16);
+        assert.equal(
+          (await sdkClient.listTools()).tools.length,
+          operations.length,
+        );
       } finally {
         await sdkClient.close();
       }

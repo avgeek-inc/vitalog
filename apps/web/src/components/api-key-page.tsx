@@ -1,7 +1,8 @@
 "use client";
 
+import { Button } from "./ui/button";
+
 import {
-  Button,
   Card,
   FieldError,
   Form,

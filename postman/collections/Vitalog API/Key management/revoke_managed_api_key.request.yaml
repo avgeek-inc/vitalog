@@ -1,0 +1,14 @@
+$kind: http-request
+id: c414fbcf-e96a-5172-8ecb-d2773fd47909
+description: Revoke one API key or MCP connection. Dashboard and management
+  session IDs are rejected. Accepts no body or query arguments.
+method: DELETE
+url: "{{baseUrl}}/auth/key-management/api-keys/{{apiKeyId}}"
+headers:
+  Accept: application/json
+auth:
+  - id: 8191614a-44a7-573c-8124-a0bcb116e3f0
+    type: bearer
+    name: Key management session
+    credentials:
+      token: "{{keyManagementToken}}"

@@ -1,0 +1,16 @@
+$kind: http-request
+id: b9bf0758-d8d4-5b40-8a32-46876c17e4f1
+method: DELETE
+url: "{{baseUrl}}/auth/session"
+description: Revoke the authenticated browser session. Accepts no body or query
+  arguments. The environment AUTH_KEY can also revoke sessions through API-key
+  management.
+headers:
+  Accept: application/json
+  Origin: "{{uiUrl}}"
+auth:
+  - id: 3910281b-6c71-5320-8f55-b3f6fd7d0cdf
+    type: bearer
+    name: Read-only browser session
+    credentials:
+      token: "{{browserSessionToken}}"

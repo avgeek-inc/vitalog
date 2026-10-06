@@ -11,7 +11,7 @@ async function eraseDatabase() {
     await db.transaction(async (tx) => {
       await tx.execute(WRITE_LOCK);
       await tx.execute(
-        sql`truncate table record_revisions, idempotency_requests, health_records`,
+        sql`truncate table record_revisions, idempotency_requests, health_records, goal_revisions, goal_idempotency_requests, goals`,
       );
     });
     process.stdout.write(

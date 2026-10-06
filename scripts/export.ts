@@ -27,10 +27,22 @@ async function exportDatabase() {
       await client.query(
         "DECLARE idempotency NO SCROLL CURSOR FOR SELECT row_to_json(r) AS data FROM idempotency_requests r ORDER BY operation, idempotency_key",
       );
+      await client.query(
+        "DECLARE goals NO SCROLL CURSOR FOR SELECT row_to_json(r) AS data FROM goals r ORDER BY id",
+      );
+      await client.query(
+        "DECLARE goal_revisions NO SCROLL CURSOR FOR SELECT row_to_json(r) AS data FROM goal_revisions r ORDER BY goal_id, version",
+      );
+      await client.query(
+        "DECLARE goal_idempotency NO SCROLL CURSOR FOR SELECT row_to_json(r) AS data FROM goal_idempotency_requests r ORDER BY operation, idempotency_key",
+      );
       for (const [table, query] of [
         ["health_records", "FETCH 100 FROM records"],
         ["record_revisions", "FETCH 100 FROM revisions"],
         ["idempotency_requests", "FETCH 100 FROM idempotency"],
+        ["goals", "FETCH 100 FROM goals"],
+        ["goal_revisions", "FETCH 100 FROM goal_revisions"],
+        ["goal_idempotency_requests", "FETCH 100 FROM goal_idempotency"],
       ]) {
         while (true) {
           const result = await client.query(query!);

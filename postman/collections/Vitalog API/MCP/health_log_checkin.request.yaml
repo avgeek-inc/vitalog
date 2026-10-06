@@ -26,6 +26,7 @@ body:
             "value_kind": "reported"
           },
           "data": {
+            "mood": "good",
             "ratings": {
               "energy": {
                 "value": 7,

@@ -1,0 +1,161 @@
+---
+title: "Record contracts"
+description: "Log observations, discover schemas, read summaries and correct records."
+---
+
+Configure `Authorization: Bearer <AUTH_KEY or active generated API key>` privately in the REST or MCP client's HTTP headers. The key is required for all protected requests, including discovery. No catalog handshake is required before a valid write. Generated keys expire after 30 days and cannot administer keys; see [API-key setup and contracts](/api-keys).
+
+## Operations
+
+| MCP tool                   | HTTP route                          |
+| -------------------------- | ----------------------------------- |
+| `health_get_context`       | `GET /v1/context`                   |
+| `health_get_daily_summary` | `GET /v1/days/{date}`               |
+| `health_get_trends`        | `GET /v1/trends`                    |
+| `health_list_records`      | `GET /v1/records`                   |
+| `health_get_record`        | `GET /v1/records/{id}`              |
+| `health_get_catalog`       | `GET /v1/catalog`                   |
+| `health_log_measurements`  | `POST /v1/measurements`             |
+| `health_log_nutrition`     | `POST /v1/nutrition`                |
+| `health_log_hydration`     | `POST /v1/hydration`                |
+| `health_log_activity`      | `POST /v1/activities`               |
+| `health_log_sleep`         | `POST /v1/sleep`                    |
+| `health_log_checkin`       | `POST /v1/checkins`                 |
+| `health_log_intake`        | `POST /v1/intakes`                  |
+| `health_log_lab_results`   | `POST /v1/lab-results`              |
+| `health_correct_record`    | `POST /v1/records/{id}/corrections` |
+| `health_void_record`       | `POST /v1/records/{id}/voids`       |
+
+All 22 tools have input/output schemas and structured responses with a JSON text fallback. Reads have `readOnlyHint=true`. Corrections, voids and goal mutations carry a destructive hint. Annotations do not change authorization. The service publishes no UI resources or vendor-specific client routes. The six additional goal operations are documented in the [goals guide](/goals); goals remain separate from recorded observations.
+
+Vitalog uses the official TypeScript SDK's stateless Streamable HTTP transport with JSON responses. Every request creates a fresh server/transport. Initialization negotiates the selected SDK's supported protocol; the captured run uses `2025-11-25`. Set both JSON and SSE in Accept for MCP POST requests. The SDK handles JSON-RPC, initialization, negotiation and transport errors. There is no resumable event store or persistent MCP session. Unknown methods, unsupported media types and protocol revisions follow the SDK's error contract.
+
+## Discover supported fields
+
+`health_get_catalog` and `/v1/catalog` return the same code-defined catalog. Overview reports definition counts and groups. It does not report a person's record counts. The categories are `overview`, `nutrients`, `lab_panels`, `lab_analytes`, `measurements` and `record_schemas`.
+
+Examples:
+
+```text
+GET /v1/catalog?category=nutrients&group_key=amino_acids
+GET /v1/catalog?category=lab_analytes&panel_key=urine_quantitative
+GET /v1/catalog?category=record_schemas&key=activity&include_schema=true
+GET /v1/catalog?category=record_schemas&key=sleep&field_path=%2Frespiratory_events
+
+health_get_catalog({"category":"lab_analytes","panel_key":"cbc"})
+health_get_catalog({"category":"record_schemas","key":"nutrition","include_schema":true})
+```
+
+Catalog lists default to 50 entries and accept at most 100. Exact key lookups cannot also specify a query, limit or cursor. Group and panel filters apply only to their documented categories. Unknown exact keys or groups return `NOT_FOUND`; no-match text searches return an empty list. Search is literal and case-insensitive. Aliases help search but are not writable identifiers.
+
+A complete schema includes the data schema, shared date/provenance envelope, atomic batch wrappers where applicable, correction schema, logging input/output schemas and named cross-field rules. Local references resolve within each returned schema. Field indexes include nested objects, discriminator alternatives, enums and arrays. `{index}` indicates an array path template and `{key}` indicates one of a descriptor's `map_keys`; writes and provenance overrides require actual indexed JSON Pointers. `applicable_conditions` and `required_conditions` identify discriminator values using scoped paths. Repeated conditions can use a local `condition_ref` into the same record descriptor's `condition_definitions`; they require no external fetch. `condition_semantics` describes how to evaluate discriminator, map-key, missing-field and enclosing-unit predicates. Exact indexed or map-key lookups expand these conditions, bind their paths to the requested field and retain the original `path_template`.
+
+Catalog cursors bind category, filters, ordering, page size and catalog version. Keep all filters unchanged when following `next_cursor`. A catalog-version mismatch returns 409 and the deployed version. Restart discovery; do not reinterpret a previously stored value under a new definition. An exact entry that cannot fit the response bound returns `LIMIT_EXCEEDED` rather than a partial schema.
+
+REST booleans accept only `true` or `false`. Integer query values use nonnegative decimal digits. Arrays use one comma-separated parameter, such as `metrics=measurement:weight,lab:hemoglobin`. Repeated parameters, empty values, unknown query names and SQL-like filters fail validation. MCP receives the corresponding boolean, integer and array values directly.
+
+## Log a supplied observation
+
+### Mood check-ins
+
+Log a mood through `POST /v1/checkins` or `health_log_checkin` using `data.mood`. The allowed enum values are `very_low`, `low`, `neutral`, `good` and `great`. Mood is optional so existing symptom, rating and completeness check-ins remain valid. Numeric `ratings.mood` values retain their supplied scale; the service does not convert them to a category.
+
+For REST, send an `Idempotency-Key` header and this body. For MCP, add the same key as `idempotency_key` to the arguments:
+
+```json
+{
+  "occurred_on": "2026-10-05",
+  "occurred_at": "2026-10-05T09:00:00+05:30",
+  "timezone": "Asia/Kolkata",
+  "provenance": { "source_type": "manual", "value_kind": "reported" },
+  "data": { "mood": "good", "notes": "After a morning walk" }
+}
+```
+
+Discover the enum with `health_get_catalog` using `category: "record_schemas"`, `key: "checkin"`, `field_path: "/mood"`. Retrieve check-ins with the record tools or `GET /v1/records?record_types=checkin`. `GET /v1/days/{date}` and `health_get_daily_summary` include `checkin.latest_mood`, containing the enum value, source record ID, observation time and recording time. It selects the latest valid, active mood for that day by observation instant, falling back to recording time for date-only observations; ties use recording time and record ID. Missing mood returns `null`. All usable check-ins remain in `checkin.observations`; categories are never averaged. Existing correction, history, void, export and erasure operations apply to mood check-ins.
+
+### Nutrition
+
+A REST nutrition write uses `Idempotency-Key` in the header and this body:
+
+```json
+{
+  "occurred_on": "2026-09-10",
+  "timezone": "Asia/Kolkata",
+  "provenance": {
+    "source_type": "manual",
+    "value_kind": "estimated",
+    "source_description": "Supplied intake estimate",
+    "assumptions": ["Portion and added cooking oil were estimated."]
+  },
+  "data": {
+    "entry_kind": "intake",
+    "label": "Lunch",
+    "nutrients": { "energy_kcal": 430, "protein_g": 26, "fiber_g": null }
+  }
+}
+```
+
+The equivalent MCP call passes that same envelope to `health_log_nutrition` and adds `idempotency_key`. Measurements and laboratory results use `records: [...]` with at most 100 members. A lab batch can supply `shared_metadata`; per-result fields override the shared metadata. After merging, every member must pass the same full schema. A failed member rolls back records, revisions and idempotency metadata for the entire batch.
+
+Single writes return `record`, `warnings`, `committed_version`, `idempotent_replay` and `catalog_version`. Batches return `records` and `committed_versions`. Each record has its UUID, type, schema version, revision version, effective dates, timezone, original timestamp context, values and supplied provenance. Success means the transaction committed.
+
+Unknown is null or absent. Zero remains zero. Nutrient keys fix their units: `protein_g` is grams and `energy_kj` is kJ. Per-serving, per-100-g and percentage-Daily-Value data are not consumed totals. Nutrient qualifiers distinguish point values, bounds, intervals and unquantified amounts. A bound is never summed as an equality; an interval has no invented midpoint.
+
+Measurements use `kind=scalar|blood_pressure|study_summary`. Blood pressure keeps the paired readings together. Study components use registered measurement keys and remain inside their source record. Lab observations distinguish equality quantities, comparators, intervals, coded/ordinal results, ratios, titers, text, absent values and the bounded microbiology variants. A custom analyte has `analyte_kind=custom`, `analyte_key=null`, and an original name. It does not create a catalog definition.
+
+Measurement units must match their registry definition. Laboratory quantities preserve unfamiliar printed units and do not undergo automatic cross-assay conversion. Specimen, assay, method, expression basis, BSA indexing, challenge/timing context and target/isolate identity remain series dimensions. Source reference intervals are stored information, not universal validation limits. Signed z-scores, axes, base excess and temperature deviations keep their signs.
+
+## Dates, provenance and validity
+
+Non-lab events require an explicit ISO calendar date. Date-only observations never acquire midnight. For ordinary precise events, the supplied local date must agree with the timestamp and stored timezone. Sleep sessions use their local wake date. Default timezone changes do not change stored dates. The API stores UTC instants alongside the supplied original timestamp strings/offsets in `time_context`.
+
+Lab chronology uses collection date/time or collection period first, then report date/time when collection is unknown. An undated lab remains undated and retains its original date notes. Date-filtered history includes it only when `include_undated=true`. Effective periods preserve endpoints or known duration and precision. Completed events reject future dates and permit at most five minutes of clock skew for precise timestamps.
+
+Provenance separates `source_type` from `value_kind`. Supplied source descriptions do not establish a verified integration or clinician identity. Estimates stay estimates unless a replacement explicitly changes their provenance. Validity (`valid|suspect|invalid`), datastore status (`active|voided`), source status and diary completeness are independent.
+
+Use `provenance.field_overrides` with existing indexed payload paths to mark individual fields, for example `/average_heart_rate_bpm` or `/strength/0/load/value`. Invalid/suspect fields are excluded from their ordinary numerical use while the rest of a valid record remains available. Reads preserve the supplied metadata; record retrieval can inspect the original fields. Notes, method labels and source references are inert stored text.
+
+## Effective summaries and trends
+
+Nutrition, hydration and activity each permit one active daily-total record per local date. For each nutrient, a usable supplied whole-day total overrides consumed-intake entries. A qualified whole-day total also overrides them and has no exact effective number. Plain null supplies no override; zero does. Reads expose the effective result, known intake subtotals, source IDs, estimated/qualified/missing/excluded counts, definition bases and overlap warnings. `reported_coverage` retains an explicitly supplied component coverage label; it does not establish complete intake coverage. Aggregate trend observations retain their contributing provenance, qualified results and separate subtotals for incompatible definitions.
+
+Energy selects one representation per record using `1 kcal = 4.184 kJ`; supplied kcal takes precedence when dual values agree. Dual point values must agree within `max(1 kcal, 2% of the supplied kcal)`. Contradictions retain both source values, return `conflicting_representations`, and suppress an exact effective result. A kJ whole-day total overrides kcal intake entries. The per-key effective energy summaries follow this same precedence and disclose their conversion in `energy_projection`; source representation subtotals stay available. Decimal arithmetic avoids rounding each entry into a repeated subtotal. The stored sparse nutrient object is not filled with converted values.
+
+Computed results include `exact_decimal` alongside a numerical projection. When an exact result exceeds the finite JSON-number range or a nonzero result would underflow to zero, the projected value is a plain decimal string. Clients should parse this string with decimal arithmetic. Null still means that no exact result can be supplied.
+
+Water is included in total fluids. Oral/enteral tracked drink subtotals stay separate from other routes and food-water mass. Workout calories remain partitioned by active/gross/unknown basis, and workout subtotals are separate from reported daily activity. Segments and strength sets are components rather than extra enclosing totals. Dietary and administered supplement nutrients remain separate. No dose or nutrient contribution is inferred from unknown product strength, salt form or IU units.
+
+Sleep reports sessions and supplied durations. Overlapping sessions, including uncertain timing that prevents checking overlap, suppress a combined exact duration and return a warning. Stages are not extra sleep. Daily summaries list overlapping studies separately and never distribute their means or percentages over individual days. Explicit intake periods and administrations spanning multiple local dates appear as `overlapping_interval_intake`; their full nutrient amounts are not assigned to the start day. Partial or duration-only periods retain unknown endpoints. Completeness comes from the latest explicit per-domain check-in, ordered by actual timestamp, independently of nutrient coverage.
+
+Trends accept up to 20 catalog metrics and 366 dates. They partition series by supplied context and keep missing dates null. Weight selects the last usable value per local day and adds a seven-calendar-day moving average with contributing-day counts. When all contributing observations for a day have precise timestamps, their observation times determine the last value; otherwise logging order provides a deterministic selection without inventing a measurement time. Weekly bins start at the requested start date and average contributing daily values, not repeated within-day observations. Lab results and interval studies remain individual irregular observations. Qualitative, interval, titer, absent and comparator results do not enter numeric means. `include_preliminary=true` is an explicit trend option; default numeric reads exclude preliminary/cancelled source results.
+
+Context defaults to 14 days and accepts up to 90. Latest measurements can predate the window and report their age; paired blood pressure remains one paired value. Lab details are omitted unless `include_labs=true`, with omitted and undated counts disclosed. A summary/context/trend window has at most 1,000 matching stored records; larger windows return `LIMIT_EXCEEDED` with guidance to use paginated history or narrower dates. Date overlap and trend metric/context filters apply before the bound, so unrelated historical studies do not exhaust a narrow read. Unknown periods remain attached only to their supplied indexed date. Latest context measurements and recent lab results are bounded and disclose truncation. No response silently drops an entry to fit a byte bound.
+
+Record history defaults to active status, 50 entries and an inclusive local-date range. Pages support at most 200 entries and sort ascending by `(occurred_on, recorded_at, id)`, with null dates last. Its signed cursor binds the same filters and limit. In a fixed dataset, following the cursor returns each record once. A concurrent correction can move an observation to another date, so restart pagination when a consistent new view is needed.
+
+## Corrections, voids and retries
+
+Every mutation requires an idempotency key. The operation name plus key identifies the request across REST and MCP. Sorted canonical JSON is hashed before event normalization; changing the supplied payload, including explicitly supplying a previously omitted field, changes its request hash. Keep the original arguments when retrying. Identical requests return their originally committed IDs and versions. Reusing a key for different arguments returns 409 `IDEMPOTENCY_CONFLICT`.
+
+A correction supplies `expected_version`, a short `reason`, and `replacement` containing the unchanged `record_type`, complete date/provenance envelope and complete mutable `data`. REST takes the ID from its path; MCP takes `id` as an argument. A correction cannot alter the server ID, type, creation time or old revisions. It rechecks date consistency, links and daily-total uniqueness. A correction to a voided record leaves it voided.
+
+A void needs the ID, expected version, reason and idempotency key. It creates a new revision and excludes the record from effective calculations. It is distinct from permanent operator erasure. Fetch history with `include_history=true`; revision pages contain at most 100 entries in descending version order, with `history_next_version` passed as `history_before_version` for the next page. `history_limit` accepts 1–100 and defaults to 100. Reduce it for large snapshots so recent revisions remain accessible within the response bound.
+
+The server checks a committed retry before reevaluating optimistic preconditions or the event clock. Retrying an original creation after a correction returns its original version; it does not recreate or revert the current record. Retry metadata is durable and does not expire on a process restart or secret rotation.
+
+## Errors
+
+| HTTP status | Domain code                                                                                  |
+| ----------- | -------------------------------------------------------------------------------------------- |
+| 401         | `UNAUTHORIZED`                                                                               |
+| 403         | `FORBIDDEN`                                                                                  |
+| 404         | `NOT_FOUND`                                                                                  |
+| 409         | `VERSION_CONFLICT`, `IDEMPOTENCY_CONFLICT`, `DAILY_TOTAL_EXISTS`, `CATALOG_VERSION_MISMATCH` |
+| 413         | `LIMIT_EXCEEDED`                                                                             |
+| 422         | `VALIDATION_ERROR`                                                                           |
+| 429         | `RATE_LIMITED`                                                                               |
+| 503         | `UNAVAILABLE`                                                                                |
+| 408         | `TIMEOUT`                                                                                    |
+
+Domain failures have a stable code, bounded issue paths, current catalog version and safe explanation. Unknown nutrient/analyte keys include discovery guidance and narrowly bounded suggestions when available. Suggestions never change an input automatically. MCP tool failures set `isError=true` and return the same domain envelope in text. Authentication errors happen at HTTP transport level before schemas or health data are returned. Internal failures reveal no stack trace or database parameters.

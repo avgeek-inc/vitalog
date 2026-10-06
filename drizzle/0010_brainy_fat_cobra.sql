@@ -1,0 +1,4 @@
+ALTER TABLE "api_keys" DROP CONSTRAINT "api_key_lifetime";--> statement-breakpoint
+ALTER TABLE "oauth_access_tokens" DROP CONSTRAINT "oauth_token_scopes";--> statement-breakpoint
+ALTER TABLE "api_keys" ADD CONSTRAINT "api_key_lifetime" CHECK ("api_keys"."expires_at" = "api_keys"."created_at" + case when left("api_keys"."token_hint", 4) = 'vlm_' then interval '30 minutes' else interval '720 hours' end);--> statement-breakpoint
+ALTER TABLE "oauth_access_tokens" ADD CONSTRAINT "oauth_token_scopes" CHECK (cardinality("oauth_access_tokens"."scopes") > 0 and ("oauth_access_tokens"."scopes" <@ array['health:read', 'health:write']::text[] or ("oauth_access_tokens"."resource" = 'urn:vitalog:key-management' and "oauth_access_tokens"."scopes" = array['keys:manage']::text[])));

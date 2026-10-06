@@ -1,0 +1,22 @@
+$kind: http-request
+id: 0b608157-3a1b-514f-8882-e99a6586a4f6
+method: POST
+url: "{{baseUrl}}/auth/session"
+description: Create a revocable 30-day, read-only browser session using root
+  credentials. The Next.js UI keeps this opaque token in a host-only HttpOnly
+  cookie. It cannot write records or goals, manage keys, or access MCP.
+headers:
+  Accept: application/json
+  Origin: "{{uiUrl}}"
+  Content-Type: application/json
+auth:
+  - id: da2e9d1f-04b7-5473-8a96-64186e2765cd
+    type: noauth
+    name: Root credentials in JSON
+body:
+  type: json
+  content: |-
+    {
+      "email": "{{rootEmail}}",
+      "password": "{{rootPassword}}"
+    }

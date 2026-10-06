@@ -27,4 +27,15 @@ export function proxy(request: NextRequest) {
   return response;
 }
 
-export const config = { matcher: ["/", "/api-keys", "/oauth/authorize"] };
+export const config = {
+  matcher: [
+    "/",
+    "/login",
+    "/daily",
+    "/weight",
+    "/settings/:path*",
+    "/auth/:path*",
+    "/api-keys",
+    "/oauth/authorize",
+  ],
+};

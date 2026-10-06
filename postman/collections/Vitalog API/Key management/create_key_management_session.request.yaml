@@ -1,0 +1,21 @@
+$kind: http-request
+id: 255bc63e-5e18-518c-8f12-a8e51089fa54
+description: Verify root credentials and issue a revocable, 30-minute session
+  for API-key management only. This token cannot read or write health data,
+  access MCP, or use the primary AUTH_KEY administration routes.
+method: POST
+url: "{{baseUrl}}/auth/key-management/session"
+headers:
+  Accept: application/json
+  Content-Type: application/json
+auth:
+  - id: 25d3952e-87a6-5cfe-87e9-3100f246b19c
+    type: noauth
+    name: Root credentials in JSON
+body:
+  type: json
+  content: |-
+    {
+      "email": "{{rootEmail}}",
+      "password": "{{rootPassword}}"
+    }

@@ -1,5 +1,5 @@
 {
-  "catalog_version": "1.0.1",
+  "catalog_version": "1.0.3",
   "specification_revision": 5,
   "inventory_counts": {
     "nutrient_keys": 182,
@@ -4507,6 +4507,117 @@
     "intake",
     "lab_result"
   ],
+  "goal_metrics": [
+    {
+      "metric": "measurement:weight",
+      "label": "Weight",
+      "unit": "kg",
+      "accepted_units": [
+        "kg",
+        "lb"
+      ],
+      "period": "ongoing",
+      "direction": "target",
+      "test": "tests/goals.test.ts",
+      "integration_command": "npm run test:goals"
+    },
+    {
+      "metric": "nutrient:energy_kcal",
+      "label": "Calories",
+      "unit": "kcal",
+      "accepted_units": [
+        "kcal"
+      ],
+      "period": "daily",
+      "direction": "maximum",
+      "test": "tests/goals.test.ts",
+      "integration_command": "npm run test:goals"
+    },
+    {
+      "metric": "nutrient:protein_g",
+      "label": "Protein",
+      "unit": "g",
+      "accepted_units": [
+        "g"
+      ],
+      "period": "daily",
+      "direction": "maximum",
+      "test": "tests/goals.test.ts",
+      "integration_command": "npm run test:goals"
+    },
+    {
+      "metric": "nutrient:carbohydrate_g",
+      "label": "Carbohydrates",
+      "unit": "g",
+      "accepted_units": [
+        "g"
+      ],
+      "period": "daily",
+      "direction": "maximum",
+      "test": "tests/goals.test.ts",
+      "integration_command": "npm run test:goals"
+    },
+    {
+      "metric": "nutrient:fat_g",
+      "label": "Fat",
+      "unit": "g",
+      "accepted_units": [
+        "g"
+      ],
+      "period": "daily",
+      "direction": "maximum",
+      "test": "tests/goals.test.ts",
+      "integration_command": "npm run test:goals"
+    },
+    {
+      "metric": "nutrient:fiber_g",
+      "label": "Fiber",
+      "unit": "g",
+      "accepted_units": [
+        "g"
+      ],
+      "period": "daily",
+      "direction": "maximum",
+      "test": "tests/goals.test.ts",
+      "integration_command": "npm run test:goals"
+    },
+    {
+      "metric": "hydration:water_ml",
+      "label": "Water",
+      "unit": "mL",
+      "accepted_units": [
+        "mL"
+      ],
+      "period": "daily",
+      "direction": "minimum",
+      "test": "tests/goals.test.ts",
+      "integration_command": "npm run test:goals"
+    },
+    {
+      "metric": "activity:active_energy_kcal",
+      "label": "Calories burned",
+      "unit": "kcal",
+      "accepted_units": [
+        "kcal"
+      ],
+      "period": "daily",
+      "direction": "minimum",
+      "test": "tests/goals.test.ts",
+      "integration_command": "npm run test:goals"
+    },
+    {
+      "metric": "activity:exercise_minutes",
+      "label": "Active minutes",
+      "unit": "min",
+      "accepted_units": [
+        "min"
+      ],
+      "period": "daily",
+      "direction": "minimum",
+      "test": "tests/goals.test.ts",
+      "integration_command": "npm run test:goals"
+    }
+  ],
   "operation_parity": [
     {
       "tool": "health_get_context",
@@ -4602,6 +4713,42 @@
       "tool": "health_void_record",
       "method": "POST",
       "path": "/v1/records/{id}/voids",
+      "shared_domain_service": true
+    },
+    {
+      "tool": "health_get_goal_catalog",
+      "method": "GET",
+      "path": "/v1/goals/catalog",
+      "shared_domain_service": true
+    },
+    {
+      "tool": "health_set_goal",
+      "method": "POST",
+      "path": "/v1/goals",
+      "shared_domain_service": true
+    },
+    {
+      "tool": "health_list_goals",
+      "method": "GET",
+      "path": "/v1/goals",
+      "shared_domain_service": true
+    },
+    {
+      "tool": "health_get_goal",
+      "method": "GET",
+      "path": "/v1/goals/{id}",
+      "shared_domain_service": true
+    },
+    {
+      "tool": "health_archive_goal",
+      "method": "POST",
+      "path": "/v1/goals/{id}/archive",
+      "shared_domain_service": true
+    },
+    {
+      "tool": "health_get_goal_progress",
+      "method": "GET",
+      "path": "/v1/days/{date}/goal-progress",
       "shared_domain_service": true
     }
   ],

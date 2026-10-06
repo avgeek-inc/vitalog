@@ -1,6 +1,6 @@
 # API keys
 
-Vitalog has one primary environment `AUTH_KEY`, optional manually generated API keys and scoped OAuth connection tokens. Manually generated keys can read and write the single health ledger; OAuth tokens authorize only their requested MCP scopes. Only `AUTH_KEY` can list or revoke these records. Key-management operations are REST-only and do not add MCP tools.
+Vitalog has one primary environment `AUTH_KEY`, optional manually generated API keys and scoped OAuth connection tokens. Manually generated keys can read and write the single health ledger; OAuth tokens authorize only their requested MCP scopes. The primary key administers all authentication records. The signed-in UI can manage generated keys and MCP connections after a separate root-credential verification. Key-management operations are REST-only and do not add MCP tools.
 
 This is the authentication extension requested on 3 October 2026. It supersedes the original specification's prohibition on key generation/management. An [MCP OAuth client](oauth.md) signs in with the same root credentials and creates a scoped 30-day connection token through authorization-code exchange. There are no additional accounts, JWTs, refresh tokens or health-ledger owners.
 
@@ -31,6 +31,12 @@ The generation endpoint accepts browser submissions from the exact configured UI
 
 ## Use and management
 
+In the signed-in UI, open Settings → API Keys at `/settings/api-keys`. Verify the root email and password to unlock a 30-minute credential-management session, then list keys, create a 30-day key, revoke one key or revoke all generated keys and MCP connections. Revoked rows are filtered before pagination. The browser's read-only health session stays signed in when keys are revoked here. Settings → MCP Guide provides OAuth configurations for Codex, Claude Code, Cursor, VS Code and other MCP clients.
+
+The UI stores the opaque `vlm_` management session in a separate host-only HttpOnly SameSite=Lax cookie. It carries only `keys:manage` for `urn:vitalog:key-management`; it cannot read or write health records, access MCP or use primary-key administration. The server proxies the narrow `/auth/key-management/*` API, checking the dashboard session and exact Origin on mutations. Generated keys and browser sessions cannot unlock management. Logout revokes both browser sessions. Migration `0010_brainy_fat_cobra` fixes management-key expiry at 30 minutes and permits the new scope only on this dedicated resource; OAuth health scopes remain unchanged.
+
+`POST /auth/key-management/session` accepts the same strict JSON root-credential body as generation and shares the sign-in rate limit. `GET` checks the authenticated management session and `DELETE` revokes it. The session authorizes `GET`, `POST` and `DELETE /auth/key-management/api-keys`, plus `DELETE /auth/key-management/api-keys/{id}`. Creation accepts no body and uses the fixed 30-day lifetime. Management listing and revocation exclude browser and management sessions. The primary endpoints below retain their full scope, including those session records.
+
 Supply `Authorization: Bearer <generated key>` privately on every REST or MCP request, including initialization and discovery. Active generated keys can use all existing ledger operations, readiness and the OpenAPI document. Expired, revoked, unknown and malformed keys return 401. Generated keys attempting administration return 403. A revoked key is rejected on the next request, even from an already connected MCP client; previously authenticated requests may complete.
 
 Use the primary environment `AUTH_KEY` for these administration APIs:
@@ -49,4 +55,4 @@ These are bearer API keys. MCP clients connect through the [OAuth flow](oauth.md
 
 ## Verification
 
-Run `npm run test:auth` for database/API verification and `npm run test:container` for the independent production UI. The auth check creates and removes a disposable PostgreSQL database. The auth check verifies the absence of UI assets in the API, a populated-database forward migration, one-time issuance and hash-only storage, both transports, administration boundaries, exact expiry, revocation, restart/rotation durability, login limits, origin protection, configuration fallback and log privacy. Reports are written to ignored `.test-artifacts/auth.json` and uploaded by CI. No production database is used.
+Run `npm run test:web` for the sidebar, Settings and credential-management boundaries, `npm run test:auth` for database/API verification and `npm run test:container` for the independent production UI. The auth check creates and removes a disposable PostgreSQL database. The auth check verifies the absence of UI assets in the API, a populated-database forward migration, one-time issuance and hash-only storage, both transports, administration boundaries, exact expiry, revocation, restart/rotation durability, login limits, origin protection, configuration fallback and log privacy. Reports are written to ignored `.test-artifacts/auth.json` and uploaded by CI. No production database is used.

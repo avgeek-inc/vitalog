@@ -31,6 +31,10 @@
     {
       "key": "apiKeyId",
       "value": ""
+    },
+    {
+      "key": "goalId",
+      "value": ""
     }
   ],
   "item": [
@@ -295,10 +299,10 @@
               }
             ],
             "url": "{{baseUrl}}/v1/checkins",
-            "description": "Save one supplied checkin observation. Actual recorded events only. Use health_get_catalog for exact fields and units; do not infer missing values.",
+            "description": "Save one supplied check-in, including optional data.mood (very_low, low, neutral, good, great). Actual recorded events only. Numeric ratings remain separate. Use health_get_catalog for exact fields; do not infer missing values.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"occurred_on\": \"2026-09-10\",\n  \"timezone\": \"Asia/Kolkata\",\n  \"provenance\": {\n    \"source_type\": \"manual\",\n    \"value_kind\": \"reported\"\n  },\n  \"data\": {\n    \"ratings\": {\n      \"energy\": {\n        \"value\": 7,\n        \"scale\": \"reported_energy\",\n        \"lower\": 0,\n        \"upper\": 10,\n        \"meaning\": \"Higher means more energy\"\n      }\n    }\n  }\n}",
+              "raw": "{\n  \"occurred_on\": \"2026-09-10\",\n  \"timezone\": \"Asia/Kolkata\",\n  \"provenance\": {\n    \"source_type\": \"manual\",\n    \"value_kind\": \"reported\"\n  },\n  \"data\": {\n    \"mood\": \"good\",\n    \"ratings\": {\n      \"energy\": {\n        \"value\": 7,\n        \"scale\": \"reported_energy\",\n        \"lower\": 0,\n        \"upper\": 10,\n        \"meaning\": \"Higher means more energy\"\n      }\n    }\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -429,6 +433,124 @@
                 }
               }
             }
+          }
+        },
+        {
+          "name": "health_get_goal_catalog",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/goals/catalog",
+            "description": "Discover supported goal metrics, canonical units and fixed comparison rules. Goals are explicit user targets, separate from observed records."
+          }
+        },
+        {
+          "name": "health_set_goal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/goals",
+            "description": "Set or reactivate a user-supplied goal from today in the server timezone. Use expected_version=0 for a new metric, otherwise its current version. Weight requires an explicit baseline on creation; it is retained on edits unless supplied. No automatic recommendations.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"metric\": \"hydration:water_ml\",\n  \"target\": 2500,\n  \"expected_version\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "health_list_goals",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/goals",
+            "description": "List current goals, active by default. Use health_get_goal_progress for historical goals and observed progress on a particular date."
+          }
+        },
+        {
+          "name": "health_get_goal",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/goals/{{goalId}}?include_history=true&history_limit=100",
+            "description": "Read a goal and optionally a bounded page of its immutable revisions, newest first."
+          }
+        },
+        {
+          "name": "health_archive_goal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/goals/{{goalId}}/archive",
+            "description": "Archive a goal from today with an expected version. Preserve history and previous-day progress. Reactivate with health_set_goal.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"expected_version\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "health_get_goal_progress",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/v1/days/{{date}}/goal-progress",
+            "description": "Compare goals effective on a local date with qualified observed values. Unknown stays null. Nutrition uses limit utilization; water and exercise use target completion; weight uses an explicit baseline. Daily totals take precedence, gross calories are excluded, and elapsed time is never inferred as active minutes."
           }
         },
         {
@@ -901,7 +1023,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 14,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"health_log_checkin\",\n    \"arguments\": {\n      \"idempotency_key\": \"{{idempotencyKey}}\",\n      \"occurred_on\": \"2026-09-10\",\n      \"timezone\": \"Asia/Kolkata\",\n      \"provenance\": {\n        \"source_type\": \"manual\",\n        \"value_kind\": \"reported\"\n      },\n      \"data\": {\n        \"ratings\": {\n          \"energy\": {\n            \"value\": 7,\n            \"scale\": \"reported_energy\",\n            \"lower\": 0,\n            \"upper\": 10,\n            \"meaning\": \"Higher means more energy\"\n          }\n        }\n      }\n    }\n  }\n}",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 14,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"health_log_checkin\",\n    \"arguments\": {\n      \"idempotency_key\": \"{{idempotencyKey}}\",\n      \"occurred_on\": \"2026-09-10\",\n      \"timezone\": \"Asia/Kolkata\",\n      \"provenance\": {\n        \"source_type\": \"manual\",\n        \"value_kind\": \"reported\"\n      },\n      \"data\": {\n        \"mood\": \"good\",\n        \"ratings\": {\n          \"energy\": {\n            \"value\": 7,\n            \"scale\": \"reported_energy\",\n            \"lower\": 0,\n            \"upper\": 10,\n            \"meaning\": \"Higher means more energy\"\n          }\n        }\n      }\n    }\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1029,6 +1151,186 @@
               }
             }
           }
+        },
+        {
+          "name": "health_get_goal_catalog",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/mcp",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "2025-11-25"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 19,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"health_get_goal_catalog\",\n    \"arguments\": {}\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "health_set_goal",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/mcp",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "2025-11-25"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 20,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"health_set_goal\",\n    \"arguments\": {\n      \"idempotency_key\": \"{{idempotencyKey}}\",\n      \"metric\": \"hydration:water_ml\",\n      \"target\": 2500,\n      \"expected_version\": 0\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "health_list_goals",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/mcp",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "2025-11-25"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 21,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"health_list_goals\",\n    \"arguments\": {}\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "health_get_goal",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/mcp",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "2025-11-25"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 22,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"health_get_goal\",\n    \"arguments\": {\n      \"id\": \"{{goalId}}\",\n      \"include_history\": true,\n      \"history_limit\": 100\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "health_archive_goal",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/mcp",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "2025-11-25"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 23,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"health_archive_goal\",\n    \"arguments\": {\n      \"id\": \"{{goalId}}\",\n      \"idempotency_key\": \"{{idempotencyKey}}\",\n      \"expected_version\": 1\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "health_get_goal_progress",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/mcp",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json, text/event-stream"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "MCP-Protocol-Version",
+                "value": "2025-11-25"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 24,\n  \"method\": \"tools/call\",\n  \"params\": {\n    \"name\": \"health_get_goal_progress\",\n    \"arguments\": {\n      \"date\": \"{{date}}\"\n    }\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
         }
       ]
     },
@@ -1070,7 +1372,7 @@
           "request": {
             "method": "GET",
             "url": "{{baseUrl}}/v1/api-keys?limit=50&offset=0",
-            "description": "List generated API keys and OAuth connection metadata, including expiry and revocation status. Requires the environment AUTH_KEY; never returns keys, tokens or hashes.",
+            "description": "List generated API keys, OAuth connections and browser session metadata, including expiry and revocation status. Requires the environment AUTH_KEY; never returns keys, tokens or hashes.",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -1094,7 +1396,7 @@
           "request": {
             "method": "DELETE",
             "url": "{{baseUrl}}/v1/api-keys/{{apiKeyId}}",
-            "description": "Revoke a generated API key or OAuth connection by ID. Already revoked records return their metadata. Requires the environment AUTH_KEY.",
+            "description": "Revoke a generated API key, OAuth connection or browser session by ID. Already revoked records return their metadata. Requires the environment AUTH_KEY.",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -1118,7 +1420,7 @@
           "request": {
             "method": "DELETE",
             "url": "{{baseUrl}}/v1/api-keys",
-            "description": "Revoke all currently unrevoked generated API keys and OAuth connections, including expired records, and cancel pending authorization codes. The environment AUTH_KEY is unaffected.",
+            "description": "Revoke all currently unrevoked generated API keys, OAuth connections and browser sessions, including expired records, and cancel pending authorization codes. The environment AUTH_KEY is unaffected.",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -1345,6 +1647,280 @@
                 }
               }
             }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Browser sessions",
+      "item": [
+        {
+          "name": "create_browser_session",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/session",
+            "description": "Create a revocable 30-day, read-only browser session using root credentials. The Next.js UI keeps this opaque token in a host-only HttpOnly cookie. It cannot write records or goals, manage keys, or access MCP.",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "{{uiUrl}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{rootEmail}}\",\n  \"password\": \"{{rootPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "get_browser_session",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/auth/session",
+            "description": "Validate a browser session and read its expiry, server timezone and today's local date. Requires a vls_ Bearer token.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{browserSessionToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "{{uiUrl}}"
+              }
+            ]
+          }
+        },
+        {
+          "name": "revoke_browser_session",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/auth/session",
+            "description": "Revoke the authenticated browser session. Accepts no body or query arguments. The environment AUTH_KEY can also revoke sessions through API-key management.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{browserSessionToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "{{uiUrl}}"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Key management",
+      "item": [
+        {
+          "name": "create_key_management_session",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/key-management/session",
+            "description": "Verify root credentials and issue a revocable, 30-minute session for API-key management only. This token cannot read or write health data, access MCP, or use the primary AUTH_KEY administration routes.",
+            "auth": {
+              "type": "noauth"
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{rootEmail}}\",\n  \"password\": \"{{rootPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "get_key_management_session",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/auth/key-management/session",
+            "description": "Validate a key-management session and read its effective expiry. Requires a vlm_ Bearer token.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{keyManagementToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "name": "revoke_key_management_session",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/auth/key-management/session",
+            "description": "Revoke the authenticated key-management session. Accepts no body or query arguments.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{keyManagementToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "name": "list_managed_api_keys",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/auth/key-management/api-keys",
+            "description": "List unrevoked API keys and MCP connections, filtering before pagination. Excludes dashboard and management sessions. Never returns tokens or hashes.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{keyManagementToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "name": "create_managed_api_key",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/auth/key-management/api-keys",
+            "description": "Generate a 30-day API key using an authenticated management session. No name, body or query arguments. The complete key is returned once.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{keyManagementToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "name": "revoke_managed_api_key",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/auth/key-management/api-keys/{{apiKeyId}}",
+            "description": "Revoke one API key or MCP connection. Dashboard and management session IDs are rejected. Accepts no body or query arguments.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{keyManagementToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
+          }
+        },
+        {
+          "name": "revoke_all_managed_api_keys",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/auth/key-management/api-keys",
+            "description": "Revoke all API keys and MCP connections, including expired records, and cancel pending OAuth authorization codes. Dashboard and management sessions remain signed in. The environment AUTH_KEY is unaffected.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{keyManagementToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ]
           }
         }
       ]

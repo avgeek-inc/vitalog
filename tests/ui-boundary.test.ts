@@ -4,7 +4,10 @@ import { application } from "../src/app.js";
 import { configuration } from "../src/config.js";
 import { database } from "../src/db/client.js";
 import { Service } from "../src/service.js";
-import { webConfiguration } from "../apps/web/src/lib/config.js";
+import {
+  serverApiBaseUrl,
+  webConfiguration,
+} from "../apps/web/src/lib/config.js";
 
 const issuer = "https://vitalog-api.praveent.com";
 const ui = "https://vitalog.praveent.com";
@@ -146,5 +149,27 @@ describe("Separate UI and API origins", () => {
         }),
       ).toThrow();
     }
+  });
+  test("The private API origin is server-only and rejects credentials, paths and non-HTTP protocols", () => {
+    const env = {
+      API_BASE_URL: issuer,
+      UI_BASE_URL: ui,
+      API_INTERNAL_BASE_URL: "http://api:3000",
+    };
+    expect(serverApiBaseUrl(env)).toBe("http://api:3000");
+    expect(webConfiguration(env)).toEqual({
+      apiBaseUrl: issuer,
+      uiBaseUrl: ui,
+    });
+    expect(serverApiBaseUrl({ API_BASE_URL: issuer })).toBe(issuer);
+    for (const invalid of [
+      "http://user:password@api:3000",
+      "http://api:3000/path",
+      "http://api:3000?token=value",
+      "file:///tmp/api",
+    ])
+      expect(() =>
+        serverApiBaseUrl({ ...env, API_INTERNAL_BASE_URL: invalid }),
+      ).toThrow();
   });
 });

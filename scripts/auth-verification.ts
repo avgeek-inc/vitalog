@@ -26,6 +26,7 @@ import { Service } from "../src/service.js";
 import { object, type Data } from "../src/domain/types.js";
 import { examples } from "../tests/fixtures.js";
 import { migrateDatabase } from "./migrate.js";
+import { operations } from "../src/registry/operations.js";
 
 const container = `vitalog-auth-${process.pid}`;
 const databasePassword = randomBytes(32).toString("hex");
@@ -353,7 +354,10 @@ try {
             requestInit: { headers: { Authorization: `Bearer ${token}` } },
           }),
         );
-        assert.equal((await client.listTools()).tools.length, 16);
+        assert.equal(
+          (await client.listTools()).tools.length,
+          operations.length,
+        );
         const called = await client.callTool({
           name: "health_log_measurements",
           arguments: {
@@ -440,7 +444,10 @@ try {
             },
           }),
         );
-        assert.equal((await client.listTools()).tools.length, 16);
+        assert.equal(
+          (await client.listTools()).tools.length,
+          operations.length,
+        );
       } finally {
         await client.close();
       }

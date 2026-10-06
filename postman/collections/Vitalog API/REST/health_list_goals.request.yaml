@@ -1,0 +1,9 @@
+$kind: http-request
+id: e4c74abb-4cbe-5c6f-8383-c5f69916fb94
+description: List current goals, active by default. Use health_get_goal_progress
+  for historical goals and observed progress on a particular date.
+method: GET
+url: "{{baseUrl}}/v1/goals"
+headers:
+  Accept: application/json
+order: 19000

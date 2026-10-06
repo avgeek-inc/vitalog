@@ -66,18 +66,26 @@ export class ApiKeys {
     return { ...metadata(rows[0]!), api_key: key };
   }
 
-  async list(limit: number, offset: number) {
+  async list(limit: number, offset: number, externalOnly = false) {
+    const filter = externalOnly
+      ? and(
+          sql`left(${apiKeys.tokenHint}, 4) in ('vlk_', 'vlo_')`,
+          isNull(apiKeys.revokedAt),
+        )
+      : undefined;
     return this.db.transaction(
       async (transaction) => {
         const rows = await transaction
           .select(projection)
           .from(apiKeys)
+          .where(filter)
           .orderBy(desc(apiKeys.createdAt), desc(apiKeys.id))
           .limit(limit)
           .offset(offset);
         const totals = await transaction
           .select({ total: count() })
-          .from(apiKeys);
+          .from(apiKeys)
+          .where(filter);
         return {
           api_keys: rows.map(metadata),
           total: totals[0]!.total,
@@ -89,25 +97,34 @@ export class ApiKeys {
     );
   }
 
-  async revoke(id: string) {
+  async revoke(id: string, externalOnly = false) {
     const rows = await this.db
       .update(apiKeys)
       .set({
         revokedAt: sql`coalesce(${apiKeys.revokedAt}, clock_timestamp())`,
       })
-      .where(eq(apiKeys.id, id))
+      .where(
+        and(
+          eq(apiKeys.id, id),
+          externalOnly
+            ? sql`left(${apiKeys.tokenHint}, 4) in ('vlk_', 'vlo_')`
+            : undefined,
+        ),
+      )
       .returning(projection);
     if (!rows[0]) throw new DomainError("NOT_FOUND", "API key does not exist");
     return metadata(rows[0]);
   }
 
-  async revokeAll() {
+  async revokeAll(externalOnly = false) {
     return this.db.transaction(async (transaction) => {
       await transaction.delete(oauthCodes).where(isNull(oauthCodes.consumedAt));
       const result = await transaction.execute<{ revoked_count: number }>(sql`
         with revoked as (
           update ${apiKeys} set revoked_at = clock_timestamp()
-          where revoked_at is null returning 1
+          where revoked_at is null
+            ${externalOnly ? sql`and left(token_hint, 4) in ('vlk_', 'vlo_')` : sql``}
+          returning 1
         ) select count(*)::integer as revoked_count from revoked
       `);
       return result.rows[0]!;

@@ -1,0 +1,38 @@
+---
+title: "Troubleshooting"
+description: "Resolve sign-in, missing records, API errors and deployment problems."
+---
+
+## Sign-in fails
+
+Check that both `ROOT_EMAIL` and `ROOT_PASSWORD` are configured on the API and that it was restarted after changing them. The password is exact; email comparison ignores case and surrounding whitespace. Invalid credentials share the same error. A rate limit returns HTTP 429; wait for `Retry-After` before trying again.
+
+Confirm that API and UI `UI_BASE_URL` values match the exact browser origin. Public origins must use HTTPS. `/api-keys` creates keys independently of a dashboard session; **Settings → API Keys** requires a separate root verification for management.
+
+## A metric is missing
+
+A dash means unknown, not zero. Choose the observation's date in the installation's timezone and expand its log. A reported daily total takes precedence over compatible entry subtotals. Incompatible units/definitions, qualified values, voided records and unresolved overlapping workouts can exclude a value from an aggregate.
+
+Water means logged water. Exercise uses active energy and explicitly supplied exercise duration. Mood uses the latest valid enum check-in; numeric mood ratings are separate. Use [record contracts](/records) and [goal progress](/goals) to inspect the returned coverage and exclusions.
+
+## Weight progress has no start weight
+
+Set a weight goal through REST or MCP with an explicit `baseline`. Vitalog does not infer it from the first weigh-in. Changing a target retains its baseline unless a replacement is supplied. The current value uses a usable scalar weight on or before the selected date.
+
+## An API write fails
+
+| Response                   | Resolution                                                                                    |
+| -------------------------- | --------------------------------------------------------------------------------------------- |
+| `401 UNAUTHORIZED`         | Supply an active Bearer key or reconnect OAuth.                                               |
+| `403 FORBIDDEN`            | Use the credential appropriate for the route and operation. Dashboard sessions are read-only. |
+| `409 VERSION_CONFLICT`     | Read the current version and review the change before retrying it.                            |
+| `409 IDEMPOTENCY_CONFLICT` | The retry key was used with different arguments. Use the original request for retries.        |
+| `422 VALIDATION_ERROR`     | Discover the exact schema and fix the reported issue paths.                                   |
+| `413 LIMIT_EXCEEDED`       | Narrow the date range, filters or page size.                                                  |
+| `503 UNAVAILABLE`          | Check PostgreSQL and API readiness.                                                           |
+
+For an MCP connection issue, see [MCP setup and troubleshooting](/mcp-guide).
+
+## A deployment is unhealthy
+
+Inspect the API and web service health separately. Check required secrets, database credentials and forward migration logs. Verify `ALLOWED_HOSTS`, public origins and trusted proxy settings before testing OAuth. Towbar's manifests and build/resource verification are described in [Deploy with Towbar](/towbar).

@@ -179,6 +179,7 @@ describe("Key generation contracts", () => {
     expect(paths["/v1/catalog"]!.get!.security).toEqual([
       { staticKey: [] },
       { apiKey: [] },
+      { browserSession: [] },
     ]);
   });
 });

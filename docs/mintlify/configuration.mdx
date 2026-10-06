@@ -1,0 +1,40 @@
+---
+title: "Configuration"
+description: "Configure the database, authentication, origins and runtime limits."
+---
+
+Set secrets through your deployment's secret manager. For local development, copy `.env.example` to `.env`. The UI and API have separate environments.
+
+## API
+
+| Variable                           | Purpose                                                                                                                                    |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `DATABASE_URL`                     | PostgreSQL connection string.                                                                                                              |
+| `AUTH_KEY`                         | Primary high-entropy Bearer key with full ledger access and API-key administration.                                                        |
+| `ROOT_EMAIL`, `ROOT_PASSWORD`      | Configure both to enable browser sign-in, key issuance and OAuth consent. Leave both empty to disable new issuance and sign-in.            |
+| `DEFAULT_TIMEZONE`                 | IANA timezone for local dates and daily summary boundaries; example: `Asia/Kolkata`.                                                       |
+| `PORT`                             | API listening port; default `3000`.                                                                                                        |
+| `NODE_ENV`                         | Use `production` in deployed services.                                                                                                     |
+| `ALLOWED_HOSTS`                    | Comma-separated accepted Host values. Include the private API Host when using an internal server origin.                                   |
+| `PUBLIC_BASE_URL`                  | Exact public API origin used for OAuth discovery. HTTPS is required except on loopback.                                                    |
+| `UI_BASE_URL`                      | Exact trusted UI origin for sign-in, key creation and OAuth consent requests.                                                              |
+| `ALLOWED_ORIGINS`                  | Exact origins of browser MCP clients that need CORS. Keep this list limited to intended clients.                                           |
+| `OAUTH_CLIENTS`                    | Optional JSON array of pre-registered clients. The default empty array permits supported metadata-document and dynamic registration flows. |
+| `TRUST_PROXY`, `TRUSTED_PROXY_IPS` | Enable proxy-derived client addresses only for the explicitly trusted ingress addresses.                                                   |
+| `RATE_LIMIT_PER_MINUTE`            | General per-client request limit; default `600`. Root sign-in and client registration have additional limits.                              |
+
+Root credentials are used for issuance and consent. They cannot authenticate health requests directly. Changing root credentials affects new sign-ins and issuance after the API restarts; revoke existing keys and sessions separately if needed.
+
+## Web app
+
+| Variable                | Purpose                                                                                                                               |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `API_BASE_URL`          | Browser-accessible API origin used for MCP setup, key creation and OAuth.                                                             |
+| `UI_BASE_URL`           | The web app's exact public origin.                                                                                                    |
+| `API_INTERNAL_BASE_URL` | Optional private HTTP/HTTPS API origin for Next.js server reads. Never exposed to browser components.                                 |
+| `DOCS_BASE_URL`         | Optional Mintlify docs origin. The MCP Guide links to `/mcp-guide` there; until configured it links to the repository's guide source. |
+| `PORT`                  | Web server listening port inside the service. Compose exposes `UI_PORT` on the host, default `3001`.                                  |
+
+The UI does not need `AUTH_KEY`, database credentials or root credentials in its environment. Origin settings are read at runtime, so the same image can serve different installations.
+
+See [API keys](/api-keys) for issuance and management, and [MCP OAuth](/oauth) for client registration, token lifetimes and scopes.

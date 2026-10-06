@@ -1,0 +1,64 @@
+# Goals and observed progress
+
+Goals are explicit user configuration. They live in their own PostgreSQL tables, separately from observed health records. The read-only viewing UI can display goals and progress; clients create or change them through REST or MCP.
+
+| Metric                        | Unit                           | Period  | Comparison     |
+| ----------------------------- | ------------------------------ | ------- | -------------- |
+| `measurement:weight`          | kg (lb accepted and converted) | Ongoing | Target weight  |
+| `nutrient:energy_kcal`        | kcal                           | Daily   | Upper limit    |
+| `nutrient:protein_g`          | g                              | Daily   | Upper limit    |
+| `nutrient:carbohydrate_g`     | g                              | Daily   | Upper limit    |
+| `nutrient:fat_g`              | g                              | Daily   | Upper limit    |
+| `nutrient:fiber_g`            | g                              | Daily   | Upper limit    |
+| `hydration:water_ml`          | mL                             | Daily   | Minimum target |
+| `activity:active_energy_kcal` | kcal                           | Daily   | Minimum target |
+| `activity:exercise_minutes`   | min                            | Daily   | Minimum target |
+
+`health_get_goal_catalog` / `GET /v1/goals/catalog` returns these definitions. The metric registry is the extension point for future goal types. Each definition fixes its unit, comparison and period; clients cannot change nutrition limits into minimum targets.
+
+## Setting and managing goals
+
+`health_set_goal` / `POST /v1/goals` accepts `metric`, `target`, `expected_version`, optional `unit`, and a weight-only `baseline`. Targets and baselines must be finite, positive values up to 1e12. There is one persistent goal identity per metric. Use `expected_version: 0` for its initial creation and the current version for later edits or reactivation. A conflicting edit returns `VERSION_CONFLICT` with `current_version`. An archived goal retains its identity and version.
+
+For example, this MCP request records an illustrative water target supplied by a user:
+
+```json
+{
+  "metric": "hydration:water_ml",
+  "target": 2500,
+  "expected_version": 0,
+  "idempotency_key": "water-goal-1"
+}
+```
+
+For REST, put the retry key in the `Idempotency-Key` header and omit `idempotency_key` from the body. As with recorded observations, a committed retry returns the original immutable goal snapshot, even after later edits. Reusing a key with a different request fails. Goal writes share the record write lock and commit their current projection, revision and retry snapshot atomically.
+
+Weight needs an explicit baseline on creation. The baseline represents the start of the user's weight goal; the service does not infer it from their records. Editing the target retains this baseline unless the user supplies a replacement. A supplied baseline uses the request's unit. Returned targets and baselines always use kg.
+
+- `health_list_goals` / `GET /v1/goals`: current active goals, or `status=archived` / `status=all`.
+- `health_get_goal` / `GET /v1/goals/{id}`: current goal; optional `include_history=true`, `history_limit` (1–100) and `history_before_version` for immutable revisions.
+- `health_archive_goal` / `POST /v1/goals/{id}/archive`: `expected_version` and a retry key; preserves all history.
+
+Changes take effect on the server's current local date in `DEFAULT_TIMEZONE`. The latest revision on that date applies to the whole day; edits do not alter earlier days. Archival removes the goal starting that day. Future scheduling and backdating are not exposed in this version. Goal revisions and health observations are read in one repeatable-read transaction for progress.
+
+All routes require Bearer authentication. MCP goal reads require `health:read`; goal writes require `health:write`. The viewing UI uses a separate read-only browser session; it has no goal or record mutation screens.
+
+## Reading progress
+
+`health_get_goal_progress({"date":"2026-10-05"})` / `GET /v1/days/2026-10-05/goal-progress` returns goals effective on that day, with `actual`, `ratio`, `progress_percent`, `remaining`, `over_by`, `status`, `coverage`, `basis`, `source_ids`, `observed_on` and `warnings`.
+
+- Nutrition uses limit utilization: `actual / limit`. Water and exercise use the same ratio for target completion. The ratio can exceed one; the display percentage is clamped to 0–100. Over-limit nutrition has `over_limit` status and an explicit overage. A partial subtotal below the limit has `below_limit` status, which does not assert that the complete day was within its limit.
+- Weight uses `(actual - baseline) / (target - baseline)`. This supports both gain and loss; progress away from the target has a negative ratio and a zero display percentage. Reaching or crossing the target in the intended direction is `met`. When baseline equals target, only an equal observation is treated as met.
+- Unknown is `null`, including its display percentage. No records are interpreted as zero. An explicitly reported zero total is a known zero.
+- Nutrition and hydration reuse the existing summary rules, including daily-total precedence, kJ-to-kcal conversion, qualified values, incompatible definitions, excluded records and estimates. Calories exclude supplement contributions. Water includes logged water through oral/enteral routes.
+- Calories burned mean **active** energy. Gross/unknown workout energy and daily total energy are not substituted. A valid reported active daily total wins over workout subtotals; the two are never added.
+- Active minutes come from explicitly supplied `exercise_seconds` in workout metrics or `daily_totals`, divided by 60. Elapsed and moving time are not substituted. Workout exercise duration cannot exceed an explicitly supplied elapsed duration. Unresolved overlapping workouts produce unknown exercise progress unless a usable daily total provides the value.
+- Weight uses the latest active, valid, exact scalar weight on or before the requested date, converting lb to kg. Qualified, unsupported-unit and field-invalid values are skipped. The response retains the observation date so consumers can identify stale measurements.
+
+The response is bounded to 200 goal metrics, 1000 day records and 1000 excluded weight candidates before a usable observation. Exceeding a necessary bound fails explicitly instead of returning partial progress. Historical progress uses the current corrected observation ledger and historical goal configuration; it is not a frozen report of past record versions.
+
+## Operations and verification
+
+Migration `0009` adds `goals`, `goal_revisions` and `goal_idempotency_requests`. Existing records are unchanged. The standard migration entrypoint applies it before API startup; readiness checks all three tables. Operator exports and permanent erasure include goal data. PostgreSQL backups retain goal history and retry snapshots.
+
+Run `npm run test:goals` for disposable PostgreSQL verification of both transports, timezone boundaries, historical revisions, concurrent edits, retry replay, persistence, export, backup/restore and erasure. `tests/goals.test.ts` checks progress calculations and observation exclusions. OpenAPI and Postman files are generated from the shared operation registry with `npm run docs:generate`. The MCP surface contains 22 tools after this extension; the remote discovery size checks still apply.

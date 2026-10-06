@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=https://towbar.dev/schemas/app.v2.json
 id: vitalog-web
 name: Vitalog UI
-description: HeroUI authentication screens for the personal health ledger
+description: HeroUI daily and weight views, API keys and MCP authorization
 deployment:
   type: dockerfile
   context: .

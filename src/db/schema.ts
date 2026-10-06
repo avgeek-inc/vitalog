@@ -15,6 +15,50 @@ import {
 import type { Data, HealthRecord, Provenance } from "../domain/types.js";
 import type { ClientMetadata } from "../auth/oauth-clients.js";
 import { recordTypes } from "../registry/definitions.js";
+import type { Goal } from "../registry/goals.js";
+
+export const goals = pgTable(
+  "goals",
+  {
+    id: uuid("id").primaryKey(),
+    metric: text("metric").notNull(),
+    version: integer("version").notNull(),
+    snapshot: jsonb("snapshot").$type<Goal>().notNull(),
+  },
+  (t) => [
+    uniqueIndex("one_goal_per_metric").on(t.metric),
+    check("goal_positive_version", sql`${t.version} > 0`),
+    check(
+      "goal_snapshot_identity",
+      sql`${t.snapshot}->>'id' = ${t.id}::text and ${t.snapshot}->>'metric' = ${t.metric} and (${t.snapshot}->>'version')::integer = ${t.version}`,
+    ),
+  ],
+);
+export const goalRevisions = pgTable(
+  "goal_revisions",
+  {
+    goalId: uuid("goal_id")
+      .notNull()
+      .references(() => goals.id, { onDelete: "cascade" }),
+    version: integer("version").notNull(),
+    effectiveOn: date("effective_on", { mode: "string" }).notNull(),
+    snapshot: jsonb("snapshot").$type<Goal>().notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.goalId, t.version] }),
+    index("goal_effective_date").on(t.effectiveOn, t.goalId, t.version),
+  ],
+);
+export const goalIdempotency = pgTable(
+  "goal_idempotency_requests",
+  {
+    operation: text("operation").notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    requestHash: text("request_hash").notNull(),
+    snapshot: jsonb("snapshot").$type<Goal>().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.operation, t.idempotencyKey] })],
+);
 
 export const healthRecords = pgTable(
   "health_records",
@@ -139,7 +183,7 @@ export const apiKeys = pgTable(
     index("api_key_creation_order").on(t.createdAt, t.id),
     check(
       "api_key_lifetime",
-      sql`${t.expiresAt} = ${t.createdAt} + interval '720 hours'`,
+      sql`${t.expiresAt} = ${t.createdAt} + case when left(${t.tokenHint}, 4) = 'vlm_' then interval '30 minutes' else interval '720 hours' end`,
     ),
     check("api_key_sha256", sql`${t.tokenDigest} ~ '^[0-9a-f]{64}$'`),
   ],
@@ -202,7 +246,7 @@ export const oauthTokens = pgTable(
     ),
     check(
       "oauth_token_scopes",
-      sql`cardinality(${t.scopes}) > 0 and ${t.scopes} <@ array['health:read', 'health:write']::text[]`,
+      sql`cardinality(${t.scopes}) > 0 and (${t.scopes} <@ array['health:read', 'health:write']::text[] or (${t.resource} = 'urn:vitalog:key-management' and ${t.scopes} = array['keys:manage']::text[]))`,
     ),
   ],
 );
@@ -240,6 +284,9 @@ export const oauthClientAssertions = pgTable(
   ],
 );
 export const schema = {
+  goals,
+  goalRevisions,
+  goalIdempotency,
   healthRecords,
   revisions,
   idempotencyRequests,

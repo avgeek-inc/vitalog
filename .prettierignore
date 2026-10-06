@@ -14,3 +14,5 @@ node_modules/
 .next/
 apps/web/next-env.d.ts
 schemas/towbar/*.json
+
+docs/mintlify/openapi.json

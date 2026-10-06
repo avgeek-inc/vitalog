@@ -192,6 +192,7 @@ export const examples: Record<HealthRecord["record_type"], RecordInput> = {
   checkin: {
     ...base,
     data: {
+      mood: "good",
       ratings: {
         energy: {
           value: 7,

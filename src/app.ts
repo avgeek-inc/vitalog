@@ -15,6 +15,9 @@ import { inspectBody, MAX_REQUEST_BYTES } from "./security.js";
 import { MAX_RESPONSE_BYTES } from "./domain/catalog.js";
 import { ApiKeys } from "./auth/keys.js";
 import { RootAuthentication } from "./auth/root.js";
+import { BrowserSessions } from "./auth/sessions.js";
+import { KeyManagementSessions } from "./auth/key-management.js";
+import { localDate } from "./domain/validation.js";
 import { keyCreation, keyId, keyListQuery } from "./auth/contracts.js";
 import { OAuthStore } from "./auth/oauth-store.js";
 import { oauthChallenge, oauthRoutes } from "./auth/oauth.js";
@@ -27,7 +30,11 @@ const deadlineMessage =
   "Request exceeded its deadline; mutations may be retried with the same idempotency key";
 type AppEnvironment = {
   Bindings: HttpBindings;
-  Variables: { oauthScopes?: string[] };
+  Variables: {
+    oauthScopes?: string[];
+    browserSession?: { id: string; expiresAt: Date };
+    keyManagementSession?: { id: string; expiresAt: Date };
+  };
 };
 
 export function application(
@@ -46,6 +53,8 @@ export function application(
   >();
   const keys = new ApiKeys(service.db);
   const root = new RootAuthentication(config.rootCredentials);
+  const sessions = new BrowserSessions(service.db);
+  const keyManagement = new KeyManagementSessions(service.db);
   const oauth = config.publicBaseUrl
     ? new OAuthStore(service.db, config.publicBaseUrl + "/mcp")
     : undefined;
@@ -55,6 +64,11 @@ export function application(
         ? new DomainError("TIMEOUT", deadlineMessage)
         : publicError(error);
     if (failure.code === "RATE_LIMITED") c.header("Retry-After", "60");
+    if (
+      failure.code === "LIMIT_EXCEEDED" &&
+      failure.message === "Request exceeds 1 MiB"
+    )
+      c.header("Connection", "close");
     return c.json(failure.toJSON(), failure.status);
   });
   app.use("*", secureHeaders());
@@ -141,9 +155,31 @@ export function application(
     }
     if (
       c.req.method === "POST" &&
-      (path === "/auth/api-keys" || path === "/oauth/approve")
+      (path === "/auth/api-keys" ||
+        path === "/auth/session" ||
+        path === "/auth/key-management/session" ||
+        path === "/oauth/approve")
     )
       root.limit(address);
+    if (
+      path.startsWith("/auth/key-management/") &&
+      !(path === "/auth/key-management/session" && c.req.method === "POST")
+    ) {
+      const raw = c.env?.incoming?.rawHeaders ?? [];
+      const authCount = raw.filter(
+        (value, index) =>
+          index % 2 === 0 && value.toLowerCase() === "authorization",
+      ).length;
+      const management = await keyManagement.authenticate(
+        c.req.header("authorization"),
+      );
+      if (authCount > 1 || !management)
+        throw new DomainError(
+          "UNAUTHORIZED",
+          "Supply a valid key management session",
+        );
+      c.set("keyManagementSession", management);
+    }
     const mcpPreflight =
       path === "/mcp" &&
       c.req.method === "OPTIONS" &&
@@ -152,6 +188,9 @@ export function application(
       !mcpPreflight &&
       (path.startsWith("/v1") ||
         path === "/mcp" ||
+        (path === "/auth/session" &&
+          c.req.method !== "POST" &&
+          c.req.method !== "OPTIONS") ||
         path === "/openapi.json" ||
         path === "/readyz")
     ) {
@@ -162,13 +201,20 @@ export function application(
       ).length;
       const authorization = c.req.header("authorization");
       const primary = authorized(authorization, config);
+      const session =
+        !primary && (path.startsWith("/v1/") || path === "/auth/session")
+          ? await sessions.authenticate(authorization)
+          : undefined;
       const grant =
         !primary && path === "/mcp"
           ? await oauth?.authenticate(authorization)
           : undefined;
       if (
         authCount > 1 ||
-        (!primary && !grant && !(await keys.authorized(authorization)))
+        (!primary &&
+          !grant &&
+          !session &&
+          !(await keys.authorized(authorization)))
       ) {
         if (path === "/mcp" && config.publicBaseUrl)
           c.header(
@@ -181,6 +227,7 @@ export function application(
         throw new DomainError("UNAUTHORIZED", "Supply a valid HTTP Bearer key");
       }
       if (grant) c.set("oauthScopes", grant.scopes);
+      if (session) c.set("browserSession", session);
       if (
         (path === "/v1/api-keys" || path.startsWith("/v1/api-keys/")) &&
         !primary
@@ -208,11 +255,13 @@ export function application(
           (source.protocol === "https:" ||
             (source.protocol === "http:" &&
               ["localhost", "127.0.0.1", "[::1]"].includes(source.hostname)));
-        const uiRequest = [
-          "/auth/api-keys",
-          "/oauth/request",
-          "/oauth/approve",
-        ].includes(path);
+        const uiRequest =
+          [
+            "/auth/api-keys",
+            "/auth/session",
+            "/oauth/request",
+            "/oauth/approve",
+          ].includes(path) || path.startsWith("/auth/key-management/");
         const permitted =
           uiRequest && config.uiBaseUrl
             ? origin === config.uiBaseUrl
@@ -220,7 +269,8 @@ export function application(
               ? sameOrigin || config.allowedOrigins.includes(origin)
               : path === "/api-keys" ||
                   path.startsWith("/oauth/") ||
-                  path === "/auth/api-keys"
+                  path === "/auth/api-keys" ||
+                  path === "/auth/session"
                 ? sameOrigin
                 : config.allowedOrigins.includes(origin);
         if (!permitted)
@@ -325,7 +375,11 @@ export function application(
   app.use("*", async (c, next) => {
     const guard = config.assertCredentialAbsent;
     const generation =
-      c.req.path === "/auth/api-keys" && c.req.method === "POST";
+      [
+        "/auth/api-keys",
+        "/auth/session",
+        "/auth/key-management/session",
+      ].includes(c.req.path) && c.req.method === "POST";
     const tokenExchange =
       !!oauth && c.req.path === "/oauth/token" && c.req.method === "POST";
     const rootSignIn =
@@ -363,6 +417,8 @@ export function application(
       await inspectBody(
         c.res,
         generation ||
+          (c.req.path === "/auth/key-management/api-keys" &&
+            c.req.method === "POST") ||
           tokenExchange ||
           (c.req.path === "/oauth/register" && c.req.method === "POST")
           ? config.assertEnvironmentCredentialsAbsent
@@ -426,6 +482,62 @@ export function application(
     await root.verify(parsed.data.email, parsed.data.password);
     return c.json(await keys.create(), 201);
   });
+  app.post("/auth/session", async (c) => {
+    if ([...new URL(c.req.url).searchParams].length)
+      throw new DomainError(
+        "VALIDATION_ERROR",
+        "Sign-in does not accept query parameters",
+      );
+    if (
+      !/^application\/json(?:\s*;|$)/i.test(c.req.header("content-type") ?? "")
+    )
+      throw new DomainError("VALIDATION_ERROR", "Use application/json");
+    let body: unknown;
+    try {
+      body = await c.req.json();
+    } catch {
+      throw new DomainError("VALIDATION_ERROR", "Malformed JSON request");
+    }
+    const parsed = keyCreation.safeParse(body);
+    if (!parsed.success)
+      throw new DomainError(
+        "VALIDATION_ERROR",
+        "Supply a valid email and password",
+      );
+    config.assertCredentialAbsent(parsed.data.email);
+    await root.verify(parsed.data.email, parsed.data.password);
+    return c.json(await sessions.create(), 201);
+  });
+  app.get("/auth/session", async (c) => {
+    if ([...new URL(c.req.url).searchParams].length)
+      throw new DomainError(
+        "VALIDATION_ERROR",
+        "Session lookup does not accept query parameters",
+      );
+    const session = c.get("browserSession");
+    if (!session)
+      throw new DomainError("UNAUTHORIZED", "Supply a valid browser session");
+    return c.json({
+      expires_at: session.expiresAt.toISOString(),
+      timezone: config.timezone,
+      today: localDate(new Date(), config.timezone),
+    });
+  });
+  app.delete("/auth/session", async (c) => {
+    if (
+      [...new URL(c.req.url).searchParams].length ||
+      (await c.req.text()).length
+    )
+      throw new DomainError(
+        "VALIDATION_ERROR",
+        "Sign-out does not accept a body or query parameters",
+      );
+    const session = c.get("browserSession");
+    if (!session)
+      throw new DomainError("UNAUTHORIZED", "Supply a valid browser session");
+    await sessions.revoke(session.id);
+    return c.json({ signed_out: true });
+  });
   app.get("/v1/api-keys", async (c) => {
     const query = new URL(c.req.url).searchParams;
     const input: Record<string, number> = {};
@@ -471,6 +583,84 @@ export function application(
     await noRevocationArguments(c);
     return c.json(await keys.revokeAll());
   });
+  app.post("/auth/key-management/session", async (c) => {
+    if (
+      new URL(c.req.url).search ||
+      !/^application\/json(?:\s*;|$)/i.test(c.req.header("content-type") ?? "")
+    )
+      throw new DomainError(
+        "VALIDATION_ERROR",
+        "Use application/json without query parameters",
+      );
+    let body: unknown;
+    try {
+      body = await c.req.json();
+    } catch {
+      throw new DomainError("VALIDATION_ERROR", "Malformed JSON request");
+    }
+    const parsed = keyCreation.safeParse(body);
+    if (!parsed.success)
+      throw new DomainError(
+        "VALIDATION_ERROR",
+        "Supply a valid email and password",
+      );
+    config.assertCredentialAbsent(parsed.data.email);
+    await root.verify(parsed.data.email, parsed.data.password);
+    return c.json(await keyManagement.create(), 201);
+  });
+  app.get("/auth/key-management/session", (c) => {
+    if (new URL(c.req.url).search)
+      throw new DomainError(
+        "VALIDATION_ERROR",
+        "Session lookup does not accept query parameters",
+      );
+    return c.json({
+      expires_at: c.get("keyManagementSession")!.expiresAt.toISOString(),
+    });
+  });
+  app.delete("/auth/key-management/session", async (c) => {
+    await noRevocationArguments(c);
+    await keyManagement.revoke(c.get("keyManagementSession")!.id);
+    return c.json({ signed_out: true });
+  });
+  app.get("/auth/key-management/api-keys", async (c) => {
+    const query = new URL(c.req.url).searchParams;
+    const values: Record<string, number> = {};
+    for (const [key, value] of query) {
+      if (
+        !["limit", "offset"].includes(key) ||
+        query.getAll(key).length !== 1 ||
+        !/^(0|[1-9]\d*)$/.test(value)
+      )
+        throw new DomainError(
+          "VALIDATION_ERROR",
+          "Use one integer limit and offset parameter",
+        );
+      values[key] = Number(value);
+    }
+    const parsed = keyListQuery.safeParse(values);
+    if (!parsed.success)
+      throw new DomainError(
+        "VALIDATION_ERROR",
+        "Limit must be 1–100 and offset 0–1000000",
+      );
+    return c.json(await keys.list(parsed.data.limit, parsed.data.offset, true));
+  });
+  app.post("/auth/key-management/api-keys", async (c) => {
+    await noRevocationArguments(c);
+    return c.json(await keys.create(), 201);
+  });
+  app.delete("/auth/key-management/api-keys/:id", async (c) => {
+    await noRevocationArguments(c);
+    const id = keyId.safeParse(c.req.param("id"));
+    if (!id.success)
+      throw new DomainError("VALIDATION_ERROR", "Use an API key UUID");
+    return c.json(await keys.revoke(id.data, true));
+  });
+  app.delete("/auth/key-management/api-keys", async (c) => {
+    await noRevocationArguments(c);
+    return c.json(await keys.revokeAll(true));
+  });
   app.get("/readyz", async (c) => {
     const ready = await service.ready();
     return c.json(
@@ -485,7 +675,12 @@ export function application(
   );
   for (const operation of operations) {
     const path = operation.path.replace(/\{([^}]+)\}/g, ":$1");
-    const handler = async (c: Context<{ Bindings: HttpBindings }>) => {
+    const handler = async (c: Context<AppEnvironment>) => {
+      if (c.get("browserSession") && operation.mutation)
+        throw new DomainError(
+          "FORBIDDEN",
+          "Browser sessions can only read health data",
+        );
       const input: Data = Object.create(null);
       const query = new URL(c.req.url).searchParams;
       if (operation.method === "GET") {

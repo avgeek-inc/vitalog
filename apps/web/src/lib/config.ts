@@ -18,3 +18,23 @@ export function webConfiguration(env: NodeJS.ProcessEnv = process.env) {
     uiBaseUrl: publicOrigin(env.UI_BASE_URL, "UI_BASE_URL"),
   };
 }
+
+export function mcpDocumentationUrl(env: NodeJS.ProcessEnv = process.env) {
+  return env.DOCS_BASE_URL
+    ? publicOrigin(env.DOCS_BASE_URL, "DOCS_BASE_URL") + "/mcp-guide"
+    : "https://github.com/avgeek-inc/vitalog/blob/main/docs/mintlify/mcp-guide.mdx";
+}
+
+export function serverApiBaseUrl(env: NodeJS.ProcessEnv = process.env) {
+  if (!env.API_INTERNAL_BASE_URL)
+    return publicOrigin(env.API_BASE_URL, "API_BASE_URL");
+  const url = new URL(env.API_INTERNAL_BASE_URL);
+  if (
+    url.origin !== env.API_INTERNAL_BASE_URL ||
+    !["http:", "https:"].includes(url.protocol)
+  )
+    throw new Error(
+      "API_INTERNAL_BASE_URL must be an exact HTTP or HTTPS origin",
+    );
+  return url.origin;
+}

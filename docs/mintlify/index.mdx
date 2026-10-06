@@ -1,0 +1,33 @@
+---
+title: "Vitalog"
+description: "Keep your health observations in one place. Log through REST or MCP, and review them in a simple dashboard."
+---
+
+Vitalog is a single-user health ledger backed by PostgreSQL. Record the observations you supply, retain their source and revisions, and review daily totals and weight progress.
+
+<CardGroup cols={2}>
+  <Card title="Get started" icon="rocket" href="/quickstart">
+    Sign in, connect a client and record your first observation.
+  </Card>
+  <Card title="Daily View" icon="calendar" href="/dashboard">
+    Review nutrition, mood, water and exercise alongside the day's logs.
+  </Card>
+  <Card title="Connect MCP" icon="plug" href="/mcp-guide">
+    Use OAuth with a Streamable HTTP MCP client, or connect with an API key.
+  </Card>
+  <Card title="Self-host Vitalog" icon="server" href="/installation">
+    Run the API, Next.js UI and PostgreSQL with Docker Compose or Towbar.
+  </Card>
+</CardGroup>
+
+## Set goals, review progress
+
+Set a weight target with an explicit start weight. Nutrition goals are upper limits; water, active calories and exercise minutes are minimum targets. The dashboard shows progress against the goals effective on the selected day.
+
+The dashboard is read-only. Create or correct health records and goals through [MCP](/mcp-guide) or the [REST record contracts](/records). API Keys is a separate credential-management screen.
+
+## Keep the original observation
+
+Records retain their reported dates, timezones, units and provenance. Missing values remain unknown. Corrections and voids preserve previous revisions, and retry keys prevent an identical write from creating a duplicate.
+
+Vitalog stores observations and user-defined goals. It does not diagnose conditions or prescribe health targets.

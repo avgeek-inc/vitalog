@@ -1,0 +1,9 @@
+$kind: http-request
+id: 2697cdd8-b45e-5551-8c5e-006e728f71d9
+description: Read a goal and optionally a bounded page of its immutable
+  revisions, newest first.
+method: GET
+url: "{{baseUrl}}/v1/goals/{{goalId}}?include_history=true&history_limit=100"
+headers:
+  Accept: application/json
+order: 20000

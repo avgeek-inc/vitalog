@@ -1,7 +1,8 @@
 $kind: http-request
 id: 7facc1b1-2985-5419-80b1-5e281f11b93b
-description: Revoke a generated API key or OAuth connection by ID. Already
-  revoked records return their metadata. Requires the environment AUTH_KEY.
+description: Revoke a generated API key, OAuth connection or browser session by
+  ID. Already revoked records return their metadata. Requires the environment
+  AUTH_KEY.
 method: DELETE
 url: "{{baseUrl}}/v1/api-keys/{{apiKeyId}}"
 headers:

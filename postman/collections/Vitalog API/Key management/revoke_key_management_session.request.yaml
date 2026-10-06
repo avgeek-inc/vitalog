@@ -1,0 +1,14 @@
+$kind: http-request
+id: 5f733928-fd68-5538-8338-0a880cd372ab
+description: Revoke the authenticated key-management session. Accepts no body or
+  query arguments.
+method: DELETE
+url: "{{baseUrl}}/auth/key-management/session"
+headers:
+  Accept: application/json
+auth:
+  - id: c6bbbf9a-aeeb-54ce-87f1-6cd27a83a515
+    type: bearer
+    name: Key management session
+    credentials:
+      token: "{{keyManagementToken}}"

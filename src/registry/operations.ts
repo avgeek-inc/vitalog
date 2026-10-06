@@ -4,6 +4,7 @@ import {
   CATALOG_VERSION,
   measurementKeys,
   nutrientKeys,
+  moodValues,
   recordTypes,
   type RecordType,
 } from "./definitions.js";
@@ -15,6 +16,7 @@ import {
 } from "./records.js";
 import * as p from "./primitives.js";
 import { catalogOutputSchema } from "./catalog-output.js";
+import { goalOperations } from "./goals.js";
 
 export const idempotencyKey = p
   .text(128)
@@ -373,6 +375,7 @@ const dailyActivityValues = z.strictObject({
 const activitySummaryOutput = z.strictObject({
   workout_subtotals: z.strictObject({
     elapsed_seconds: numericSource,
+    exercise_seconds: numericSource,
     distance_m: numericSource,
     steps: numericSource,
     energy_kcal: z.strictObject({
@@ -432,6 +435,14 @@ const dailyOutput = z.strictObject({
     .strictObject({
       observations: z.array(storedRecord).max(1000),
       rating_aggregation: z.literal("individual_supplied_observations"),
+      latest_mood: z
+        .strictObject({
+          value: z.enum(moodValues),
+          source_id: z.uuid(),
+          occurred_at: p.instant.nullable(),
+          recorded_at: p.instant,
+        })
+        .nullable(),
     })
     .optional(),
   intake: z
@@ -603,6 +614,7 @@ export type Operation = {
   mutation: boolean;
   record_type?: RecordType;
   batch?: boolean;
+  domain?: "goals";
 };
 export const operations: Operation[] = [
   {
@@ -742,7 +754,10 @@ for (const type of recordTypes) {
     mutation: true,
     record_type: type,
     batch,
-    description: `Save ${batch ? "an atomic bounded batch of" : "one"} supplied ${type} observation${batch ? "s" : ""}. Actual recorded events only. Use health_get_catalog for exact fields and units; do not infer missing values.`,
+    description:
+      type === "checkin"
+        ? `Save one supplied check-in, including optional data.mood (${moodValues.join(", ")}). Actual recorded events only. Numeric ratings remain separate. Use health_get_catalog for exact fields; do not infer missing values.`
+        : `Save ${batch ? "an atomic bounded batch of" : "one"} supplied ${type} observation${batch ? "s" : ""}. Actual recorded events only. Use health_get_catalog for exact fields and units; do not infer missing values.`,
   });
 }
 const replacement = z.union(
@@ -784,6 +799,12 @@ operations.push({
   description:
     "Void one record using its expected version and a reason. Exclude it from effective calculations and preserve history; this is not permanent erasure.",
 });
+operations.push(
+  ...goalOperations(idempotencyKey).map((operation) => ({
+    ...operation,
+    domain: "goals" as const,
+  })),
+);
 export const operationByName = new Map(
   operations.map((operation) => [operation.name, operation]),
 );

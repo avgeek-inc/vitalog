@@ -4,6 +4,8 @@ import { jsonSchema } from "./registry/primitives.js";
 import type { Data } from "./domain/types.js";
 import { keyOperations } from "./auth/contracts.js";
 import { oauthPaths } from "./auth/oauth-docs.js";
+import { keyManagementOperations } from "./auth/key-management-contracts.js";
+import { sessionOperations } from "./auth/session-contracts.js";
 export function openapi(): Data {
   const paths: Data = {};
   for (const operation of operations) {
@@ -75,11 +77,16 @@ export function openapi(): Data {
         },
       };
     paths[operation.path] = {
+      ...(paths[operation.path] as Data | undefined),
       [operation.method.toLowerCase()]: {
         operationId: operation.name,
         summary: operation.description,
         tags: [operation.record_type ?? "Read"],
-        security: [{ staticKey: [] }, { apiKey: [] }],
+        security: [
+          { staticKey: [] },
+          { apiKey: [] },
+          ...(!operation.mutation ? [{ browserSession: [] }] : []),
+        ],
         parameters,
         ...(operation.method === "POST"
           ? {
@@ -199,6 +206,122 @@ export function openapi(): Data {
       },
     };
   }
+  for (const operation of sessionOperations) {
+    const responses: Data = {
+      [operation.status]: {
+        description: operation.description,
+        content: {
+          "application/json": { schema: jsonSchema(operation.output) },
+        },
+      },
+    };
+    for (const status of [401, 403, 413, 422, 429, 503, 500])
+      responses[String(status)] = {
+        description: "Authentication or request validation failed",
+        content: {
+          "application/json": {
+            schema: { $ref: "#/components/schemas/Error" },
+          },
+        },
+      };
+    paths[operation.path] = {
+      ...(paths[operation.path] as Data | undefined),
+      [operation.method.toLowerCase()]: {
+        operationId: operation.name,
+        summary: operation.description,
+        tags: ["Browser sessions"],
+        security: operation.method === "POST" ? [] : [{ browserSession: [] }],
+        ...(operation.method === "POST"
+          ? {
+              requestBody: {
+                required: true,
+                content: {
+                  "application/json": { schema: jsonSchema(operation.input) },
+                },
+              },
+            }
+          : {}),
+        responses,
+      },
+    };
+  }
+  for (const operation of keyManagementOperations) {
+    const parameters: Data[] = operation.path.includes("{id}")
+      ? [
+          {
+            name: "id",
+            in: "path",
+            required: true,
+            schema: { type: "string", format: "uuid" },
+          },
+        ]
+      : operation.name === "list_managed_api_keys"
+        ? [
+            {
+              name: "limit",
+              in: "query",
+              schema: {
+                type: "integer",
+                minimum: 1,
+                maximum: 100,
+                default: 50,
+              },
+            },
+            {
+              name: "offset",
+              in: "query",
+              schema: {
+                type: "integer",
+                minimum: 0,
+                maximum: 1000000,
+                default: 0,
+              },
+            },
+          ]
+        : [];
+    const credentials = "credentials" in operation;
+    paths[operation.path] = {
+      ...(paths[operation.path] as Data | undefined),
+      [operation.method.toLowerCase()]: {
+        operationId: operation.name,
+        summary: operation.description,
+        tags: ["Key management"],
+        security: credentials ? [] : [{ keyManagementSession: [] }],
+        parameters,
+        ...(credentials
+          ? {
+              requestBody: {
+                required: true,
+                content: {
+                  "application/json": { schema: jsonSchema(operation.input) },
+                },
+              },
+            }
+          : {}),
+        responses: {
+          [operation.status]: {
+            description: operation.description,
+            content: {
+              "application/json": { schema: jsonSchema(operation.output) },
+            },
+          },
+          ...Object.fromEntries(
+            [401, 403, 404, 413, 422, 429, 500, 503].map((status) => [
+              status,
+              {
+                description: "Authentication or request validation failed",
+                content: {
+                  "application/json": {
+                    schema: { $ref: "#/components/schemas/Error" },
+                  },
+                },
+              },
+            ]),
+          ),
+        },
+      },
+    };
+  }
   paths["/api-keys"] = {
     get: {
       summary: "Redirect to the separate API-key creation UI",
@@ -242,7 +365,7 @@ export function openapi(): Data {
       title: "Vitalog",
       version: "1.0.0",
       description:
-        "Single-user structured observations with equivalent REST and MCP domain services. Environment AUTH_KEY or revocable 30-day opaque Bearer keys; key management requires AUTH_KEY. MCP clients use OAuth authorization code with S256 PKCE, issued after root sign-in. Clients are resolved through HTTPS metadata, pre-registration or dynamic registration. OAuth tokens grant MCP access only.",
+        "Single-user structured observations with equivalent REST and MCP domain services. Environment AUTH_KEY or revocable 30-day opaque Bearer keys; Primary key management requires AUTH_KEY; the UI uses separate, root-verified 30-minute management sessions. MCP clients use OAuth authorization code with S256 PKCE, issued after root sign-in. Clients are resolved through HTTPS metadata, pre-registration or dynamic registration. OAuth tokens grant MCP access only.",
     },
     servers: [
       {
@@ -257,6 +380,18 @@ export function openapi(): Data {
     paths: { ...paths, ...oauthPaths },
     components: {
       securitySchemes: {
+        keyManagementSession: {
+          type: "http",
+          scheme: "bearer",
+          description:
+            "Opaque vlm_ token valid for 30 minutes. API-key management only; ledger and MCP routes reject it. The UI stores it in a separate host-only HttpOnly cookie.",
+        },
+        browserSession: {
+          type: "http",
+          scheme: "bearer",
+          description:
+            "Opaque vls_ browser token, valid for 30 days unless revoked. Read-only REST access. The UI stores it in a host-only HttpOnly SameSite=Lax cookie; it never reaches browser JavaScript. Key administration and MCP reject this token.",
+        },
         oauthFlowCookie: {
           type: "apiKey",
           in: "cookie",
@@ -268,7 +403,7 @@ export function openapi(): Data {
           type: "http",
           scheme: "bearer",
           description:
-            "Environment AUTH_KEY. Full ledger access and exclusive API-key administration. Not OAuth or JWT.",
+            "Environment AUTH_KEY. Full ledger access and primary API-key administration. Not OAuth or JWT.",
         },
         apiKey: {
           type: "http",
