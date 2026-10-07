@@ -4,25 +4,18 @@ import { Accordion } from "@heroui/react";
 import { Button } from "./ui/button";
 import { Widget } from "./ui/widget";
 import { useState } from "react";
-import {
-  Calendar,
-  Droplet,
-  Flame,
-  HeartPulse,
-  Pill,
-  Scale as ScalesBalanced,
-} from "lucide-react";
 import type { Log } from "../lib/health";
+import { HealthIcon, type HealthIconKind } from "./health-icon";
 
-const icons = {
-  nutrition: Flame,
-  hydration: Droplet,
-  measurement: ScalesBalanced,
-  activity: HeartPulse,
-  sleep: Calendar,
-  checkin: HeartPulse,
-  intake: Pill,
-  lab_result: HeartPulse,
+const icons: Record<string, HealthIconKind> = {
+  nutrition: "nutrition",
+  hydration: "water",
+  measurement: "weight",
+  activity: "exercise",
+  sleep: "sleep",
+  checkin: "mood",
+  intake: "medication",
+  lab_result: "health",
 };
 export function Logs({ logs }: { logs: Log[] }) {
   const [visible, setVisible] = useState(30);
@@ -37,7 +30,7 @@ export function Logs({ logs }: { logs: Log[] }) {
         {logs.length ? (
           <Accordion variant="default" className="logs-accordion">
             {logs.slice(0, visible).map((log) => {
-              const Icon = icons[log.type as keyof typeof icons] ?? HeartPulse;
+              const kind = icons[log.type] ?? "health";
               const expandable = log.details.length > 0;
               const content = (
                 <>
@@ -48,7 +41,7 @@ export function Logs({ logs }: { logs: Log[] }) {
                     >
                       {log.time ?? "—"}
                     </span>
-                    <Icon aria-hidden="true" />
+                    <HealthIcon kind={kind} />
                     <span className="log-name">{log.vital}</span>
                   </span>
                   <span className="log-right">

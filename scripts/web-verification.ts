@@ -1458,7 +1458,10 @@ try {
           0,
         );
         assert.equal(
-          await page.getByText("Account settings", { exact: true }).count(),
+          await page
+            .locator("#application-navigation")
+            .getByRole("link", { name: "Account Settings", exact: true })
+            .count(),
           1,
         );
         assert.equal(
@@ -1739,6 +1742,31 @@ try {
         });
         await nutritionLog.click();
         await page.getByText("Dinner", { exact: true }).waitFor();
+        for (const width of [1280, 390, 320]) {
+          await page.setViewportSize({ width, height: 1000 });
+          const alignment = await page.evaluate<{
+            name: number;
+            metric: number;
+            left: number;
+            right: number;
+          }>(`(() => {
+            const body = document.querySelector('.log-body');
+            const row = body.closest('.accordion__item');
+            const name = row.querySelector('.log-name').getBoundingClientRect();
+            const metric = row.querySelector('.log-metric').getBoundingClientRect();
+            const details = body.querySelector('.log-details').getBoundingClientRect();
+            return { name: name.left, metric: metric.right, left: details.left, right: details.right };
+          })()`);
+          assert(
+            Math.abs(alignment.left - alignment.name) <= 1,
+            `Log detail start at ${width}`,
+          );
+          assert(
+            Math.abs(alignment.right - alignment.metric) <= 1,
+            `Log detail end at ${width}`,
+          );
+        }
+        await page.setViewportSize({ width: 1280, height: 1000 });
         await page.screenshot({
           path: ".test-artifacts/web/daily-expanded.png",
           fullPage: true,
@@ -1885,7 +1913,7 @@ try {
           0,
         );
         await nav
-          .getByRole("link", { name: "Account settings", exact: true })
+          .getByRole("link", { name: "Account Settings", exact: true })
           .click();
         const settingsNav = page.getByRole("navigation", {
           name: "Page navigation",
@@ -1899,7 +1927,7 @@ try {
           .waitFor();
         assert.equal(
           await nav
-            .getByRole("link", { name: "Account settings", exact: true })
+            .getByRole("link", { name: "Account Settings", exact: true })
             .getAttribute("aria-current"),
           "page",
         );
@@ -2175,7 +2203,7 @@ try {
         );
         await page.setViewportSize({ width: 1280, height: 900 });
         await nav
-          .getByRole("link", { name: "Account settings", exact: true })
+          .getByRole("link", { name: "Account Settings", exact: true })
           .click();
         await settingsNav
           .getByRole("link", { name: "API Keys", exact: true })
@@ -2298,6 +2326,20 @@ try {
         } finally {
           await touchContext.close();
         }
+        const frameBounds = await page.evaluate<{
+          content: { left: number; right: number };
+          chart: { left: number; right: number };
+        }>(`(() => {
+          const content = document.querySelector('.weight-trend-card > .widget__content').getBoundingClientRect();
+          const chart = document.querySelector('.weight-chart-frame').getBoundingClientRect();
+          return { content: { left: content.left, right: content.right }, chart: { left: chart.left, right: chart.right } };
+        })()`);
+        assert(frameBounds.chart.left >= frameBounds.content.left);
+        assert(frameBounds.chart.right <= frameBounds.content.right);
+        assert.equal(
+          await chart.locator("svg text").filter({ hasText: /^kg$/ }).count(),
+          0,
+        );
         await page.screenshot({
           path: ".test-artifacts/web/weight-desktop.png",
           fullPage: true,

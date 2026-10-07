@@ -15,7 +15,6 @@ export default async function Preferences() {
   );
   return (
     <PreferencesPage
-      instant={new Date().toISOString()}
       options={{
         dateFormats: [...dateFormatOptions],
         timeFormats: [...timeFormatOptions],

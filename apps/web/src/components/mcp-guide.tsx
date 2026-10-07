@@ -55,7 +55,9 @@ export function McpGuide({
     <ApplicationPage
       title="MCP Guide"
       titleContent={<SettingsPageTitle section="mcp" />}
-      breadcrumbAncestors={[{ label: "Settings" }, { label: "API & MCP" }]}
+      breadcrumbAncestors={[
+        { label: "Account Settings", href: "/settings/profile" },
+      ]}
     >
       <McpGuideSettings
         documentationUrl={docsUrl}

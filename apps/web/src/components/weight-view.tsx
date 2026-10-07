@@ -6,8 +6,7 @@ import { formatDateTime } from "../lib/date-time";
 import { Button } from "./ui/button";
 
 import { ProgressBar } from "@heroui/react";
-import ChartLine from "@gravity-ui/icons/ChartLine";
-import ScalesBalanced from "@gravity-ui/icons/ScalesBalanced";
+import { HealthIcon } from "./health-icon";
 import { useState } from "react";
 import {
   exactWeight,
@@ -50,7 +49,7 @@ export function WeightView({
             aria-label="Current weight"
           >
             <Widget.Header>
-              <Widget.Title icon={<ScalesBalanced aria-hidden="true" />}>
+              <Widget.Title icon={<HealthIcon kind="weight" />}>
                 <h2 className="font-medium">Current weight</h2>
               </Widget.Title>
             </Widget.Header>
@@ -79,7 +78,7 @@ export function WeightView({
           </Widget>
           <Widget className="metric-card weight-trend-card">
             <Widget.Header>
-              <Widget.Title icon={<ChartLine aria-hidden="true" />}>
+              <Widget.Title icon={<HealthIcon kind="trend" />}>
                 <h2 className="font-medium">Last 30 days</h2>
               </Widget.Title>
             </Widget.Header>

@@ -62,7 +62,7 @@ const sections = [
         href: "/settings/profile",
         activePath: "/settings",
         preserveSubroute: true,
-        label: "Account settings",
+        label: "Account Settings",
         icon: Settings01Icon,
       },
     ],

@@ -164,9 +164,6 @@ export function WeightChart({
             y2={height - bottom}
             className="chart-axis chart-axis-x"
           />
-          <text x={left - 8} y={10} textAnchor="end">
-            kg
-          </text>
           {dates.map((date, index) => (
             <g key={date}>
               <line

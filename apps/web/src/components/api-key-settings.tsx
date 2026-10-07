@@ -269,7 +269,9 @@ export function ApiKeySettings({
           section={kind === "mcp" ? "mcp-connections" : "api-keys"}
         />
       }
-      breadcrumbAncestors={[{ label: "Settings" }, { label: "API & MCP" }]}
+      breadcrumbAncestors={[
+        { label: "Account Settings", href: "/settings/profile" },
+      ]}
       actions={
         kind === "api-key" ? (
           <Button
