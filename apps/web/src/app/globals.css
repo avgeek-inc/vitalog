@@ -161,6 +161,29 @@ body {
 }
 .goal-meter .progress-bar__track {
   height: 0.25rem;
+  overflow: visible;
+}
+.day-progress-dot {
+  position: absolute;
+  top: 50%;
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 50%;
+  background: #374151;
+  box-shadow: 0 0 0 2px var(--surface);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.day-progress-dot[data-tone="water"] {
+  background: #1e40af;
+}
+.day-progress-dot[data-tone="exercise"] {
+  background: #ca8a04;
+}
+.dark .day-progress-dot {
+  box-shadow:
+    0 0 0 2px var(--surface),
+    0 0 0 3px var(--muted);
 }
 .goal-meter .progress-bar {
   --progress-bar-fill: color-mix(in oklab, var(--foreground) 35%, transparent);
