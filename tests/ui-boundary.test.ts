@@ -5,6 +5,8 @@ import { configuration } from "../src/config.js";
 import { database } from "../src/db/client.js";
 import { Service } from "../src/service.js";
 import {
+  documentationUrl,
+  mcpDocumentationUrl,
   serverApiBaseUrl,
   webConfiguration,
 } from "../apps/web/src/lib/config.js";
@@ -27,6 +29,30 @@ const app = application(
 afterAll(() => connection.pool.end());
 
 describe("Separate UI and API origins", () => {
+  test("Documentation destinations use the runtime docs origin or repository fallback", () => {
+    expect(documentationUrl({})).toBe(
+      "https://github.com/avgeek-oss/vitalog/tree/main/docs/mintlify",
+    );
+    expect(mcpDocumentationUrl({})).toBe(
+      "https://github.com/avgeek-oss/vitalog/blob/main/docs/mintlify/mcp-guide.mdx",
+    );
+    for (const origin of [
+      "https://docs.example.com",
+      "http://127.0.0.1:4175",
+    ]) {
+      expect(documentationUrl({ DOCS_BASE_URL: origin })).toBe(origin);
+      expect(mcpDocumentationUrl({ DOCS_BASE_URL: origin })).toBe(
+        origin + "/mcp-guide",
+      );
+    }
+    for (const origin of [
+      "javascript:alert(1)",
+      "https://docs.example.com/path",
+    ]) {
+      expect(() => documentationUrl({ DOCS_BASE_URL: origin })).toThrow();
+      expect(() => mcpDocumentationUrl({ DOCS_BASE_URL: origin })).toThrow();
+    }
+  });
   test("An unconfigured consent UI fails closed instead of redirecting to itself", async () => {
     const withoutUi = { ...config, uiBaseUrl: undefined };
     const server = application(

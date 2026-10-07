@@ -692,14 +692,19 @@ try {
   await check(
     "API keys, read-only browser sessions and OAuth read/write scopes apply to files",
     async () => {
-      const manual = await new ApiKeys(connection!.db).create();
+      const manual = await new ApiKeys(connection!.db).create({
+        name: "Verification",
+        access: "edit",
+        includeAdmin: false,
+        expiresAt: null,
+      });
       assert.equal(
         (
           await rest(
             `/v1/attachments/${imageId}`,
             undefined,
             randomUUID(),
-            manual.api_key,
+            manual.api_key!,
           )
         ).status,
         200,

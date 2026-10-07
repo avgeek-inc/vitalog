@@ -37,7 +37,6 @@ export function ProfilePage() {
         <ProfileSettings
           key={account.name}
           value={account.name}
-          email={account.email}
           label="Your Name"
           onSave={async (name) => {
             await save("/auth/profile", "PATCH", { name });

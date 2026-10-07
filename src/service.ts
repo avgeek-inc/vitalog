@@ -47,7 +47,7 @@ export class Service {
         sql`select id, time_context from health_records limit 0`,
       );
       await this.db.execute(
-        sql`select id, token_digest, expires_at, revoked_at from api_keys limit 0`,
+        sql`select id, name, access, include_admin, token_digest, expires_at, revoked_at from api_keys limit 0`,
       );
       await this.db.execute(
         sql`select code_digest, code_challenge, consumed_at from oauth_authorization_codes limit 0`,

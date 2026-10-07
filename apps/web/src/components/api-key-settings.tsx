@@ -1,21 +1,22 @@
 "use client";
 
+import {
+  CreateApiKeyDialog,
+  apiKeyPermissionOptions,
+  apiKeyExpiryOptions,
+  type CreateApiKeyValues,
+} from "@avgeek-oss/design-system/patterns/account-settings/create-api-key-dialog";
 import { McpConnectionsSettings } from "@avgeek-oss/design-system/patterns/account-settings/mcp-connections-settings";
 import { SettingsPageTitle } from "@avgeek-oss/design-system/patterns/settings/page-title";
 import { Chip } from "@avgeek-oss/design-system/data-display/chip";
-import { Field } from "@avgeek-oss/design-system/forms/field";
-import { Input } from "@avgeek-oss/design-system/forms/input";
-import { Label } from "@avgeek-oss/design-system/forms/label";
-import { Modal } from "@avgeek-oss/design-system/overlays/modal";
 import { toast } from "@avgeek-oss/design-system/overlays/toast";
 import { ActionConfirmation } from "@avgeek-oss/design-system/patterns/actions/action-confirmation";
 import { ConfirmIdentityDialog } from "@avgeek-oss/design-system/patterns/auth/confirm-identity-dialog";
 import { ApplicationPage } from "@avgeek-oss/design-system/patterns/pages/page";
 import { ResourceTable } from "@avgeek-oss/design-system/patterns/resource-table";
-import Copy01Icon from "@hugeicons/core-free-icons/Copy01Icon";
 import PlusSignIcon from "@hugeicons/core-free-icons/PlusSignIcon";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CredentialsForm, type Credentials } from "./credentials-form";
 import { Button } from "./ui/button";
 import { useAccount } from "./account-context";
@@ -24,14 +25,17 @@ import { formatDateTime } from "../lib/date-time";
 type ApiKey = {
   id: string;
   token_hint: string;
+  name: string | null;
+  access: "read" | "edit" | null;
+  includeAdmin: boolean | null;
   oauth_client_id?: string | null;
   oauth_client_name?: string | null;
   oauth_scopes?: string[] | null;
   created_at: string;
-  expires_at: string;
+  expires_at: string | null;
   status: "active" | "expired" | "revoked";
 };
-type GeneratedKey = ApiKey & { api_key: string };
+type GeneratedKey = ApiKey & { api_key: string | null };
 type KeyPage = {
   api_keys: ApiKey[];
   total: number;
@@ -110,12 +114,9 @@ export function ApiKeySettings({
   const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [generated, setGenerated] = useState<GeneratedKey>();
   const [revoking, setRevoking] = useState<ApiKey | "all">();
   const sequence = useRef(0);
   const revoked = useRef(new Set<string>());
-  const secretInput = useRef<HTMLInputElement>(null);
-  const secretId = useId();
   const load = useCallback(
     async (offset = 0) => {
       const current = ++sequence.current;
@@ -175,11 +176,9 @@ export function ApiKeySettings({
       sequence.current++;
     };
   }, [load]);
+
   useEffect(() => {
-    const clear = () => {
-      if (secretInput.current) secretInput.current.value = "";
-      setGenerated(undefined);
-    };
+    const clear = () => setCreating(false);
     window.addEventListener("pagehide", clear);
     return () => window.removeEventListener("pagehide", clear);
   }, []);
@@ -187,17 +186,42 @@ export function ApiKeySettings({
   function managementExpired() {
     sequence.current++;
     setPending(false);
-    setGenerated(undefined);
     setCreating(false);
     setRevoking(undefined);
     setVerifying(true);
   }
-  async function create() {
-    if (busy) return;
+  const creationAttempt = useRef<
+    { fingerprint: string; requestId: string; body: string } | undefined
+  >(undefined);
+  async function create(values: CreateApiKeyValues) {
+    if (busy) throw new Error("Key creation is already in progress.");
     setBusy(true);
+    const fingerprint = JSON.stringify(values);
+    if (creationAttempt.current?.fingerprint !== fingerprint)
+      creationAttempt.current = {
+        fingerprint,
+        requestId: crypto.randomUUID(),
+        body: JSON.stringify({
+          name: values.name,
+          access: values.permission === "read" ? "read" : "edit",
+          includeAdmin: values.permission === "admin",
+          expiresAt:
+            values.expiry === "never"
+              ? null
+              : new Date(
+                  Date.now() + Number(values.expiry) * 86400000,
+                ).toISOString(),
+        }),
+      };
+    const attempt = creationAttempt.current;
     try {
       const response = await fetch(endpoint, {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": attempt.requestId,
+        },
+        body: attempt.body,
         cache: "no-store",
         redirect: "error",
       }).catch(() => {
@@ -210,22 +234,10 @@ export function ApiKeySettings({
       if (!response.ok)
         throw new Error("Unable to create an API key. Try again.");
       const result: GeneratedKey = await response.json();
-      setGenerated(result);
-      setCreating(false);
       void load();
+      return { token: result.api_key };
     } finally {
       setBusy(false);
-    }
-  }
-  async function copy() {
-    if (!generated) return;
-    try {
-      await navigator.clipboard.writeText(generated.api_key);
-      toast.success("API key copied.");
-    } catch {
-      secretInput.current?.focus();
-      secretInput.current?.select();
-      toast.warning("Select the key and copy it manually.");
     }
   }
   async function revoke() {
@@ -296,7 +308,7 @@ export function ApiKeySettings({
                 id: key.id,
                 name: key.oauth_client_name ?? "MCP client",
                 createdAt: key.created_at,
-                expiresAt: key.expires_at,
+                expiresAt: key.expires_at!,
                 permissions:
                   key.oauth_scopes === null || key.oauth_scopes === undefined
                     ? "—"
@@ -357,14 +369,37 @@ export function ApiKeySettings({
                     cell: (key) => (
                       <div className="grid gap-1">
                         <span className="font-mono text-sm">
+                          {key.name ?? key.token_hint}
+                        </span>
+                        <span className="font-mono text-xs text-muted">
                           {key.token_hint}
                         </span>
                         <span className="text-xs text-muted md:hidden">
                           {key.status === "active" ? "Active" : "Expired"} ·
-                          Expires {date(key.expires_at)}
+                          {key.includeAdmin
+                            ? "Administrative permissions"
+                            : key.access === "edit"
+                              ? "Edit"
+                              : "Read-only"}{" "}
+                          ·{" "}
+                          {key.expires_at
+                            ? `Expires ${key.expires_at ? date(key.expires_at) : "Never"}`
+                            : "Never expires"}
                         </span>
                       </div>
                     ),
+                  },
+                  {
+                    key: "permissions",
+                    header: "Permissions",
+                    className: "hidden md:table-cell",
+                    headerClassName: "hidden md:table-cell",
+                    cell: (key) =>
+                      key.includeAdmin
+                        ? "Administrative permissions"
+                        : key.access === "edit"
+                          ? "Edit"
+                          : "Read-only",
                   },
                   {
                     key: "status",
@@ -402,10 +437,10 @@ export function ApiKeySettings({
                     headerClassName: "hidden md:table-cell",
                     cell: (key) => (
                       <time
-                        dateTime={key.expires_at}
+                        dateTime={key.expires_at ?? undefined}
                         className="text-sm text-muted"
                       >
-                        {date(key.expires_at)}
+                        {key.expires_at ? date(key.expires_at) : "Never"}
                       </time>
                     ),
                   },
@@ -473,67 +508,16 @@ export function ApiKeySettings({
           }}
         />
       ) : null}
-      <ActionConfirmation
+      <CreateApiKeyDialog
         isOpen={creating}
-        onOpenChange={setCreating}
-        title="Create API key"
-        description="Create an API key for your scripts or apps. This key expires in 30 days."
-        confirmLabel="Create API key"
-        variant="primary"
-        onConfirm={create}
+        onOpenChange={(open) => {
+          setCreating(open);
+          if (!open) creationAttempt.current = undefined;
+        }}
+        permissionOptions={apiKeyPermissionOptions}
+        expiryOptions={apiKeyExpiryOptions}
+        onCreate={create}
       />
-      {generated ? (
-        <Modal.Backdrop
-          isOpen
-          onOpenChange={(open) => {
-            if (!open) setGenerated(undefined);
-          }}
-        >
-          <Modal.Container size="sm">
-            <Modal.Dialog>
-              <Modal.Header>
-                <Modal.Heading>Copy your API key</Modal.Heading>
-                <Modal.CloseTrigger />
-              </Modal.Header>
-              <Modal.Body>
-                <div className="content-grid">
-                  <p className="text-sm text-muted">
-                    Save this key in your secret storage. It is shown only in
-                    this dialog and cannot be viewed again after you close it.
-                  </p>
-                  <Field>
-                    <Label htmlFor={secretId}>API key</Label>
-                    <Input
-                      ref={secretInput}
-                      id={secretId}
-                      name="api-key"
-                      readOnly
-                      value={generated.api_key}
-                      className="font-mono"
-                      variant="secondary"
-                      autoComplete="off"
-                      spellCheck={false}
-                    />
-                  </Field>
-                  <p className="text-sm text-muted">
-                    Expires{" "}
-                    <time dateTime={generated.expires_at}>
-                      {date(generated.expires_at)}
-                    </time>
-                  </p>
-                </div>
-              </Modal.Body>
-              <Modal.Footer>
-                <Button variant="secondary" onPress={copy}>
-                  <HugeiconsIcon icon={Copy01Icon} aria-hidden="true" />
-                  Copy API key
-                </Button>
-                <Button onPress={() => setGenerated(undefined)}>Done</Button>
-              </Modal.Footer>
-            </Modal.Dialog>
-          </Modal.Container>
-        </Modal.Backdrop>
-      ) : null}
       <ActionConfirmation
         isOpen={!!revoking}
         onOpenChange={(open) => {

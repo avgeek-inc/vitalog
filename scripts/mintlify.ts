@@ -1,6 +1,6 @@
 import { readFile, mkdir, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
-import { dirname } from "node:path";
+import { dirname, posix } from "node:path";
 import { format } from "prettier";
 import { openapi } from "../src/openapi.js";
 import { operations } from "../src/registry/operations.js";
@@ -36,7 +36,7 @@ const pages = [
     "api-keys",
     "api-keys",
     "API keys",
-    "Create a 30-day API key and manage keys and MCP connections.",
+    "Create a personal API key with explicit permissions and expiry, and manage keys and MCP connections.",
   ],
   [
     "oauth",
@@ -77,7 +77,7 @@ for (const [file, route, title, description] of pages) {
       const siteRoute = routes.get(normalized);
       return siteRoute
         ? `](/${siteRoute}${anchor})`
-        : `](https://github.com/avgeek-oss/vitalog/blob/main/${target.startsWith("docs/") || target.startsWith("apps/") || target.startsWith("scripts/") ? target : `docs/${normalized}`}${anchor})`;
+        : `](https://github.com/avgeek-oss/vitalog/blob/main/${posix.normalize(target.startsWith("docs/") || target.startsWith("apps/") || target.startsWith("scripts/") ? target : `docs/${normalized}`)}${anchor})`;
     },
   );
   body = body.replace(

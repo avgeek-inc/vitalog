@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   check,
   date,
   foreignKey,
@@ -261,23 +262,31 @@ export const apiKeys = pgTable(
     id: uuid("id").primaryKey(),
     tokenDigest: text("token_digest").notNull(),
     tokenHint: text("token_hint").notNull(),
+    name: text("name"),
+    access: text("access", { enum: ["read", "edit"] }),
+    includeAdmin: boolean("include_admin"),
+    creationRequestId: uuid("creation_request_id"),
+    creationDigest: text("creation_digest"),
     oauthClientId: text("oauth_client_id"),
     oauthClientName: text("oauth_client_name"),
     oauthScopes: text("oauth_scopes").array(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`statement_timestamp()`),
-    expiresAt: timestamp("expires_at", { withTimezone: true })
-      .notNull()
-      .default(sql`statement_timestamp() + interval '720 hours'`),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
   },
   (t) => [
     uniqueIndex("api_key_digest").on(t.tokenDigest),
+    uniqueIndex("api_key_creation_request").on(t.creationRequestId),
     index("api_key_creation_order").on(t.createdAt, t.id),
     check(
       "api_key_lifetime",
-      sql`${t.expiresAt} = ${t.createdAt} + case when left(${t.tokenHint}, 4) = 'vlm_' then interval '30 minutes' else interval '720 hours' end`,
+      sql`(left(${t.tokenHint}, 4) = 'vlk_' and (${t.expiresAt} is null or ${t.expiresAt} > ${t.createdAt})) or (left(${t.tokenHint}, 4) in ('vls_', 'vlm_', 'vlo_') and ${t.expiresAt} is not null and ${t.expiresAt} = ${t.createdAt} + case when left(${t.tokenHint}, 4) = 'vlm_' then interval '30 minutes' else interval '720 hours' end)`,
+    ),
+    check(
+      "api_key_manual_policy",
+      sql`(left(${t.tokenHint}, 4) = 'vlk_' and ${t.name} is not null and length(btrim(${t.name})) between 1 and 120 and ${t.access} is not null and ${t.access} in ('read', 'edit') and ${t.includeAdmin} is not null and (not ${t.includeAdmin} or ${t.access} = 'edit')) or (left(${t.tokenHint}, 4) <> 'vlk_' and ${t.name} is null and ${t.access} is null and ${t.includeAdmin} is null)`,
     ),
     check("api_key_sha256", sql`${t.tokenDigest} ~ '^[0-9a-f]{64}$'`),
   ],

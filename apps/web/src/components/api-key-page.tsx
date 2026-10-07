@@ -1,126 +1,135 @@
 "use client";
 
+import {
+  CreateApiKeyDialog,
+  apiKeyPermissionOptions,
+  apiKeyExpiryOptions,
+  type CreateApiKeyValues,
+} from "@avgeek-oss/design-system/patterns/account-settings/create-api-key-dialog";
 import { Field } from "@avgeek-oss/design-system/forms/field";
+import { Input } from "@avgeek-oss/design-system/forms/input";
 import { Label } from "@avgeek-oss/design-system/forms/label";
-import { Textarea } from "@avgeek-oss/design-system/forms/textarea";
-import { toast } from "@avgeek-oss/design-system/overlays/toast";
 import { AuthScreen } from "@avgeek-oss/design-system/patterns/auth/auth-screen";
 import { useEffect, useId, useRef, useState } from "react";
 import { Brand } from "./brand";
-import { CredentialsForm, type Credentials } from "./credentials-form";
 import { Button } from "./ui/button";
 
-type GeneratedKey = { api_key: string; expires_at: string };
-
-function generationError(status: number) {
-  if (status === 401) return "Invalid credentials";
-  if (status === 429) return "Too many attempts. Wait a minute and try again.";
-  if (status === 503)
-    return "Key generation is unavailable. Check the root configuration.";
-  return "The key could not be generated. Try again.";
-}
-
 export function ApiKeyPage({ apiBaseUrl }: { apiBaseUrl: string }) {
-  const [result, setResult] = useState<GeneratedKey>();
-  const keyId = useId();
-  const keyInput = useRef<HTMLTextAreaElement>(null);
-  const resultPanel = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (result) resultPanel.current?.focus();
-  }, [result]);
+  const [open, setOpen] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const emailId = useId();
+  const passwordId = useId();
+  const creationAttempt = useRef<
+    { fingerprint: string; requestId: string; body: string } | undefined
+  >(undefined);
   useEffect(() => {
     const clear = () => {
-      if (keyInput.current) keyInput.current.value = "";
-      setResult(undefined);
+      setPassword("");
+      setOpen(false);
     };
     window.addEventListener("pagehide", clear);
     return () => window.removeEventListener("pagehide", clear);
   }, []);
-
-  async function generate(credentials: Credentials) {
-    const response = await fetch(apiBaseUrl + "/auth/api-keys", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(credentials),
-      credentials: "omit",
-      cache: "no-store",
-      redirect: "error",
-    }).catch(() => {
-      throw new Error(
-        "Unable to connect. Check your connection and try again.",
-      );
-    });
-    if (!response.ok) throw new Error(generationError(response.status));
-    const data: GeneratedKey = await response.json();
-    setResult({ api_key: data.api_key, expires_at: data.expires_at });
-  }
-
-  async function copy() {
-    if (!result) return;
+  async function generate(values: CreateApiKeyValues) {
+    const fingerprint = JSON.stringify(values);
+    if (creationAttempt.current?.fingerprint !== fingerprint)
+      creationAttempt.current = {
+        fingerprint,
+        requestId: crypto.randomUUID(),
+        body: JSON.stringify({
+          name: values.name,
+          access: values.permission === "read" ? "read" : "edit",
+          includeAdmin: values.permission === "admin",
+          expiresAt:
+            values.expiry === "never"
+              ? null
+              : new Date(
+                  Date.now() + Number(values.expiry) * 86400000,
+                ).toISOString(),
+        }),
+      };
+    const attempt = creationAttempt.current;
     try {
-      await navigator.clipboard.writeText(result.api_key);
-      toast.success("API key copied.");
-    } catch {
-      keyInput.current?.focus();
-      keyInput.current?.select();
-      toast.warning("Select the key and copy it manually.");
+      const response = await fetch(apiBaseUrl + "/auth/api-keys", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": attempt.requestId,
+        },
+        body: JSON.stringify({ ...JSON.parse(attempt.body), email, password }),
+        credentials: "omit",
+        cache: "no-store",
+        redirect: "error",
+      });
+      if (!response.ok)
+        throw new Error(
+          response.status === 401
+            ? "Invalid credentials"
+            : response.status === 429
+              ? "Too many attempts. Wait a minute and try again."
+              : "The key could not be generated. Try again.",
+        );
+      const result: { api_key: string | null } = await response.json();
+      return { token: result.api_key };
+    } finally {
+      setPassword("");
     }
   }
-
   return (
     <main className="vitalog-auth">
       <AuthScreen
         brand={<Brand />}
-        title={result ? "Your API key is ready" : "Generate an API key"}
-        description={
-          result ? "Copy this key now. It will only be shown once." : undefined
-        }
+        title="Generate an API key"
+        description="Choose a name, permissions and expiry, then verify your identity."
       >
-        {result ? (
-          <div
-            ref={resultPanel}
-            tabIndex={-1}
-            aria-label="Your new API key"
-            className="content-grid outline-none"
-          >
+        <Button onPress={() => setOpen(true)}>Create API key</Button>
+        <CreateApiKeyDialog
+          isOpen={open}
+          onOpenChange={(value) => {
+            setOpen(value);
+            if (!value) creationAttempt.current = undefined;
+            if (!value) setPassword("");
+          }}
+          permissionOptions={apiKeyPermissionOptions}
+          expiryOptions={apiKeyExpiryOptions}
+          onCreate={generate}
+        >
+          <div className="grid gap-4">
             <Field>
-              <Label htmlFor={keyId}>API key</Label>
-              <Textarea
-                id={keyId}
-                name="api-key"
-                ref={keyInput}
-                readOnly
-                value={result.api_key}
-                className="key-value"
+              <Label htmlFor={emailId} isRequired>
+                Email
+              </Label>
+              <Input
+                id={emailId}
+                name="email"
+                type="email"
+                required
+                maxLength={254}
+                autoComplete="username"
+                value={email}
+                onChange={(event) => setEmail(event.currentTarget.value)}
                 variant="secondary"
-                autoComplete="off"
-                spellCheck={false}
-                rows={3}
               />
             </Field>
-            <p className="text-sm text-muted">
-              Expires{" "}
-              <time dateTime={result.expires_at}>
-                {new Date(result.expires_at).toLocaleString(undefined, {
-                  dateStyle: "medium",
-                  timeStyle: "short",
-                })}
-              </time>
-            </p>
-            <div className="key-actions">
-              <Button onPress={copy}>Copy API key</Button>
-              <Button variant="secondary" onPress={() => setResult(undefined)}>
-                Generate another key
-              </Button>
-            </div>
+            <Field>
+              <Label htmlFor={passwordId} isRequired>
+                Password
+              </Label>
+              <Input
+                id={passwordId}
+                name="password"
+                type="password"
+                required
+                maxLength={256}
+                autoComplete="current-password"
+                value={password}
+                onChange={(event) => setPassword(event.currentTarget.value)}
+                variant="secondary"
+              />
+            </Field>
           </div>
-        ) : (
-          <CredentialsForm
-            onSubmit={generate}
-            submitLabel="Generate API key"
-            busyLabel="Generating key…"
-          />
-        )}
+        </CreateApiKeyDialog>
       </AuthScreen>
     </main>
   );

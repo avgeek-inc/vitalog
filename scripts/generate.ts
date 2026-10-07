@@ -335,6 +335,10 @@ for (const operation of keyOperations) {
       ? json({
           email: "{{rootEmail}}",
           password: "{{rootPassword}}",
+          name: "Personal automation",
+          access: "read",
+          includeAdmin: false,
+          expiresAt: null,
         }).trimEnd()
       : undefined;
   const authentication = operation.rootOnly
@@ -397,11 +401,20 @@ for (const operation of keyManagementOperations) {
   const url = "{{baseUrl}}" + operation.path.replace("{id}", "{{apiKeyId}}");
   const headers = {
     Accept: "application/json",
-    ...(credentials ? { "Content-Type": "application/json" } : {}),
+    ...("input" in operation && operation.method === "POST"
+      ? { "Content-Type": "application/json" }
+      : {}),
   };
   const body = credentials
     ? json({ email: "{{rootEmail}}", password: "{{rootPassword}}" }).trimEnd()
-    : undefined;
+    : operation.name === "create_managed_api_key"
+      ? json({
+          name: "Personal automation",
+          access: "read",
+          includeAdmin: false,
+          expiresAt: null,
+        }).trimEnd()
+      : undefined;
   const auth = credentials
     ? { type: "noauth" }
     : {

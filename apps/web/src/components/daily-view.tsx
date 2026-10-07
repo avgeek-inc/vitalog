@@ -36,7 +36,7 @@ export function DailyView({
   );
   const nutrition = object(summary.nutrition);
   const actual = (metric: string, fallback: unknown) =>
-    byMetric.has(metric) ? byMetric.get(metric)!.actual : fallback;
+    (byMetric.has(metric) ? byMetric.get(metric)!.actual : fallback) ?? 0;
   const exact = (value: unknown) => {
     const source = object(value);
     return source.exact_decimal ?? source.exact_value;
@@ -54,6 +54,7 @@ export function DailyView({
     activityActual(summary, records, true),
   );
   const mood = String(object(object(summary.checkin).latest_mood).value ?? "");
+  const moodLabel = moodLabels[mood];
   const macros: { key: string; title: string; kind: HealthIconKind }[] = [
     { key: "protein_g", title: "Protein", kind: "protein" },
     { key: "carbohydrate_g", title: "Carbs", kind: "carbs" },
@@ -102,8 +103,10 @@ export function DailyView({
               </Widget.Title>
             </Widget.Header>
             <Widget.Content>
-              <div className="metric-value mood-value">
-                {moodLabels[mood] ?? "—"}
+              <div
+                className={`metric-value mood-value${moodLabel ? "" : " text-muted"}`}
+              >
+                {moodLabel ?? "Not recorded"}
               </div>
             </Widget.Content>
           </Widget>

@@ -19,6 +19,7 @@ export class BrowserSessions {
           id: randomUUID(),
           tokenDigest: digest(token),
           tokenHint: "vls_…" + token.slice(-4),
+          expiresAt: sql`statement_timestamp() + interval '720 hours'`,
         })
         .returning({ id: apiKeys.id, expiresAt: apiKeys.expiresAt });
       await tx.insert(oauthTokens).values({
@@ -26,9 +27,12 @@ export class BrowserSessions {
         apiKeyId: key!.id,
         resource,
         scopes: ["health:read"],
-        expiresAt: key!.expiresAt,
+        expiresAt: key!.expiresAt!,
       });
-      return { session_token: token, expires_at: key!.expiresAt.toISOString() };
+      return {
+        session_token: token,
+        expires_at: key!.expiresAt!.toISOString(),
+      };
     });
   }
 

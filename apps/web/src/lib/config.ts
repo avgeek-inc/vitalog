@@ -19,6 +19,12 @@ export function webConfiguration(env: NodeJS.ProcessEnv = process.env) {
   };
 }
 
+export function documentationUrl(env: NodeJS.ProcessEnv = process.env) {
+  return env.DOCS_BASE_URL
+    ? publicOrigin(env.DOCS_BASE_URL, "DOCS_BASE_URL")
+    : "https://github.com/avgeek-oss/vitalog/tree/main/docs/mintlify";
+}
+
 export function mcpDocumentationUrl(env: NodeJS.ProcessEnv = process.env) {
   return env.DOCS_BASE_URL
     ? publicOrigin(env.DOCS_BASE_URL, "DOCS_BASE_URL") + "/mcp-guide"

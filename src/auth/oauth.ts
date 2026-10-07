@@ -5,7 +5,7 @@ import { z } from "zod";
 import { decodeJwt } from "jose";
 import type { Config } from "../config.js";
 import { DomainError } from "../errors.js";
-import { keyCreation } from "./contracts.js";
+import { credentialsSchema } from "./contracts.js";
 import { RootAuthentication } from "./root.js";
 import { OAuthStore } from "./oauth-store.js";
 import { OAuthError } from "./oauth-error.js";
@@ -59,7 +59,7 @@ export const approvalSchema = z.discriminatedUnion("action", [
   z.strictObject({
     csrf_token: encodedSecret,
     action: z.literal("allow"),
-    ...keyCreation.shape,
+    ...credentialsSchema.shape,
   }),
   z.strictObject({ csrf_token: encodedSecret, action: z.literal("deny") }),
 ]);

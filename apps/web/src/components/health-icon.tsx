@@ -1,7 +1,7 @@
 "use client";
 
 import { HugeiconsIcon } from "@hugeicons/react";
-import AppleIcon from "@hugeicons/core-free-icons/AppleIcon";
+import UtensilsCrossedIcon from "@hugeicons/core-free-icons/UtensilsCrossedIcon";
 import DropletIcon from "@hugeicons/core-free-icons/DropletIcon";
 import SmileIcon from "@hugeicons/core-free-icons/SmileIcon";
 import FireIcon from "@hugeicons/core-free-icons/FireIcon";
@@ -19,7 +19,7 @@ import Sad02Icon from "@hugeicons/core-free-icons/Sad02Icon";
 import NeutralIcon from "@hugeicons/core-free-icons/NeutralIcon";
 
 const icons = {
-  nutrition: AppleIcon,
+  nutrition: UtensilsCrossedIcon,
   water: DropletIcon,
   mood: SmileIcon,
   calories: FireIcon,

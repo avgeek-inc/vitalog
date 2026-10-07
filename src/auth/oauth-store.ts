@@ -1,5 +1,5 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import { and, eq, gt, isNull, sql } from "drizzle-orm";
+import { and, eq, gt, isNull, or, sql } from "drizzle-orm";
 import type { Database } from "../db/client.js";
 import { apiKeys, oauthCodes, oauthTokens } from "../db/schema.js";
 
@@ -110,8 +110,14 @@ export class OAuthStore {
       const token = "vlo_" + randomBytes(32).toString("base64url");
       const projection = {
         id: apiKeys.id,
-        expiresAt: apiKeys.expiresAt,
-        remaining: sql<number>`floor(extract(epoch from (${apiKeys.expiresAt} - clock_timestamp())))::integer`,
+        expiresAt:
+          sql<Date>`least(coalesce(${apiKeys.expiresAt}, statement_timestamp() + interval '720 hours'), statement_timestamp() + interval '720 hours')`.mapWith(
+            apiKeys.expiresAt,
+          ),
+        remaining: sql<number>`floor(extract(epoch from (least(coalesce(${apiKeys.expiresAt}, statement_timestamp() + interval '720 hours'), statement_timestamp() + interval '720 hours') - clock_timestamp())))::integer`,
+        tokenHint: apiKeys.tokenHint,
+        access: apiKeys.access,
+        includeAdmin: apiKeys.includeAdmin,
       };
       const [key] = grant.apiKeyId
         ? await transaction
@@ -121,9 +127,12 @@ export class OAuthStore {
               and(
                 eq(apiKeys.id, grant.apiKeyId),
                 isNull(apiKeys.revokedAt),
-                gt(
-                  apiKeys.expiresAt,
-                  sql`clock_timestamp() + interval '1 second'`,
+                or(
+                  isNull(apiKeys.expiresAt),
+                  gt(
+                    apiKeys.expiresAt,
+                    sql`clock_timestamp() + interval '1 second'`,
+                  ),
                 ),
               ),
             )
@@ -137,9 +146,19 @@ export class OAuthStore {
               oauthClientId: input.client_id,
               oauthClientName: grant.clientName,
               oauthScopes: grant.scopes,
+              expiresAt: sql`statement_timestamp() + interval '720 hours'`,
             })
             .returning(projection);
       if (!key || key.remaining < 1) return;
+      if (
+        key.tokenHint.startsWith("vlk_") &&
+        (key.access === null ||
+          key.includeAdmin === null ||
+          grant.scopes.some(
+            (scope) => scope === "health:write" && key.access !== "edit",
+          ))
+      )
+        return;
       await transaction
         .update(oauthCodes)
         .set({ apiKeyId: key.id, consumedAt: sql`clock_timestamp()` })
@@ -149,7 +168,7 @@ export class OAuthStore {
         apiKeyId: key.id,
         resource: input.resource,
         scopes: grant.scopes,
-        expiresAt: key.expiresAt,
+        expiresAt: key.expiresAt!,
       });
       return {
         access_token: token,
@@ -164,7 +183,12 @@ export class OAuthStore {
     if (!header || !/^Bearer vlo_[A-Za-z0-9_-]{43}$/.test(header)) return;
     await this.cleanup();
     const [grant] = await this.db
-      .select({ scopes: oauthTokens.scopes })
+      .select({
+        scopes: oauthTokens.scopes,
+        tokenHint: apiKeys.tokenHint,
+        access: apiKeys.access,
+        includeAdmin: apiKeys.includeAdmin,
+      })
       .from(oauthTokens)
       .innerJoin(apiKeys, eq(apiKeys.id, oauthTokens.apiKeyId))
       .where(
@@ -172,11 +196,23 @@ export class OAuthStore {
           eq(oauthTokens.tokenDigest, digest(header.slice(7))),
           eq(oauthTokens.resource, this.resource),
           gt(oauthTokens.expiresAt, sql`clock_timestamp()`),
-          gt(apiKeys.expiresAt, sql`clock_timestamp()`),
+          or(
+            isNull(apiKeys.expiresAt),
+            gt(apiKeys.expiresAt, sql`clock_timestamp()`),
+          ),
           isNull(apiKeys.revokedAt),
         ),
       )
       .limit(1);
-    return grant;
+    if (!grant) return;
+    if (!grant.tokenHint.startsWith("vlk_")) return { scopes: grant.scopes };
+    if (grant.access === null || grant.includeAdmin === null) return;
+    return {
+      scopes: grant.scopes.filter(
+        (scope) =>
+          scope === "health:read" ||
+          (scope === "health:write" && grant.access === "edit"),
+      ),
+    };
   }
 }

@@ -31,19 +31,46 @@ export async function keyManagementProxy(request: Request, path: string) {
       request.headers.get("origin") === webConfiguration().uiBaseUrl;
     if (!permitsBrowserRequest(request) && !scopedRevocation)
       return NextResponse.json({}, { status: 403 });
-    if (request.headers.has("content-type"))
-      return NextResponse.json({}, { status: 422 });
+    const creating = request.method === "POST" && path === "api-keys";
+    if (creating) {
+      if (
+        !/^application\/json(?:\s*;|$)/i.test(
+          request.headers.get("content-type") ?? "",
+        )
+      )
+        return NextResponse.json({}, { status: 422 });
+    } else {
+      if (request.headers.has("content-type"))
+        return NextResponse.json({}, { status: 422 });
+      const reader = request.body?.getReader();
+      if (reader)
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (value.byteLength) {
+            await reader.cancel();
+            return NextResponse.json({}, { status: 422 });
+          }
+        }
+    }
+  }
+  let body: string | undefined;
+  if (request.method === "POST") {
     const reader = request.body?.getReader();
-    if (reader) {
+    const chunks: Uint8Array[] = [];
+    let size = 0;
+    if (reader)
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        if (value.byteLength) {
+        size += value.byteLength;
+        if (size > 4096) {
           await reader.cancel();
-          return NextResponse.json({}, { status: 422 });
+          return NextResponse.json({}, { status: 413 });
         }
+        chunks.push(value);
       }
-    }
+    body = Buffer.concat(chunks).toString("utf8");
   }
   const browser = await sessionToken();
   const management = await keyManagementToken();
@@ -66,7 +93,14 @@ export async function keyManagementProxy(request: Request, path: string) {
       request.method === "GET" ? browser : management!,
       {
         method: request.method,
-        headers: { Origin: webConfiguration().uiBaseUrl },
+        headers: {
+          Origin: webConfiguration().uiBaseUrl,
+          ...(request.headers.has("idempotency-key")
+            ? { "Idempotency-Key": request.headers.get("idempotency-key")! }
+            : {}),
+          ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+        },
+        ...(body === undefined ? {} : { body }),
       },
     );
     if (!response.ok) return NextResponse.json({}, { status: response.status });

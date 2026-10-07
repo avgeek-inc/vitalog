@@ -1,7 +1,10 @@
 $kind: http-request
 id: 541bd03c-b799-57ec-87fd-641654d8f9b6
-description: Generate a 30-day API key using ROOT_EMAIL and ROOT_PASSWORD. The
-  complete key is returned once; it cannot manage API keys.
+description: Generate a personal API key using root credentials and required
+  name, access, includeAdmin and expiresAt settings. Null expiry means Never.
+  Read keys read health data; Edit keys also write it; Administrative
+  permissions also allow operator readiness and OpenAPI inspection. Keys cannot
+  manage credentials or account settings. The complete key is returned once.
 method: POST
 url: "{{baseUrl}}/auth/api-keys"
 headers:
@@ -16,5 +19,9 @@ body:
   content: |-
     {
       "email": "{{rootEmail}}",
-      "password": "{{rootPassword}}"
+      "password": "{{rootPassword}}",
+      "name": "Personal automation",
+      "access": "read",
+      "includeAdmin": false,
+      "expiresAt": null
     }

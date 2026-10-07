@@ -3,7 +3,7 @@
   "info": {
     "title": "Vitalog",
     "version": "1.0.0",
-    "description": "Single-user structured observations with equivalent REST and MCP domain services. Environment AUTH_KEY or revocable 30-day opaque Bearer keys; Primary key management requires AUTH_KEY; the UI uses separate, root-verified 30-minute management sessions. MCP clients use OAuth authorization code with S256 PKCE, issued after root sign-in. Clients are resolved through HTTPS metadata, pre-registration or dynamic registration. OAuth tokens grant MCP access only."
+    "description": "Single-user structured observations with equivalent REST and MCP domain services. Environment AUTH_KEY or revocable personal Bearer keys with required name, permissions and explicit expiry (including Never); Primary key management requires AUTH_KEY; the UI uses separate, root-verified 30-minute management sessions. MCP clients use OAuth authorization code with S256 PKCE, issued after root sign-in. Clients are resolved through HTTPS metadata, pre-registration or dynamic registration. OAuth tokens grant MCP access only."
   },
   "servers": [
     {
@@ -234139,12 +234139,23 @@
     "/auth/api-keys": {
       "post": {
         "operationId": "create_api_key",
-        "summary": "Generate a 30-day API key using ROOT_EMAIL and ROOT_PASSWORD. The complete key is returned once; it cannot manage API keys.",
+        "summary": "Generate a personal API key using root credentials and required name, access, includeAdmin and expiresAt settings. Null expiry means Never. Read keys read health data; Edit keys also write it; Administrative permissions also allow operator readiness and OpenAPI inspection. Keys cannot manage credentials or account settings. The complete key is returned once.",
         "tags": [
           "API keys"
         ],
         "security": [],
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Reuse with identical settings for safe retries; replay returns api_key null."
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -234154,32 +234165,83 @@
                 "type": "object",
                 "properties": {
                   "email": {
+                    "$ref": "#/$defs/__schema0"
+                  },
+                  "password": {
+                    "$ref": "#/$defs/__schema1",
+                    "format": "password",
+                    "writeOnly": true,
+                    "maxLength": 256,
+                    "description": "ROOT_PASSWORD; at most 256 UTF-8 bytes. Used only for this request."
+                  },
+                  "name": {
+                    "$ref": "#/$defs/__schema2"
+                  },
+                  "access": {
+                    "$ref": "#/$defs/__schema3"
+                  },
+                  "includeAdmin": {
+                    "$ref": "#/$defs/__schema4"
+                  },
+                  "expiresAt": {
+                    "$ref": "#/$defs/__schema5"
+                  }
+                },
+                "required": [
+                  "email",
+                  "password",
+                  "name",
+                  "access",
+                  "includeAdmin",
+                  "expiresAt"
+                ],
+                "additionalProperties": false,
+                "$defs": {
+                  "__schema0": {
                     "type": "string",
                     "maxLength": 254,
                     "format": "email",
                     "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
                   },
-                  "password": {
+                  "__schema1": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "__schema2": {
                     "type": "string",
                     "minLength": 1,
-                    "format": "password",
-                    "writeOnly": true,
-                    "maxLength": 256,
-                    "description": "ROOT_PASSWORD; at most 256 UTF-8 bytes. Used only for this request."
+                    "maxLength": 120
+                  },
+                  "__schema3": {
+                    "type": "string",
+                    "enum": [
+                      "read",
+                      "edit"
+                    ]
+                  },
+                  "__schema4": {
+                    "type": "boolean"
+                  },
+                  "__schema5": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   }
-                },
-                "required": [
-                  "email",
-                  "password"
-                ],
-                "additionalProperties": false
+                }
               }
             }
           }
         },
         "responses": {
           "201": {
-            "description": "Generate a 30-day API key using ROOT_EMAIL and ROOT_PASSWORD. The complete key is returned once; it cannot manage API keys.",
+            "description": "Generate a personal API key using root credentials and required name, access, includeAdmin and expiresAt settings. Null expiry means Never. Read keys read health data; Edit keys also write it; Administrative permissions also allow operator readiness and OpenAPI inspection. Keys cannot manage credentials or account settings. The complete key is returned once.",
             "content": {
               "application/json": {
                 "schema": {
@@ -234193,6 +234255,32 @@
                     },
                     "token_hint": {
                       "type": "string"
+                    },
+                    "name": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "access": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "read",
+                            "edit"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "includeAdmin": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
                     },
                     "oauth_client_id": {
                       "type": [
@@ -234225,9 +234313,16 @@
                       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                     },
                     "expires_at": {
-                      "type": "string",
-                      "format": "date-time",
-                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "revoked_at": {
                       "anyOf": [
@@ -234250,13 +234345,23 @@
                       ]
                     },
                     "api_key": {
-                      "type": "string",
-                      "pattern": "^vlk_[A-Za-z0-9_-]{43}$"
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^vlk_[A-Za-z0-9_-]{43}$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     }
                   },
                   "required": [
                     "id",
                     "token_hint",
+                    "name",
+                    "access",
+                    "includeAdmin",
                     "created_at",
                     "expires_at",
                     "revoked_at",
@@ -234397,6 +234502,32 @@
                           "token_hint": {
                             "type": "string"
                           },
+                          "name": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "access": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "read",
+                                  "edit"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "includeAdmin": {
+                            "type": [
+                              "boolean",
+                              "null"
+                            ]
+                          },
                           "oauth_client_id": {
                             "type": [
                               "string",
@@ -234428,9 +234559,16 @@
                             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                           },
                           "expires_at": {
-                            "type": "string",
-                            "format": "date-time",
-                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           },
                           "revoked_at": {
                             "anyOf": [
@@ -234456,6 +234594,9 @@
                         "required": [
                           "id",
                           "token_hint",
+                          "name",
+                          "access",
+                          "includeAdmin",
                           "created_at",
                           "expires_at",
                           "revoked_at",
@@ -234711,6 +234852,32 @@
                     "token_hint": {
                       "type": "string"
                     },
+                    "name": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "access": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "read",
+                            "edit"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "includeAdmin": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    },
                     "oauth_client_id": {
                       "type": [
                         "string",
@@ -234742,9 +234909,16 @@
                       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                     },
                     "expires_at": {
-                      "type": "string",
-                      "format": "date-time",
-                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "revoked_at": {
                       "anyOf": [
@@ -234770,6 +234944,9 @@
                   "required": [
                     "id",
                     "token_hint",
+                    "name",
+                    "access",
+                    "includeAdmin",
                     "created_at",
                     "expires_at",
                     "revoked_at",
@@ -236131,6 +236308,32 @@
                           "token_hint": {
                             "type": "string"
                           },
+                          "name": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "access": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "read",
+                                  "edit"
+                                ]
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
+                          "includeAdmin": {
+                            "type": [
+                              "boolean",
+                              "null"
+                            ]
+                          },
                           "oauth_client_id": {
                             "type": [
                               "string",
@@ -236162,9 +236365,16 @@
                             "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                           },
                           "expires_at": {
-                            "type": "string",
-                            "format": "date-time",
-                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "format": "date-time",
+                                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           },
                           "revoked_at": {
                             "anyOf": [
@@ -236190,6 +236400,9 @@
                         "required": [
                           "id",
                           "token_hint",
+                          "name",
+                          "access",
+                          "includeAdmin",
                           "created_at",
                           "expires_at",
                           "revoked_at",
@@ -236309,7 +236522,7 @@
       },
       "post": {
         "operationId": "create_managed_api_key",
-        "summary": "Generate a 30-day API key using an authenticated management session. No name, body or query arguments. The complete key is returned once.",
+        "summary": "Generate a personal API key using a verified management session with required name, access, includeAdmin and expiresAt settings. Null expiry means Never. Credential and account management remain browser/root-only. The complete key is returned once.",
         "tags": [
           "Key management"
         ],
@@ -236318,10 +236531,82 @@
             "keyManagementSession": []
           }
         ],
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Reuse with identical settings for safe retries; replay returns api_key null."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "$ref": "#/$defs/__schema0"
+                  },
+                  "access": {
+                    "$ref": "#/$defs/__schema1"
+                  },
+                  "includeAdmin": {
+                    "$ref": "#/$defs/__schema2"
+                  },
+                  "expiresAt": {
+                    "$ref": "#/$defs/__schema3"
+                  }
+                },
+                "required": [
+                  "name",
+                  "access",
+                  "includeAdmin",
+                  "expiresAt"
+                ],
+                "additionalProperties": false,
+                "$defs": {
+                  "__schema0": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "__schema1": {
+                    "type": "string",
+                    "enum": [
+                      "read",
+                      "edit"
+                    ]
+                  },
+                  "__schema2": {
+                    "type": "boolean"
+                  },
+                  "__schema3": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time",
+                        "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
-            "description": "Generate a 30-day API key using an authenticated management session. No name, body or query arguments. The complete key is returned once.",
+            "description": "Generate a personal API key using a verified management session with required name, access, includeAdmin and expiresAt settings. Null expiry means Never. Credential and account management remain browser/root-only. The complete key is returned once.",
             "content": {
               "application/json": {
                 "schema": {
@@ -236335,6 +236620,32 @@
                     },
                     "token_hint": {
                       "type": "string"
+                    },
+                    "name": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "access": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "read",
+                            "edit"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "includeAdmin": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
                     },
                     "oauth_client_id": {
                       "type": [
@@ -236367,9 +236678,16 @@
                       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                     },
                     "expires_at": {
-                      "type": "string",
-                      "format": "date-time",
-                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "revoked_at": {
                       "anyOf": [
@@ -236392,13 +236710,23 @@
                       ]
                     },
                     "api_key": {
-                      "type": "string",
-                      "pattern": "^vlk_[A-Za-z0-9_-]{43}$"
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "pattern": "^vlk_[A-Za-z0-9_-]{43}$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     }
                   },
                   "required": [
                     "id",
                     "token_hint",
+                    "name",
+                    "access",
+                    "includeAdmin",
                     "created_at",
                     "expires_at",
                     "revoked_at",
@@ -236650,6 +236978,32 @@
                     "token_hint": {
                       "type": "string"
                     },
+                    "name": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "access": {
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "read",
+                            "edit"
+                          ]
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "includeAdmin": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    },
                     "oauth_client_id": {
                       "type": [
                         "string",
@@ -236681,9 +237035,16 @@
                       "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
                     },
                     "expires_at": {
-                      "type": "string",
-                      "format": "date-time",
-                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "revoked_at": {
                       "anyOf": [
@@ -236709,6 +237070,9 @@
                   "required": [
                     "id",
                     "token_hint",
+                    "name",
+                    "access",
+                    "includeAdmin",
                     "created_at",
                     "expires_at",
                     "revoked_at",

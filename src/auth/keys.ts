@@ -1,13 +1,18 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import { and, count, desc, eq, gt, isNull, sql } from "drizzle-orm";
+import { and, count, desc, eq, gt, isNull, or, sql } from "drizzle-orm";
 import type { Database } from "../db/client.js";
 import { apiKeys, oauthCodes } from "../db/schema.js";
+import { manualKeyCreation } from "./contracts.js";
+import type { z } from "zod";
 import { DomainError } from "../errors.js";
 
 const digest = (key: string) => createHash("sha256").update(key).digest("hex");
 const projection = {
   id: apiKeys.id,
   token_hint: apiKeys.tokenHint,
+  name: apiKeys.name,
+  access: apiKeys.access,
+  includeAdmin: apiKeys.includeAdmin,
   oauth_client_id: apiKeys.oauthClientId,
   oauth_client_name: apiKeys.oauthClientName,
   oauth_scopes: apiKeys.oauthScopes,
@@ -22,14 +27,14 @@ type Row = {
   id: string;
   token_hint: string;
   created_at: Date;
-  expires_at: Date;
+  expires_at: Date | null;
   revoked_at: Date | null;
   status: "active" | "expired" | "revoked";
 };
 const metadata = (row: Row) => ({
   ...row,
   created_at: row.created_at.toISOString(),
-  expires_at: row.expires_at.toISOString(),
+  expires_at: row.expires_at?.toISOString() ?? null,
   revoked_at: row.revoked_at?.toISOString() ?? null,
 });
 
@@ -43,30 +48,74 @@ export class ApiKeys {
   async findActive(header: string | undefined) {
     if (!header || !/^Bearer vlk_[A-Za-z0-9_-]{43}$/.test(header)) return;
     const rows = await this.db
-      .select({ id: apiKeys.id })
+      .select({
+        id: apiKeys.id,
+        access: apiKeys.access,
+        includeAdmin: apiKeys.includeAdmin,
+      })
       .from(apiKeys)
       .where(
         and(
           eq(apiKeys.tokenDigest, digest(header.slice(7))),
           isNull(apiKeys.revokedAt),
-          gt(apiKeys.expiresAt, sql`clock_timestamp()`),
+          or(
+            isNull(apiKeys.expiresAt),
+            gt(apiKeys.expiresAt, sql`clock_timestamp()`),
+          ),
         ),
       )
       .limit(1);
-    return rows[0];
+    const key = rows[0];
+    if (
+      !key ||
+      !["read", "edit"].includes(key.access ?? "") ||
+      key.includeAdmin === null ||
+      (key.includeAdmin && key.access !== "edit")
+    )
+      return;
+    return key;
   }
 
-  async create() {
-    const key = "vlk_" + randomBytes(32).toString("base64url");
-    const rows = await this.db
-      .insert(apiKeys)
-      .values({
-        id: randomUUID(),
-        tokenDigest: digest(key),
-        tokenHint: "vlk_…" + key.slice(-4),
-      })
-      .returning(projection);
-    return { ...metadata(rows[0]!), api_key: key };
+  async create(input: z.infer<typeof manualKeyCreation>, requestId?: string) {
+    const settings = manualKeyCreation.parse(input);
+    const creationDigest = digest(JSON.stringify(settings));
+    return this.db.transaction(async (tx) => {
+      if (requestId) {
+        await tx.execute(
+          sql`select pg_advisory_xact_lock(hashtext(${requestId}))`,
+        );
+        const [previous] = await tx
+          .select({ ...projection, creationDigest: apiKeys.creationDigest })
+          .from(apiKeys)
+          .where(eq(apiKeys.creationRequestId, requestId));
+        if (previous) {
+          if (previous.creationDigest !== creationDigest)
+            throw new DomainError(
+              "IDEMPOTENCY_CONFLICT",
+              "This request ID was already used with different key settings",
+            );
+          const { creationDigest: _digest, ...stored } = previous;
+          return { ...metadata(stored), api_key: null };
+        }
+      }
+      const key = "vlk_" + randomBytes(32).toString("base64url");
+      const [created] = await tx
+        .insert(apiKeys)
+        .values({
+          id: randomUUID(),
+          tokenDigest: digest(key),
+          tokenHint: "vlk_…" + key.slice(-4),
+          name: settings.name,
+          access: settings.access,
+          includeAdmin: settings.includeAdmin,
+          expiresAt:
+            settings.expiresAt === null ? null : new Date(settings.expiresAt),
+          creationRequestId: requestId,
+          creationDigest: requestId ? creationDigest : null,
+        })
+        .returning(projection);
+      return { ...metadata(created!), api_key: key };
+    });
   }
 
   async list(

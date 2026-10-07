@@ -5,13 +5,13 @@ description: "Connect any compatible MCP client to Vitalog's Streamable HTTP end
 
 Use your API's MCP URL, such as `https://vitalog-api.praveent.com/mcp`. The UI address is where you sign in and review records; it is not the MCP endpoint.
 
-Open **Settings → MCP Guide** in Vitalog to copy configurations for your installation. The examples below use the example API hostname. Replace it when self-hosting.
+Open **Account Settings → MCP Guide** in Vitalog to copy configurations for your installation. The examples below use the example API hostname. Replace it when self-hosting.
 
 ## Connect with OAuth
 
 Add the MCP URL to a client that supports Streamable HTTP and MCP authorization. The client discovers the authorization server, registers or supplies its client metadata, and opens Vitalog's consent page. Sign in with the root email and password, review the requesting client's identity, callback destination and requested access, then approve.
 
-The client receives its token through the OAuth callback and token exchange. You do not need to create or paste an API key. Tokens expire after 30 days; reconnect after expiry. Revoke a connection from **Settings → API Keys** after verifying your root credentials.
+The client receives its token through the OAuth callback and token exchange. You do not need to create or paste an API key. Tokens expire after 30 days; reconnect after expiry. Revoke a connection from **Account Settings → MCP Connections** after verifying your root credentials.
 
 <Tabs>
   <Tab title="Codex">
@@ -72,7 +72,7 @@ Other clients can use the same URL and OAuth discovery. Vitalog follows the MCP 
 
 ## Connect with an API key
 
-Create a 30-day key in **Settings → API Keys** or at `/api-keys` on the UI. Store it privately in your client and send `Authorization: Bearer <your-key>` with every MCP request, including initialization and discovery. Do not put the key in the URL.
+Create a 30-day key in **Account Settings → API Keys** or at `/api-keys` on the UI. Store it privately in your client and send `Authorization: Bearer <your-key>` with every MCP request, including initialization and discovery. Do not put the key in the URL.
 
 For example, a client accepting custom headers can use this structure:
 

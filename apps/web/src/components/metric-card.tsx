@@ -12,17 +12,18 @@ export function GoalMeter({
   progress?: GoalProgress;
   title: string;
 }) {
-  if (!progress || progress.progress_percent === null) return null;
+  if (!progress) return null;
   const { goal } = progress;
+  const percent = progress.progress_percent ?? 0;
   const nearLimit =
     goal.direction === "maximum" &&
     progress.status !== "over_limit" &&
-    progress.progress_percent >= 90 &&
-    progress.progress_percent <= 100;
+    percent >= 90 &&
+    percent <= 100;
   return (
-    <div className="goal-meter">
+    <div className="goal-meter" data-metric={goal.metric}>
       <ProgressBar
-        value={progress.progress_percent}
+        value={percent}
         data-goal-status={progress.status}
         data-near-limit={nearLimit || undefined}
         aria-label={`${title} ${goal.direction === "maximum" ? "limit utilization" : "goal progress"}`}

@@ -23,6 +23,7 @@ export function WeightChart({
   const chart = useRef<SVGSVGElement>(null);
   const [width, setWidth] = useState(640);
   const [active, setActive] = useState<number | null>(null);
+  const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
   const start = dateOffset(today, -29);
   const points = records
     .filter(
@@ -74,8 +75,10 @@ export function WeightChart({
     dateOffset(start, offset),
   );
   const selected = active === null ? undefined : points[active];
-  const inspect = (clientX: number, element: HTMLElement) => {
-    const position = clientX - element.getBoundingClientRect().left;
+  const inspect = (clientX: number, clientY: number, element: HTMLElement) => {
+    const bounds = element.getBoundingClientRect();
+    const position = clientX - bounds.left;
+    setCursor({ x: position, y: clientY - bounds.top });
     setActive(
       points.reduce(
         (nearest, point, index) =>
@@ -103,21 +106,28 @@ export function WeightChart({
         aria-label="Weight chart. Use the left and right arrow keys to inspect weigh-ins."
         onPointerMove={(event) => {
           if (event.pointerType !== "touch")
-            inspect(event.clientX, event.currentTarget);
+            inspect(event.clientX, event.clientY, event.currentTarget);
         }}
-        onPointerDown={(event) => inspect(event.clientX, event.currentTarget)}
+        onPointerDown={(event) =>
+          inspect(event.clientX, event.clientY, event.currentTarget)
+        }
         onPointerLeave={(event) => {
           if (document.activeElement !== event.currentTarget) setActive(null);
         }}
-        onFocus={() => setActive(points.length - 1)}
+        onFocus={() => {
+          setCursor(null);
+          setActive((index) => index ?? points.length - 1);
+        }}
         onBlur={() => setActive(null)}
         onKeyDown={(event) => {
           if (
             ["ArrowLeft", "ArrowRight", "Home", "End", "Escape"].includes(
               event.key,
             )
-          )
+          ) {
             event.preventDefault();
+            setCursor(null);
+          }
           if (event.key === "ArrowLeft")
             setActive((index) => Math.max(0, (index ?? points.length - 1) - 1));
           if (event.key === "ArrowRight")
@@ -220,11 +230,19 @@ export function WeightChart({
           ))}
         </svg>
       </Tooltip.Trigger>
-      <Tooltip.Content className="chart-tooltip" placement="top">
+      <Tooltip.Content
+        className="chart-tooltip"
+        placement="top left"
+        crossOffset={(cursor?.x ?? (selected ? x(selected.date) : 0)) + 12}
+        offset={12 - (cursor?.y ?? (selected ? y(selected.value) : 0))}
+        shouldFlip={false}
+      >
         {selected ? (
           <>
-            <span>{dateLabel(selected.date)}</span>
-            <strong>{formatNumber(selected.value)} kg</strong>
+            <span className="text-xs">{dateLabel(selected.date)}</span>
+            <span className="font-medium">
+              {formatNumber(selected.value)} kg
+            </span>
           </>
         ) : null}
       </Tooltip.Content>

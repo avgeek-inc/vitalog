@@ -1,15 +1,13 @@
 "use client";
-import { Button, Card } from "@heroui/react";
-export default function ErrorPage({ reset }: { reset: () => void }) {
+import { ErrorPage } from "@avgeek-oss/design-system/patterns/feedback/error-page";
+export default function Error({ retry }: { retry: () => void }) {
   return (
-    <Card className="data-error">
-      <Card.Header>
-        <h1 className="page-title">Unable to load your records</h1>
-        <Card.Description>Please try again in a moment.</Card.Description>
-      </Card.Header>
-      <Card.Footer>
-        <Button onPress={reset}>Try again</Button>
-      </Card.Footer>
-    </Card>
+    <ErrorPage
+      status="server-error"
+      title="We couldn't load your records"
+      onRetry={retry}
+      returnHref="/daily"
+      returnLabel="Go to Daily View"
+    />
   );
 }

@@ -27,11 +27,11 @@ export class KeyManagementSessions {
         apiKeyId: key!.id,
         resource,
         scopes: ["keys:manage"],
-        expiresAt: key!.expiresAt,
+        expiresAt: key!.expiresAt!,
       });
       return {
         session_token: token,
-        expires_at: key!.expiresAt.toISOString(),
+        expires_at: key!.expiresAt!.toISOString(),
       };
     });
   }

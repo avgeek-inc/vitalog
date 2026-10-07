@@ -1,7 +1,8 @@
 import { z } from "zod";
 import {
   keyCreated,
-  keyCreation,
+  credentialsSchema,
+  manualKeyCreation,
   keyList,
   managedKeyListQuery,
   keyMetadata,
@@ -19,7 +20,7 @@ export const keyManagementOperations = [
     path: "/auth/key-management/session",
     status: "201",
     credentials: true,
-    input: keyCreation,
+    input: credentialsSchema,
     output: keyManagementCreated,
     description:
       "Verify root credentials and issue a revocable, 30-minute session for API-key management only. This token cannot read or write health data, access MCP, or use the primary AUTH_KEY administration routes.",
@@ -54,12 +55,13 @@ export const keyManagementOperations = [
   },
   {
     name: "create_managed_api_key",
+    input: manualKeyCreation,
     method: "POST",
     path: "/auth/key-management/api-keys",
     status: "201",
     output: keyCreated,
     description:
-      "Generate a 30-day API key using an authenticated management session. No name, body or query arguments. The complete key is returned once.",
+      "Generate a personal API key using a verified management session with required name, access, includeAdmin and expiresAt settings. Null expiry means Never. Credential and account management remain browser/root-only. The complete key is returned once.",
   },
   {
     name: "revoke_managed_api_key",

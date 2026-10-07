@@ -1608,7 +1608,7 @@
           "request": {
             "method": "POST",
             "url": "{{baseUrl}}/auth/api-keys",
-            "description": "Generate a 30-day API key using ROOT_EMAIL and ROOT_PASSWORD. The complete key is returned once; it cannot manage API keys.",
+            "description": "Generate a personal API key using root credentials and required name, access, includeAdmin and expiresAt settings. Null expiry means Never. Read keys read health data; Edit keys also write it; Administrative permissions also allow operator readiness and OpenAPI inspection. Keys cannot manage credentials or account settings. The complete key is returned once.",
             "auth": {
               "type": "noauth"
             },
@@ -1624,7 +1624,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"{{rootEmail}}\",\n  \"password\": \"{{rootPassword}}\"\n}",
+              "raw": "{\n  \"email\": \"{{rootEmail}}\",\n  \"password\": \"{{rootPassword}}\",\n  \"name\": \"Personal automation\",\n  \"access\": \"read\",\n  \"includeAdmin\": false,\n  \"expiresAt\": null\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2204,7 +2204,7 @@
           "request": {
             "method": "POST",
             "url": "{{baseUrl}}/auth/key-management/api-keys",
-            "description": "Generate a 30-day API key using an authenticated management session. No name, body or query arguments. The complete key is returned once.",
+            "description": "Generate a personal API key using a verified management session with required name, access, includeAdmin and expiresAt settings. Null expiry means Never. Credential and account management remain browser/root-only. The complete key is returned once.",
             "auth": {
               "type": "bearer",
               "bearer": [
@@ -2219,8 +2219,21 @@
               {
                 "key": "Accept",
                 "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
               }
-            ]
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Personal automation\",\n  \"access\": \"read\",\n  \"includeAdmin\": false,\n  \"expiresAt\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           }
         },
         {

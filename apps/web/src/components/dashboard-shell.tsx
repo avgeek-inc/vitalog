@@ -15,6 +15,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { AccountProvider } from "./account-context";
 import type { Account } from "../../../../src/auth/account-contracts";
 import Calendar01Icon from "@hugeicons/core-free-icons/Calendar01Icon";
+import BookOpen01Icon from "@hugeicons/core-free-icons/BookOpen01Icon";
 import UserAccountIcon from "@hugeicons/core-free-icons/UserAccountIcon";
 import Key01Icon from "@hugeicons/core-free-icons/Key01Icon";
 import Logout01Icon from "@hugeicons/core-free-icons/Logout01Icon";
@@ -23,6 +24,7 @@ import WeightScaleIcon from "@hugeicons/core-free-icons/WeightScaleIcon";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { AccountSettingsNavigation } from "./account-settings-navigation";
+import { version } from "../../../../package.json";
 
 const brand = {
   id: "vitalog",
@@ -63,7 +65,7 @@ const sections = [
         activePath: "/settings",
         preserveSubroute: true,
         label: "Account Settings",
-        icon: Settings01Icon,
+        icon: UserAccountIcon,
       },
     ],
   },
@@ -72,9 +74,11 @@ const sections = [
 export function DashboardShell({
   children,
   account,
+  docsUrl,
 }: {
   children: ReactNode;
   account: Account;
+  docsUrl: string;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -134,6 +138,7 @@ export function DashboardShell({
                   accessibleLabel: "Primary navigation",
                   homeHref: "/daily",
                   brand,
+                  brandVersion: version,
                   groups: sections,
                   footerContent: (
                     <SidebarAccountMenu
@@ -157,8 +162,19 @@ export function DashboardShell({
                             },
                             {
                               id: "api-keys",
-                              label: "My API Keys",
+                              label: "API Keys",
                               icon: <HugeiconsIcon icon={Key01Icon} />,
+                            },
+                          ],
+                        },
+                        {
+                          id: "vitalog",
+                          label: "Vitalog",
+                          items: [
+                            {
+                              id: "documentation",
+                              label: "Documentation",
+                              icon: <HugeiconsIcon icon={BookOpen01Icon} />,
                             },
                           ],
                         },
@@ -177,6 +193,8 @@ export function DashboardShell({
                       ]}
                       onAction={(id) => {
                         if (id === "sign-out") void signOut();
+                        else if (id === "documentation")
+                          window.open(docsUrl, "_blank", "noopener,noreferrer");
                         else router.push(`/settings/${id}`);
                       }}
                     />

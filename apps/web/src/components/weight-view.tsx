@@ -1,5 +1,6 @@
 "use client";
 import { Widget } from "./ui/widget";
+import { Attributes } from "@avgeek-oss/design-system/data-display/attributes";
 import { useAccount } from "./account-context";
 import { formatDateTime } from "../lib/date-time";
 
@@ -49,7 +50,7 @@ export function WeightView({
             aria-label="Current weight"
           >
             <Widget.Header>
-              <Widget.Title icon={<HealthIcon kind="weight" />}>
+              <Widget.Title>
                 <h2 className="font-medium">Current weight</h2>
               </Widget.Title>
             </Widget.Header>
@@ -87,61 +88,62 @@ export function WeightView({
             </Widget.Content>
           </Widget>
         </section>
-        <Widget className="logs-card weight-history">
-          <Widget.Header>
-            <Widget.Title>
-              <h2 className="font-medium">Weigh-ins</h2>
-            </Widget.Title>
-          </Widget.Header>
-          <Widget.Content>
+        <section className="weight-history" aria-label="Weigh-ins">
+          <Attributes
+            title={<h2 className="font-medium">Weigh-ins</h2>}
+            variant="list"
+          >
             {sorted.length ? (
-              <ul>
-                {sorted.slice(0, count).map((record) => {
-                  const exact = exactWeight(record);
-                  return (
-                    <li key={record.id} className="weight-reading">
+              sorted.slice(0, count).map((record) => {
+                const exact = exactWeight(record);
+                return (
+                  <Attributes.Item
+                    key={record.id}
+                    label={
                       <time dateTime={record.occurred_on ?? undefined}>
                         {record.occurred_on
                           ? formatDateTime(record.occurred_on, preferences).date
                           : "Date not recorded"}
                       </time>
-                      <span>
-                        {exact === null
-                          ? usable(
-                              record,
-                              "/value",
-                              "/value/value",
-                              "/unit",
-                              "/value/unit",
-                              "/comparator",
-                              "/value/comparator",
-                            )
-                            ? resultText(
-                                record.data.value,
-                                record.data.unit,
-                                record.data.comparator,
-                              )
-                            : "—"
-                          : `${formatNumber(exact)} kg`}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
+                    }
+                  >
+                    {exact === null
+                      ? usable(
+                          record,
+                          "/value",
+                          "/value/value",
+                          "/unit",
+                          "/value/unit",
+                          "/comparator",
+                          "/value/comparator",
+                        )
+                        ? resultText(
+                            record.data.value,
+                            record.data.unit,
+                            record.data.comparator,
+                          )
+                        : "—"
+                      : `${formatNumber(exact)} kg`}
+                  </Attributes.Item>
+                );
+              })
             ) : (
-              <p className="empty-state">No weigh-ins yet.</p>
+              <div className="p-4 text-sm text-muted">
+                <dt className="sr-only">Weigh-ins</dt>
+                <dd>No weigh-ins yet.</dd>
+              </div>
             )}
-            {sorted.length > count ? (
-              <Button
-                variant="ghost"
-                className="history-more"
-                onPress={() => setCount((value) => value + 30)}
-              >
-                Show more
-              </Button>
-            ) : null}
-          </Widget.Content>
-        </Widget>
+          </Attributes>
+          {sorted.length > count ? (
+            <Button
+              variant="ghost"
+              className="history-more"
+              onPress={() => setCount((value) => value + 30)}
+            >
+              Show more
+            </Button>
+          ) : null}
+        </section>
       </div>
     </>
   );

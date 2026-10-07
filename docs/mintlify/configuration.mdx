@@ -27,13 +27,13 @@ Root credentials are used for issuance and consent. They cannot authenticate hea
 
 ## Web app
 
-| Variable                | Purpose                                                                                                                               |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| `API_BASE_URL`          | Browser-accessible API origin used for MCP setup, key creation and OAuth.                                                             |
-| `UI_BASE_URL`           | The web app's exact public origin.                                                                                                    |
-| `API_INTERNAL_BASE_URL` | Optional private HTTP/HTTPS API origin for Next.js server reads. Never exposed to browser components.                                 |
-| `DOCS_BASE_URL`         | Optional Mintlify docs origin. The MCP Guide links to `/mcp-guide` there; until configured it links to the repository's guide source. |
-| `PORT`                  | Web server listening port inside the service. Compose exposes `UI_PORT` on the host, default `3001`.                                  |
+| Variable                | Purpose                                                                                                                                                                |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `API_BASE_URL`          | Browser-accessible API origin used for MCP setup, key creation and OAuth.                                                                                              |
+| `UI_BASE_URL`           | The web app's exact public origin.                                                                                                                                     |
+| `API_INTERNAL_BASE_URL` | Optional private HTTP/HTTPS API origin for Next.js server reads. Never exposed to browser components.                                                                  |
+| `DOCS_BASE_URL`         | Optional Mintlify docs origin. The sidebar account menu opens the site home page and MCP Guide opens `/mcp-guide`; both fall back to repository docs until configured. |
+| `PORT`                  | Web server listening port inside the service. Compose exposes `UI_PORT` on the host, default `3001`.                                                                   |
 
 The UI does not need `AUTH_KEY`, database credentials or root credentials in its environment. Origin settings are read at runtime, so the same image can serve different installations.
 

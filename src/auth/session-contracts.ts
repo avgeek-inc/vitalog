@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { accountSchema } from "./account-contracts.js";
-import { keyCreation } from "./contracts.js";
+import { credentialsSchema } from "./contracts.js";
 export const sessionCreated = z.strictObject({
   session_token: z.string().regex(/^vls_[A-Za-z0-9_-]{43}$/),
   expires_at: z.iso.datetime(),
@@ -17,7 +17,7 @@ export const sessionOperations = [
     method: "POST",
     path: "/auth/session",
     status: "201",
-    input: keyCreation,
+    input: credentialsSchema,
     output: sessionCreated,
     description:
       "Create a revocable 30-day, read-only browser session using root credentials. The Next.js UI keeps this opaque token in a host-only HttpOnly cookie. It cannot write records or goals, manage keys, or access MCP.",

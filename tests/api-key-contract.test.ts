@@ -4,6 +4,8 @@ import { authorized, configuration } from "../src/config.js";
 import { RootAuthentication } from "../src/auth/root.js";
 import {
   keyCreated,
+  manualKeyCreation,
+  credentialsSchema,
   keyCreation,
   keyListQuery,
   keyOperations,
@@ -106,12 +108,12 @@ describe("Key generation contracts", () => {
       config.timezone,
       "deadline-test",
     );
-    let finish: (value: boolean) => void;
-    const lookup = new Promise<boolean>((resolve) => {
+    let finish: (value: undefined) => void;
+    const lookup = new Promise<undefined>((resolve) => {
       finish = resolve;
     });
     const authentication = vi
-      .spyOn(ApiKeys.prototype, "authorized")
+      .spyOn(ApiKeys.prototype, "findActive")
       .mockReturnValue(lookup);
     const execute = vi.spyOn(service, "execute");
     try {
@@ -131,23 +133,43 @@ describe("Key generation contracts", () => {
       expect((await response.json()).code).toBe("TIMEOUT");
       expect(execute).not.toHaveBeenCalled();
     } finally {
-      finish!(false);
+      finish!(undefined);
       authentication.mockRestore();
       execute.mockRestore();
       vi.useRealTimers();
       await connection.pool.end();
     }
   });
-  test("Key names, expiry and privileges cannot be chosen in a generation request", () => {
-    const input = { email: "owner@example.test", password };
-    for (const extra of [
-      { expires_at: "2099-01-01T00:00:00Z" },
-      { validity_days: 365 },
-      { admin: true },
-      { name: "Personal automation" },
-    ])
-      expect(keyCreation.safeParse({ ...input, ...extra }).success).toBe(false);
+  test("Manual key creation requires explicit name, permissions and expiry", () => {
+    const settings = {
+      name: "Personal automation",
+      access: "read",
+      includeAdmin: false,
+      expiresAt: null,
+    };
+    const input = { email: "owner@example.test", password, ...settings };
     expect(keyCreation.parse(input)).toEqual(input);
+    for (const field of Object.keys(settings)) {
+      const missing: Record<string, unknown> = { ...input };
+      delete missing[field];
+      expect(keyCreation.safeParse(missing).success).toBe(false);
+    }
+    for (const invalid of [
+      { name: " " },
+      { name: "x".repeat(121) },
+      { access: "admin" },
+      { includeAdmin: "false" },
+      { expiresAt: "2020-01-01T00:00:00Z" },
+      { access: "read", includeAdmin: true },
+    ])
+      expect(
+        manualKeyCreation.safeParse({ ...settings, ...invalid }).success,
+      ).toBe(false);
+    expect(credentialsSchema.parse({ email: input.email, password })).toEqual({
+      email: input.email,
+      password,
+    });
+    expect(credentialsSchema.safeParse(input).success).toBe(false);
   });
   test("Pagination is bounded", () => {
     expect(keyListQuery.parse({})).toEqual({ limit: 50, offset: 0 });

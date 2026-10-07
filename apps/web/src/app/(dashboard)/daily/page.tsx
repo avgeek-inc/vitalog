@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
-import { Page } from "@avgeek-oss/design-system/layouts/page";
-import { AppShellBreadcrumb } from "@avgeek-oss/design-system/layouts/app-shell-breadcrumb";
+import { ApplicationPage } from "@avgeek-oss/design-system/patterns/pages/page";
+import { HugeiconsIcon } from "@hugeicons/react";
+import Calendar01Icon from "@hugeicons/core-free-icons/Calendar01Icon";
 import { Suspense } from "react";
 import { DailyView } from "../../../components/daily-view";
 import { DashboardSkeleton } from "../../../components/dashboard-skeleton";
 import { DayNavigation } from "../../../components/day-navigation";
 import { readDaily, selectedDate } from "../../../lib/read-health";
 import { requireSession } from "../../../lib/session";
-export const metadata: Metadata = { title: "Daily" };
+export const metadata: Metadata = { title: "Daily View" };
 export default async function Daily({
   searchParams,
 }: {
@@ -16,18 +17,28 @@ export default async function Daily({
   const session = await requireSession();
   const date = selectedDate((await searchParams).date, session.today);
   return (
-    <Page>
-      <AppShellBreadcrumb
-        items={[{ label: "Stats" }, { label: "Daily View" }]}
-        title="Daily View"
-      />
-      <div className="py-5">
+    <ApplicationPage
+      title="Daily View"
+      titleContent={
+        <span className="inline-flex min-w-0 items-center gap-2">
+          <HugeiconsIcon
+            icon={Calendar01Icon}
+            size={24}
+            className="shrink-0"
+            aria-hidden
+          />
+          Daily View
+        </span>
+      }
+      breadcrumbAncestors={[]}
+    >
+      <div className="pb-5">
         <DayNavigation date={date} today={session.today} />
       </div>
       <Suspense key={date} fallback={<DashboardSkeleton view="daily" />}>
         <DailyData date={date} timezone={session.timezone} />
       </Suspense>
-    </Page>
+    </ApplicationPage>
   );
 }
 async function DailyData({

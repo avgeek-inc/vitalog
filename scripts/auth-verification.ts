@@ -35,6 +35,13 @@ let primary = randomBytes(32).toString("base64url");
 const rootEmail = "root@example.test";
 const rootPassword = randomBytes(32).toString("base64url");
 const credentials = { email: rootEmail, password: rootPassword };
+const manualSettings = () => ({
+  name: "Verification",
+  access: "edit" as const,
+  includeAdmin: false,
+  expiresAt: new Date(Date.now() + 30 * 86400000).toISOString(),
+});
+const generation = () => ({ ...credentials, ...manualSettings() });
 const logs: Data[] = [];
 const tokens: string[] = [];
 const checks: { name: string; status: "passed" }[] = [];
@@ -113,7 +120,7 @@ async function create() {
   const response = await request(
     "/auth/api-keys",
     "POST",
-    credentials,
+    generation(),
     undefined,
     { Origin: baseUrl },
   );
@@ -157,7 +164,7 @@ try {
     }
   }
   await check(
-    "Forward migration preserves the ledger, existing key access and revocation while removing key names",
+    "Forward migration preserves the ledger, existing key access and revocation while backfilling explicit non-escalating key policies",
     async () => {
       temporary = await mkdtemp(join(tmpdir(), "vitalog-auth-migration-"));
       await mkdir(join(temporary, "meta"));
@@ -263,8 +270,11 @@ try {
       await migrateDatabase(url);
       assert.equal(await previous.ready(), true);
       assert.deepEqual(
-        (await connection!.pool.query("select * from api_keys order by id"))
-          .rows,
+        (
+          await connection!.pool.query(
+            "select id, token_digest, token_hint, created_at, expires_at, revoked_at from api_keys order by id",
+          )
+        ).rows,
         before,
       );
       const upgradedKeys = new ApiKeys(connection!.db);
@@ -279,8 +289,19 @@ try {
             "select count(*)::int count from information_schema.columns where table_schema='public' and table_name='api_keys' and column_name='name'",
           )
         ).rows[0].count,
-        0,
+        1,
       );
+      for (const existing of existingKeys) {
+        const policy = (
+          await connection!.pool.query(
+            "select name, access, include_admin from api_keys where id=$1",
+            [existing.id],
+          )
+        ).rows[0];
+        assert.equal(policy.access, "edit");
+        assert.equal(policy.include_admin, false);
+        assert.match(policy.name, /^API key /);
+      }
       await connection!.pool.query(
         "delete from api_keys where id = any($1::uuid[])",
         [existingKeys.map((existing) => existing.id)],
@@ -331,14 +352,19 @@ try {
     "Root credentials issue a unique 30-day token while PostgreSQL stores only its hash",
     async () => {
       key = await create();
-      assert.equal(
-        Date.parse(String(key.expires_at)) - Date.parse(String(key.created_at)),
-        30 * 24 * 60 * 60 * 1000,
+      assert(
+        Math.abs(
+          Date.parse(String(key.expires_at)) -
+            Date.parse(String(key.created_at)) -
+            30 * 86400000,
+        ) < 3000,
       );
       const second = await create();
       assert.notEqual(key.api_key, second.api_key);
       assert.equal(key.status, "active");
-      assert(!Object.hasOwn(key, "name"));
+      assert.equal(key.name, "Verification");
+      assert.equal(key.access, "edit");
+      assert.equal(key.includeAdmin, false);
       const stored = (
         await connection!.pool.query("select * from api_keys where id=$1", [
           key.id,
@@ -363,12 +389,12 @@ try {
       );
       assert.equal(
         (await request("/readyz", "GET", undefined, token)).response.status,
-        200,
+        403,
       );
       assert.equal(
         (await request("/openapi.json", "GET", undefined, token)).response
           .status,
-        200,
+        403,
       );
       const saved = await request(
         "/v1/measurements",
@@ -542,6 +568,157 @@ try {
       }
     },
   );
+  await start();
+  await check(
+    "Read, Edit and Administrative ceilings apply to REST and MCP, including Never expiry",
+    async () => {
+      const instances: Client[] = [];
+      try {
+        for (const policy of [
+          { access: "read", includeAdmin: false },
+          { access: "edit", includeAdmin: false },
+          { access: "edit", includeAdmin: true },
+        ] as const) {
+          const created = await request("/auth/api-keys", "POST", {
+            ...credentials,
+            name: policy.includeAdmin ? "Admin" : policy.access,
+            ...policy,
+            expiresAt: null,
+          });
+          assert.equal(created.response.status, 201);
+          assert.equal(created.body.expires_at, null);
+          const token = String(created.body.api_key);
+          tokens.push(token);
+          assert.equal(
+            (await request("/v1/catalog", "GET", undefined, token)).response
+              .status,
+            200,
+          );
+          for (const path of ["/readyz", "/openapi.json"])
+            assert.equal(
+              (await request(path, "GET", undefined, token)).response.status,
+              policy.includeAdmin ? 200 : 403,
+            );
+          assert.equal(
+            (
+              await request(
+                "/v1/hydration",
+                "POST",
+                {
+                  ...examples.hydration,
+                  data: { ...examples.hydration.data, entry_kind: "intake" },
+                },
+                token,
+                { "Idempotency-Key": randomUUID() },
+              )
+            ).response.status,
+            policy.access === "read" ? 403 : 200,
+          );
+          for (const [method, path] of [
+            ["GET", "/v1/api-keys"],
+            ["DELETE", "/v1/api-keys"],
+            ["PATCH", "/auth/profile"],
+          ])
+            assert.equal(
+              (
+                await request(
+                  path!,
+                  method!,
+                  method === "PATCH" ? { name: "Forbidden" } : undefined,
+                  token,
+                )
+              ).response.status,
+              path === "/auth/profile" ? 401 : 403,
+            );
+          const client = new Client({ name: "key-policy", version: "1" });
+          instances.push(client);
+          await client.connect(
+            new StreamableHTTPClientTransport(new URL(baseUrl + "/mcp"), {
+              requestInit: { headers: { Authorization: `Bearer ${token}` } },
+            }),
+          );
+          const visible = (await client.listTools()).tools;
+          assert.deepEqual(
+            visible.map((tool) => tool.name).sort(),
+            operations
+              .filter(
+                (operation) => policy.access === "edit" || !operation.mutation,
+              )
+              .map((operation) => operation.name)
+              .sort(),
+          );
+          const read = await client.callTool({
+            name: "health_get_catalog",
+            arguments: {},
+          });
+          assert(!read.isError);
+          if (policy.access === "read")
+            await assert.rejects(
+              client.callTool({
+                name: "health_log_hydration",
+                arguments: examples.hydration,
+              }),
+            );
+          else {
+            const write = await client.callTool({
+              name: "health_log_hydration",
+              arguments: {
+                ...examples.hydration,
+                data: { ...examples.hydration.data, entry_kind: "intake" },
+                idempotency_key: randomUUID(),
+              },
+            });
+            assert(!write.isError);
+          }
+          // Stored policy is read anew on every request, including an existing MCP connection.
+          await connection!.pool.query(
+            "update api_keys set access='read', include_admin=false where id=$1",
+            [created.body.id],
+          );
+          assert.equal(
+            (await request("/v1/hydration", "POST", examples.hydration, token))
+              .response.status,
+            403,
+          );
+          assert.equal(
+            (await client.listTools()).tools.some(
+              (tool) => tool.name === "health_log_hydration",
+            ),
+            false,
+          );
+          await request(
+            `/v1/api-keys/${created.body.id}`,
+            "DELETE",
+            undefined,
+            primary,
+          );
+          await denied(token);
+          await assert.rejects(client.listTools());
+        }
+        await start();
+        for (const missing of ["name", "access", "includeAdmin", "expiresAt"]) {
+          const body: Record<string, unknown> = { ...generation() };
+          delete body[missing];
+          assert.equal(
+            (await request("/auth/api-keys", "POST", body)).response.status,
+            422,
+          );
+        }
+        assert.equal(
+          (
+            await request("/auth/api-keys", "POST", {
+              ...generation(),
+              access: "read",
+              includeAdmin: true,
+            })
+          ).response.status,
+          422,
+        );
+      } finally {
+        for (const client of instances) await client.close();
+      }
+    },
+  );
   await check(
     "Individual revocation rejects REST and an already connected MCP client immediately",
     async () => {
@@ -634,11 +811,11 @@ try {
   );
   await start();
   await check(
-    "Invalid credentials, unknown fields and client-chosen expiry never issue keys",
+    "Invalid credentials, missing settings and malformed policy never issue keys",
     async () => {
       for (const body of [
-        { ...credentials, password: "incorrect-password" },
-        { ...credentials, email: "other@example.test" },
+        { ...generation(), password: "incorrect-password" },
+        { ...generation(), email: "other@example.test" },
         { ...credentials, expires_at: "2099-01-01T00:00:00Z" },
         { ...credentials, name: "Removed field" },
         { ...credentials, [rootPassword]: "unknown" },
@@ -660,7 +837,7 @@ try {
     async () => {
       assert.equal(
         (
-          await request("/auth/api-keys", "POST", credentials, undefined, {
+          await request("/auth/api-keys", "POST", generation(), undefined, {
             Origin: "https://untrusted.example",
           })
         ).response.status,
@@ -693,7 +870,7 @@ try {
             },
           );
           incoming.on("error", reject);
-          incoming.end(JSON.stringify(credentials));
+          incoming.end(JSON.stringify(generation()));
         },
       );
       assert.equal(response.status, 201);
@@ -715,13 +892,13 @@ try {
         const response = await request(
           "/auth/api-keys",
           "POST",
-          { ...credentials, password: "incorrect-password" },
+          { ...generation(), password: "incorrect-password" },
           undefined,
           { "X-Forwarded-For": `192.0.2.${attempt + 1}` },
         );
         assert.equal(response.response.status, 401);
       }
-      const blocked = await request("/auth/api-keys", "POST", credentials);
+      const blocked = await request("/auth/api-keys", "POST", generation());
       assert.equal(blocked.response.status, 429);
       assert.equal(blocked.response.headers.get("retry-after"), "60");
       assert.equal(
@@ -748,7 +925,7 @@ try {
         if (response.response.status === 201)
           tokens.push(String(response.body.api_key));
       async function createAttempt() {
-        return request("/auth/api-keys", "POST", credentials);
+        return request("/auth/api-keys", "POST", generation());
       }
     },
   );
@@ -757,7 +934,7 @@ try {
     "Unconfigured root credentials disable issuance without affecting primary or generated keys",
     async () => {
       assert.equal(
-        (await request("/auth/api-keys", "POST", credentials)).response.status,
+        (await request("/auth/api-keys", "POST", generation())).response.status,
         503,
       );
       assert.equal(
@@ -770,6 +947,63 @@ try {
           .response.status,
         200,
       );
+    },
+  );
+  await start();
+  await check(
+    "Creation retry IDs issue one secret, reject changed settings, and preserve absolute expiry",
+    async () => {
+      const settings = {
+        ...generation(),
+        name: "Retry verification",
+        expiresAt: new Date(Date.now() + 90 * 86400000).toISOString(),
+      };
+      const requestId = randomUUID();
+      const responses = await Promise.all([
+        request("/auth/api-keys", "POST", settings, undefined, {
+          "Idempotency-Key": requestId,
+        }),
+        request("/auth/api-keys", "POST", settings, undefined, {
+          "Idempotency-Key": requestId,
+        }),
+      ]);
+      for (const response of responses) {
+        assert.equal(response.response.status, 201);
+        keyCreated.parse(response.body);
+        assert.equal(response.body.expires_at, settings.expiresAt);
+      }
+      assert.equal(
+        responses.filter((response) => response.body.api_key !== null).length,
+        1,
+      );
+      assert.equal(responses[0]!.body.id, responses[1]!.body.id);
+      assert.equal(
+        (
+          await connection!.pool.query(
+            "select count(*)::int count from api_keys where creation_request_id=$1",
+            [requestId],
+          )
+        ).rows[0].count,
+        1,
+      );
+      assert.equal(
+        (
+          await request(
+            "/auth/api-keys",
+            "POST",
+            { ...settings, name: "Changed" },
+            undefined,
+            { "Idempotency-Key": requestId },
+          )
+        ).response.status,
+        409,
+      );
+      const year = new Date(Date.now() + 365 * 86400000).toISOString();
+      const created = await new ApiKeys(connection!.db).create({
+        ...manualSettings(),
+        expiresAt: year,
+      });
+      assert.equal(created.expires_at, year);
     },
   );
   await check(

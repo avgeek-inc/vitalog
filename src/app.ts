@@ -22,6 +22,8 @@ import { KeyManagementSessions } from "./auth/key-management.js";
 import { localDate } from "./domain/validation.js";
 import {
   keyCreation,
+  credentialsSchema,
+  manualKeyCreation,
   keyId,
   keyListQuery,
   managedKeyListQuery,
@@ -39,6 +41,11 @@ type AppEnvironment = {
   Bindings: HttpBindings;
   Variables: {
     oauthScopes?: string[];
+    manualKey?: {
+      id: string;
+      access: "read" | "edit" | null;
+      includeAdmin: boolean | null;
+    };
     browserSession?: { id: string; expiresAt: Date };
     keyManagementSession?: { id: string; expiresAt: Date };
   };
@@ -227,13 +234,11 @@ export function application(
         !primary && path === "/mcp"
           ? await oauth?.authenticate(authorization)
           : undefined;
-      if (
-        authCount > 1 ||
-        (!primary &&
-          !grant &&
-          !session &&
-          !(await keys.authorized(authorization)))
-      ) {
+      const manualKey =
+        !primary && !grant && !session
+          ? await keys.findActive(authorization)
+          : undefined;
+      if (authCount > 1 || (!primary && !grant && !session && !manualKey)) {
         if (path === "/mcp" && config.publicBaseUrl)
           c.header(
             "WWW-Authenticate",
@@ -243,6 +248,24 @@ export function application(
             ),
           );
         throw new DomainError("UNAUTHORIZED", "Supply a valid HTTP Bearer key");
+      }
+      if (manualKey) {
+        c.set("manualKey", manualKey);
+        if (
+          ["/readyz", "/openapi.json"].includes(path) &&
+          !manualKey.includeAdmin
+        )
+          throw new DomainError(
+            "FORBIDDEN",
+            "Administrative permissions are required",
+          );
+        if (path === "/mcp")
+          c.set(
+            "oauthScopes",
+            manualKey.access === "edit"
+              ? ["health:read", "health:write"]
+              : ["health:read"],
+          );
       }
       if (grant) c.set("oauthScopes", grant.scopes);
       if (session) c.set("browserSession", session);
@@ -319,12 +342,21 @@ export function application(
           .filter(Boolean);
         if (
           c.req.header("access-control-request-method") !== method ||
-          requested.some((value) => value !== "content-type") ||
+          requested.some(
+            (value) =>
+              value !== "content-type" &&
+              !(c.req.path === "/auth/api-keys" && value === "idempotency-key"),
+          ) ||
           [...new URL(c.req.url).searchParams].length
         )
           throw new DomainError("FORBIDDEN", "Preflight is not permitted");
         c.header("Access-Control-Allow-Methods", method);
-        c.header("Access-Control-Allow-Headers", "Content-Type");
+        c.header(
+          "Access-Control-Allow-Headers",
+          c.req.path === "/auth/api-keys"
+            ? "Content-Type, Idempotency-Key"
+            : "Content-Type",
+        );
         return c.body(null, 204);
       }
     }
@@ -476,6 +508,12 @@ export function application(
         ),
       ),
     );
+  const creationRequestId = (c: Context<AppEnvironment>) => {
+    const value = c.req.header("idempotency-key");
+    if (value !== undefined && !keyId.safeParse(value).success)
+      throw new DomainError("VALIDATION_ERROR", "Use a UUID Idempotency-Key");
+    return value;
+  };
   app.post("/auth/api-keys", async (c) => {
     if ([...new URL(c.req.url).searchParams].length)
       throw new DomainError(
@@ -500,7 +538,8 @@ export function application(
       );
     config.assertCredentialAbsent(parsed.data.email);
     await root.verify(parsed.data.email, parsed.data.password);
-    return c.json(await keys.create(), 201);
+    const { email: _email, password: _password, ...settings } = parsed.data;
+    return c.json(await keys.create(settings, creationRequestId(c)), 201);
   });
   app.post("/auth/session", async (c) => {
     if ([...new URL(c.req.url).searchParams].length)
@@ -518,7 +557,7 @@ export function application(
     } catch {
       throw new DomainError("VALIDATION_ERROR", "Malformed JSON request");
     }
-    const parsed = keyCreation.safeParse(body);
+    const parsed = credentialsSchema.safeParse(body);
     if (!parsed.success)
       throw new DomainError(
         "VALIDATION_ERROR",
@@ -656,7 +695,7 @@ export function application(
     } catch {
       throw new DomainError("VALIDATION_ERROR", "Malformed JSON request");
     }
-    const parsed = keyCreation.safeParse(body);
+    const parsed = credentialsSchema.safeParse(body);
     if (!parsed.success)
       throw new DomainError(
         "VALIDATION_ERROR",
@@ -712,8 +751,27 @@ export function application(
     );
   });
   app.post("/auth/key-management/api-keys", async (c) => {
-    await noRevocationArguments(c);
-    return c.json(await keys.create(), 201);
+    if (
+      new URL(c.req.url).search ||
+      !/^application\/json(?:\s*;|$)/i.test(c.req.header("content-type") ?? "")
+    )
+      throw new DomainError(
+        "VALIDATION_ERROR",
+        "Use application/json without query parameters",
+      );
+    let body: unknown;
+    try {
+      body = await c.req.json();
+    } catch {
+      throw new DomainError("VALIDATION_ERROR", "Malformed JSON request");
+    }
+    const parsed = manualKeyCreation.safeParse(body);
+    if (!parsed.success)
+      throw new DomainError(
+        "VALIDATION_ERROR",
+        "Supply a name, permissions and expiry",
+      );
+    return c.json(await keys.create(parsed.data, creationRequestId(c)), 201);
   });
   app.delete("/auth/key-management/api-keys/:id", async (c) => {
     await noRevocationArguments(c);
@@ -748,10 +806,13 @@ export function application(
   for (const operation of operations) {
     const path = operation.path.replace(/\{([^}]+)\}/g, ":$1");
     const handler = async (c: Context<AppEnvironment>) => {
-      if (c.get("browserSession") && operation.mutation)
+      if (
+        (c.get("browserSession") || c.get("manualKey")?.access === "read") &&
+        operation.mutation
+      )
         throw new DomainError(
           "FORBIDDEN",
-          "Browser sessions can only read health data",
+          "This credential can only read health data",
         );
       const input: Data = Object.create(null);
       const query = new URL(c.req.url).searchParams;

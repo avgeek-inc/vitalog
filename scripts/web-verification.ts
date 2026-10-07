@@ -9,7 +9,7 @@ import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { Server } from "node:http";
 import { createServer } from "node:net";
 import { serve } from "@hono/node-server";
-import { chromium, type Browser } from "playwright";
+import { chromium, type Browser, type Page } from "playwright";
 import { application } from "../src/app.js";
 import { configuration } from "../src/config.js";
 import { database } from "../src/db/client.js";
@@ -145,6 +145,22 @@ async function api(
     text,
     response,
   };
+}
+async function chooseKeySettings(
+  page: Page,
+  name = "Browser verification",
+  permission = "Edit",
+  expiry = "30 days",
+) {
+  const dialog = page.getByRole("dialog", {
+    name: "Create API key",
+    exact: true,
+  });
+  await dialog.getByLabel("Name", { exact: true }).fill(name);
+  await dialog.getByRole("button", { name: /Permissions/ }).click();
+  await page.getByRole("option", { name: permission, exact: true }).click();
+  await dialog.getByRole("button", { name: /Expires after/ }).click();
+  await page.getByRole("option", { name: expiry, exact: true }).click();
 }
 async function check(name: string, run: () => Promise<void>) {
   try {
@@ -640,13 +656,21 @@ try {
           "/auth/key-management/api-keys",
           token,
           "POST",
+          {
+            name: "Management verification",
+            access: "edit",
+            includeAdmin: false,
+            expiresAt: new Date(Date.now() + 30 * 86400000).toISOString(),
+          },
         );
         assert.equal(created.status, 201);
         const key = object(created.data);
-        assert.equal(
-          Date.parse(String(key.expires_at)) -
-            Date.parse(String(key.created_at)),
-          30 * 86400000,
+        assert(
+          Math.abs(
+            Date.parse(String(key.expires_at)) -
+              Date.parse(String(key.created_at)) -
+              30 * 86400000,
+          ) < 3000,
         );
         assert.equal((await api("/v1/goals", String(key.api_key))).status, 200);
         assert.equal(
@@ -893,26 +917,42 @@ try {
       failures.push(`${page.url()}: ${error.message}`),
     );
     await check(
-      "Shared API-key authentication validates credentials and reveals a nameless 30-day key only once",
+      "Standalone manual creation requires Name, Permissions and Expires after, and reveals the token once",
       async () => {
         await page.goto(uiUrl + "/api-keys");
         await page
-          .getByRole("heading", { name: "Generate an API key", exact: true })
-          .waitFor();
-        assert.equal(await page.getByLabel("Name", { exact: true }).count(), 0);
-        await page.getByLabel("Email", { exact: true }).fill(credentials.email);
-        await page
+          .getByRole("button", { name: "Create API key", exact: true })
+          .click();
+        const dialog = page.getByRole("dialog", {
+          name: "Create API key",
+          exact: true,
+        });
+        assert(
+          await dialog
+            .getByRole("button", { name: "Create key", exact: true })
+            .isDisabled(),
+        );
+        await chooseKeySettings(
+          page,
+          "Standalone read key",
+          "Read-only",
+          "Never",
+        );
+        await dialog
+          .getByLabel("Email", { exact: true })
+          .fill(credentials.email);
+        await dialog
           .getByLabel("Password", { exact: true })
           .fill("incorrect-password");
-        await page
-          .getByRole("button", { name: "Generate API key", exact: true })
+        await dialog
+          .getByRole("button", { name: "Create key", exact: true })
           .click();
         await page.getByText("Invalid credentials", { exact: true }).waitFor();
         assert.equal(
-          await page.getByLabel("Password", { exact: true }).inputValue(),
+          await dialog.getByLabel("Password", { exact: true }).inputValue(),
           "",
         );
-        await page
+        await dialog
           .getByLabel("Password", { exact: true })
           .fill(credentials.password);
         const issuance = page.waitForResponse(
@@ -920,33 +960,26 @@ try {
             response.url() === apiUrl + "/auth/api-keys" &&
             response.request().method() === "POST",
         );
-        await page
-          .getByRole("button", { name: "Generate API key", exact: true })
+        await dialog
+          .getByRole("button", { name: "Create key", exact: true })
           .click();
         const issued = await issuance;
         assert.equal(issued.status(), 201);
         const metadata = await issued.json();
-        await page
-          .getByRole("heading", { name: "Your API key is ready", exact: true })
-          .waitFor();
-        const token = await page
-          .getByLabel("API key", { exact: true })
-          .inputValue();
-        assert.equal(token, metadata.api_key);
-        assert(/^vlk_[A-Za-z0-9_-]{43}$/.test(token));
-        assert.equal(
-          Date.parse(metadata.expires_at) - Date.parse(metadata.created_at),
-          30 * 86400000,
-        );
-        await page
-          .getByRole("button", { name: "Generate another key", exact: true })
+        assert.equal(metadata.name, "Standalone read key");
+        assert.equal(metadata.access, "read");
+        assert.equal(metadata.expires_at, null);
+        const revealed = page.getByRole("dialog", {
+          name: "Copy your API key",
+          exact: true,
+        });
+        await revealed.waitFor();
+        assert((await revealed.innerText()).includes(metadata.api_key));
+        await revealed
+          .getByRole("button", { name: "Done", exact: true })
           .click();
-        await page.getByLabel("Password", { exact: true }).waitFor();
-        assert(!(await page.content()).includes(token));
-        assert.equal(
-          (await api("/v1/api-keys/" + metadata.id, primary, "DELETE")).status,
-          200,
-        );
+        assert(!(await page.content()).includes(metadata.api_key));
+        await api("/v1/api-keys/" + metadata.id, primary, "DELETE");
       },
     );
     await check(
@@ -1270,6 +1303,20 @@ try {
               response!.headers()["content-security-policy"]!,
               /form-action 'none'/,
             );
+            if (path === "/api-keys") {
+              assert.equal(await nativePage.locator("form").count(), 0);
+              assert.equal(
+                await nativePage
+                  .getByLabel("Password", { exact: true })
+                  .count(),
+                0,
+              );
+              await nativePage
+                .getByRole("button", { name: "Create API key", exact: true })
+                .click();
+              assert.equal(nativePage.url(), uiUrl + path);
+              continue;
+            }
             await nativePage
               .getByLabel("Email", { exact: true })
               .fill("nojs@example.test");
@@ -1470,7 +1517,7 @@ try {
               name: "Edit Gravatar image (opens in a new tab)",
             })
             .count(),
-          1,
+          0,
         );
         const preference = {
           dateFormat: "year-month-day",
@@ -1696,7 +1743,10 @@ try {
             ).includes(value!),
           );
         assert.equal(await page.locator(".macro").count(), 4);
-        assert.equal(await page.locator(".log-trigger").count(), 11);
+        assert.equal(
+          await page.locator(".expandable-attribute-list__row").count(),
+          11,
+        );
         assert.equal(
           await page.getByRole("button", { name: /Water .*mL/ }).count(),
           0,
@@ -1750,11 +1800,11 @@ try {
             left: number;
             right: number;
           }>(`(() => {
-            const body = document.querySelector('.log-body');
-            const row = body.closest('.accordion__item');
-            const name = row.querySelector('.log-name').getBoundingClientRect();
-            const metric = row.querySelector('.log-metric').getBoundingClientRect();
-            const details = body.querySelector('.log-details').getBoundingClientRect();
+            const body = document.querySelector('.expandable-attribute-list__panel:not([hidden])');
+            const row = body.closest('.expandable-attribute-list__item');
+            const name = row.querySelector('.expandable-attribute-list__label').getBoundingClientRect();
+            const metric = row.querySelector('.expandable-attribute-list__value').getBoundingClientRect();
+            const details = body.querySelector('.expandable-attribute-list__details').getBoundingClientRect();
             return { name: name.left, metric: metric.right, left: details.left, right: details.right };
           })()`);
           assert(
@@ -1814,18 +1864,21 @@ try {
                   ? page.getByRole("button", {
                       name: /^Choose date(?: Choose date)?$/,
                     })
-                  : page.getByRole("heading", { name: "Weight", exact: true })
+                  : page.getByRole("heading", {
+                      name: "Weight Management",
+                      exact: true,
+                    })
               ).waitFor();
               await page
                 .getByRole("status", { name: "Loading health data" })
                 .waitFor();
               const surface = await page
-                .locator(".loading-surface")
+                .locator(".oss-skeleton-card")
                 .first()
                 .evaluate((element) => ({
                   card: getComputedStyle(element).backgroundColor,
                   skeleton: getComputedStyle(
-                    element.querySelector(".loading-fill")!,
+                    element.querySelector(".oss-skeleton-card__fill")!,
                   ).backgroundColor,
                 }));
               assert.equal(surface.card, surface.skeleton);
@@ -1841,7 +1894,12 @@ try {
                   0,
                 );
               } else {
-                assert.equal(await page.locator("h1").count(), 0);
+                assert.equal(
+                  await page
+                    .getByRole("heading", { name: "Daily View", exact: true })
+                    .count(),
+                  1,
+                );
               }
               await page.screenshot({
                 path: `.test-artifacts/web/loading-${view}-${colorScheme}.png`,
@@ -1950,9 +2008,10 @@ try {
         await page
           .getByRole("button", { name: "Create API key", exact: true })
           .click();
+        await chooseKeySettings(page);
         await page
           .getByRole("dialog", { name: "Create API key", exact: true })
-          .getByRole("button", { name: "Create API key", exact: true })
+          .getByRole("button", { name: "Create key", exact: true })
           .click();
         const verification = page.getByRole("dialog", {
           name: "Confirm it’s you",
@@ -2027,10 +2086,12 @@ try {
             name: "Create API key",
             exact: true,
           });
-          assert.equal(
-            await dialog.getByLabel("Name", { exact: true }).count(),
-            0,
+          assert(
+            await dialog
+              .getByRole("button", { name: "Create key", exact: true })
+              .isDisabled(),
           );
+          await chooseKeySettings(page, `Settings verification ${index}`);
           if (index === 0) {
             await page.route(uiUrl + endpointForKeys, async (route) => {
               if (route.request().method() === "POST")
@@ -2042,7 +2103,7 @@ try {
               else await route.continue();
             });
             await dialog
-              .getByRole("button", { name: "Create API key", exact: true })
+              .getByRole("button", { name: "Create key", exact: true })
               .click();
             await page
               .getByText("Unable to create an API key. Try again.", {
@@ -2056,15 +2117,15 @@ try {
             await page.unroute(uiUrl + endpointForKeys);
           }
           await dialog
-            .getByRole("button", { name: "Create API key", exact: true })
+            .getByRole("button", { name: "Create key", exact: true })
             .click();
           const revealed = page.getByRole("dialog", {
             name: "Copy your API key",
             exact: true,
           });
-          const secret = await revealed
-            .getByLabel("API key", { exact: true })
-            .inputValue();
+          const secret = (await revealed.innerText()).match(
+            /vlk_[A-Za-z0-9_-]{43}/,
+          )![0];
           assert(/^vlk_[A-Za-z0-9_-]{43}$/.test(secret));
           generated.push(secret);
           assert.equal((await api("/v1/goals", secret)).status, 200);
@@ -2216,9 +2277,10 @@ try {
         await page
           .getByRole("button", { name: "Create API key", exact: true })
           .click();
+        await chooseKeySettings(page);
         await page
           .getByRole("dialog", { name: "Create API key", exact: true })
-          .getByRole("button", { name: "Create API key", exact: true })
+          .getByRole("button", { name: "Create key", exact: true })
           .click();
         await verification.waitFor();
         await verification
@@ -2267,7 +2329,7 @@ try {
             .getAttribute("aria-valuenow"),
           "52.5",
         );
-        assert.equal(await page.locator(".weight-reading").count(), 7);
+        assert.equal(await page.locator(".weight-history dl > div").count(), 7);
         assert.equal(await page.locator(".chart-point").count(), 7);
         await page.screenshot({
           path: ".test-artifacts/web/weight-mobile.png",
@@ -2276,6 +2338,42 @@ try {
         });
         await page.setViewportSize({ width: 1280, height: 900 });
         const chart = page.locator(".weight-chart-frame");
+        await page
+          .getByRole("heading", { name: "Weight Management", exact: true })
+          .waitFor();
+        await page.locator(".chart-point").nth(3).hover();
+        const tooltip = page.getByRole("tooltip");
+        await tooltip.waitFor();
+        const pointBounds = await page
+          .locator(".chart-point")
+          .nth(3)
+          .boundingBox();
+        const beforeMove = await tooltip.boundingBox();
+        assert(pointBounds && beforeMove);
+        await page.mouse.move(
+          pointBounds.x + pointBounds.width / 2 + 16,
+          pointBounds.y + pointBounds.height / 2 + 12,
+        );
+        await page.waitForFunction((previousLeft) => {
+          const current = document.querySelector('[role="tooltip"]');
+          return (
+            current && current.getBoundingClientRect().left > previousLeft + 12
+          );
+        }, beforeMove.x);
+        const afterMove = await tooltip.boundingBox();
+        assert(afterMove && afterMove.y > beforeMove.y + 8);
+        assert.equal(
+          await tooltip
+            .locator(".font-medium")
+            .evaluate((element) => getComputedStyle(element).fontWeight),
+          "500",
+        );
+        assert.equal(
+          await tooltip
+            .locator(".text-xs")
+            .evaluate((element) => getComputedStyle(element).fontSize),
+          "12px",
+        );
         await page.locator(".chart-point").last().hover();
         await page.getByRole("tooltip").waitFor();
         assert(
@@ -2348,7 +2446,7 @@ try {
       },
     );
     await check(
-      "Date navigation preserves unknown nutrition and mood while showing explicitly reported zeros",
+      "Date navigation shows zero daily totals, unrecorded mood and no goals before their effective date",
       async () => {
         await page.goto(uiUrl + "/daily?date=" + yesterday);
         await page.getByRole("heading", { name: "Daily nutrition" }).waitFor();
@@ -2360,9 +2458,15 @@ try {
             await page
               .locator(".nutrition-card > .widget__content > .metric-value")
               .innerText()
-          ).startsWith("—"),
+          ).startsWith("0"),
         );
-        assert.equal(await page.locator(".mood-value").innerText(), "—");
+        assert.equal(
+          await page.locator(".mood-value").innerText(),
+          "Not recorded",
+        );
+        for (const macro of await page.locator(".macro .metric-value").all())
+          assert((await macro.innerText()).startsWith("0"));
+        assert.equal(await page.getByRole("progressbar").count(), 0);
         for (const name of ["Water", "Calories burned", "Active minutes"])
           assert(
             (
@@ -2438,7 +2542,10 @@ try {
           await page
             .getByRole("button", { name: "Show more", exact: true })
             .click();
-        assert.equal(await page.locator(".log-trigger").count(), 206);
+        assert.equal(
+          await page.locator(".expandable-attribute-list__row").count(),
+          206,
+        );
         await page.goto(uiUrl + "/daily?date=" + dateOffset(today, -60));
         await page
           .getByText("No logs for this day.", { exact: true })

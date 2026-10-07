@@ -6,7 +6,7 @@ import {
   timingSafeEqual,
 } from "node:crypto";
 import { DomainError } from "../errors.js";
-import { keyCreation } from "./contracts.js";
+import { credentialsSchema } from "./contracts.js";
 
 const scryptOptions = { N: 32768, r: 8, p: 3, maxmem: 64 * 1024 * 1024 };
 export type RootCredentials = {
@@ -21,7 +21,7 @@ export function rootCredentials(
   password: string | undefined,
 ): RootCredentials | undefined {
   if (!email && !password) return undefined;
-  const parsedEmail = keyCreation.shape.email.safeParse(email);
+  const parsedEmail = credentialsSchema.shape.email.safeParse(email);
   if (
     !parsedEmail.success ||
     !password ||

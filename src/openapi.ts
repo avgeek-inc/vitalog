@@ -172,6 +172,15 @@ export function openapi(): Data {
               },
             ]
           : [];
+    if (operation.name === "create_api_key")
+      parameters.push({
+        name: "Idempotency-Key",
+        in: "header",
+        required: false,
+        schema: { type: "string", format: "uuid" },
+        description:
+          "Reuse with identical settings for safe retries; replay returns api_key null.",
+      });
     const body =
       operation.name === "create_api_key"
         ? (jsonSchema(operation.input) as Data)
@@ -317,6 +326,15 @@ export function openapi(): Data {
             },
           ]
         : [];
+    if (operation.name === "create_managed_api_key")
+      parameters.push({
+        name: "Idempotency-Key",
+        in: "header",
+        required: false,
+        schema: { type: "string", format: "uuid" },
+        description:
+          "Reuse with identical settings for safe retries; replay returns api_key null.",
+      });
     const credentials = "credentials" in operation;
     paths[operation.path] = {
       ...(paths[operation.path] as Data | undefined),
@@ -333,7 +351,7 @@ export function openapi(): Data {
                 : []),
             ],
         parameters,
-        ...(credentials
+        ...("input" in operation && operation.method === "POST"
           ? {
               requestBody: {
                 required: true,
@@ -410,7 +428,7 @@ export function openapi(): Data {
       title: "Vitalog",
       version: "1.0.0",
       description:
-        "Single-user structured observations with equivalent REST and MCP domain services. Environment AUTH_KEY or revocable 30-day opaque Bearer keys; Primary key management requires AUTH_KEY; the UI uses separate, root-verified 30-minute management sessions. MCP clients use OAuth authorization code with S256 PKCE, issued after root sign-in. Clients are resolved through HTTPS metadata, pre-registration or dynamic registration. OAuth tokens grant MCP access only.",
+        "Single-user structured observations with equivalent REST and MCP domain services. Environment AUTH_KEY or revocable personal Bearer keys with required name, permissions and explicit expiry (including Never); Primary key management requires AUTH_KEY; the UI uses separate, root-verified 30-minute management sessions. MCP clients use OAuth authorization code with S256 PKCE, issued after root sign-in. Clients are resolved through HTTPS metadata, pre-registration or dynamic registration. OAuth tokens grant MCP access only.",
     },
     servers: [
       {
