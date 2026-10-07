@@ -147,7 +147,7 @@ body {
   font-size: 0.75rem;
 }
 .goal-meter {
-  margin-top: 1rem;
+  margin-top: 0.5rem;
 }
 .goal-label {
   display: flex;
@@ -174,7 +174,7 @@ body {
   --progress-bar-fill: var(--danger);
 }
 .macro .goal-meter {
-  margin-top: 0.75rem;
+  margin-top: 0.5rem;
 }
 .logs-card {
   --log-padding-x: 0.75rem;
@@ -194,7 +194,8 @@ body {
   box-shadow: none;
 }
 .log-trigger {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 40%);
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
@@ -206,13 +207,15 @@ body {
 }
 .log-left,
 .log-right {
-  display: flex;
+  display: grid;
   align-items: center;
   gap: 0.5rem;
   min-width: 0;
 }
+.log-left {
+  grid-template-columns: 4.5rem 1rem minmax(0, 1fr);
+}
 .log-time {
-  flex: 0 0 4.5rem;
   color: var(--muted);
   font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
@@ -225,11 +228,18 @@ body {
   color: var(--muted);
 }
 .log-name {
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  font-weight: 400;
   text-align: left;
 }
 .log-right {
-  flex: none;
+  grid-template-columns: minmax(0, 1fr) 1rem;
+  justify-items: end;
+  font-weight: 400;
+}
+.log-indicator {
+  width: 1rem;
+  height: 1rem;
 }
 .log-right svg {
   width: 1rem;
@@ -477,10 +487,10 @@ body {
     gap: 0.5rem;
   }
   .log-time {
-    flex-basis: 3.75rem;
     font-size: 0.6875rem;
   }
   .log-left {
+    grid-template-columns: 3.25rem 1rem minmax(0, 1fr);
     gap: 0.375rem;
   }
   .log-metric {

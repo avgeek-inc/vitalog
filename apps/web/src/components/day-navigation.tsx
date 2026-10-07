@@ -1,12 +1,10 @@
 "use client";
-
-import { Button } from "./ui/button";
-
-import { Calendar, Popover, Tooltip } from "@heroui/react";
-import CalendarIcon from "@gravity-ui/icons/Calendar";
+import { DatePicker } from "@avgeek-oss/design-system/pickers/date-picker";
+import { DateField } from "@avgeek-oss/design-system/forms/date-field";
+import { Calendar } from "@avgeek-oss/design-system/pickers/calendar";
 import { parseDate } from "@internationalized/date";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 
 export function DayNavigation({
   date,
@@ -16,70 +14,55 @@ export function DayNavigation({
   today: string;
 }) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
-  const go = (day: string) =>
-    startTransition(() =>
-      router.push(day === today ? "/daily" : `/daily?date=${day}`),
-    );
   return (
-    <Popover isOpen={open} onOpenChange={setOpen}>
-      <Tooltip isDisabled={open}>
-        <Button
-          variant="ghost"
-          isIconOnly
-          className="calendar-trigger"
+    <DatePicker
+      className="w-full max-w-xs"
+      aria-label="Choose date"
+      value={parseDate(date)}
+      maxValue={parseDate(today)}
+      minValue={parseDate("0001-01-01")}
+      isDisabled={pending}
+      onChange={(value) => {
+        if (value)
+          startTransition(() =>
+            router.push(
+              value.toString() === today ? "/daily" : `/daily?date=${value}`,
+            ),
+          );
+      }}
+    >
+      <DateField.Group variant="primary" fullWidth>
+        <DateField.Input>
+          {(segment) => <DateField.Segment segment={segment} />}
+        </DateField.Input>
+        <DateField.Suffix>
+          <DatePicker.Trigger aria-label="Choose date">
+            <DatePicker.TriggerIndicator />
+          </DatePicker.Trigger>
+        </DateField.Suffix>
+      </DateField.Group>
+      <DatePicker.Popover aria-label="Choose a day">
+        <Calendar
           aria-label="Choose date"
-          isDisabled={pending}
+          maxValue={parseDate(today)}
+          minValue={parseDate("0001-01-01")}
         >
-          <CalendarIcon aria-hidden="true" />
-        </Button>
-        <Tooltip.Content>Choose date</Tooltip.Content>
-      </Tooltip>
-      <Popover.Content placement="bottom start">
-        <Popover.Dialog aria-label="Choose a day">
-          <Calendar
-            autoFocus
-            aria-label="Choose a day"
-            value={parseDate(date)}
-            maxValue={parseDate(today)}
-            minValue={parseDate("0001-01-01")}
-            isDisabled={pending}
-            onChange={(value) => {
-              if (
-                value &&
-                value.toString() <= today &&
-                value.toString() >= "0001-01-01"
-              ) {
-                setOpen(false);
-                go(value.toString());
-              }
-            }}
-          >
-            <Calendar.Header>
-              <Calendar.YearPickerTrigger>
-                <Calendar.YearPickerTriggerHeading />
-                <Calendar.YearPickerTriggerIndicator />
-              </Calendar.YearPickerTrigger>
-              <Calendar.NavButton slot="previous" />
-              <Calendar.NavButton slot="next" />
-            </Calendar.Header>
-            <Calendar.Grid>
-              <Calendar.GridHeader>
-                {(day) => <Calendar.HeaderCell>{day}</Calendar.HeaderCell>}
-              </Calendar.GridHeader>
-              <Calendar.GridBody>
-                {(day) => <Calendar.Cell date={day} />}
-              </Calendar.GridBody>
-            </Calendar.Grid>
-            <Calendar.YearPickerGrid>
-              <Calendar.YearPickerGridBody>
-                {({ year }) => <Calendar.YearPickerCell year={year} />}
-              </Calendar.YearPickerGridBody>
-            </Calendar.YearPickerGrid>
-          </Calendar>
-        </Popover.Dialog>
-      </Popover.Content>
-    </Popover>
+          <Calendar.Header>
+            <Calendar.NavButton slot="previous" />
+            <Calendar.Heading />
+            <Calendar.NavButton slot="next" />
+          </Calendar.Header>
+          <Calendar.Grid>
+            <Calendar.GridHeader>
+              {(day) => <Calendar.HeaderCell>{day}</Calendar.HeaderCell>}
+            </Calendar.GridHeader>
+            <Calendar.GridBody>
+              {(day) => <Calendar.Cell date={day} />}
+            </Calendar.GridBody>
+          </Calendar.Grid>
+        </Calendar>
+      </DatePicker.Popover>
+    </DatePicker>
   );
 }

@@ -20,7 +20,12 @@ import { profileSchema, preferencesSchema } from "./auth/account-contracts.js";
 import { BrowserSessions } from "./auth/sessions.js";
 import { KeyManagementSessions } from "./auth/key-management.js";
 import { localDate } from "./domain/validation.js";
-import { keyCreation, keyId, keyListQuery } from "./auth/contracts.js";
+import {
+  keyCreation,
+  keyId,
+  keyListQuery,
+  managedKeyListQuery,
+} from "./auth/contracts.js";
 import { OAuthStore } from "./auth/oauth-store.js";
 import { oauthChallenge, oauthRoutes } from "./auth/oauth.js";
 import {
@@ -609,9 +614,14 @@ export function application(
       );
     return c.json(await keys.list(parsed.data.limit, parsed.data.offset));
   });
-  const noRevocationArguments = async (c: Context<AppEnvironment>) => {
+  const noRevocationArguments = async (
+    c: Context<AppEnvironment>,
+    allowKind = false,
+  ) => {
     if (
-      [...new URL(c.req.url).searchParams].length ||
+      [...new URL(c.req.url).searchParams].some(
+        ([key]) => !allowKind || key !== "kind",
+      ) ||
       c.req.header("content-type") ||
       (await c.req.text()).length
     )
@@ -673,26 +683,33 @@ export function application(
   });
   app.get("/auth/key-management/api-keys", async (c) => {
     const query = new URL(c.req.url).searchParams;
-    const values: Record<string, number> = {};
+    const values: Record<string, unknown> = {};
     for (const [key, value] of query) {
       if (
-        !["limit", "offset"].includes(key) ||
+        !["limit", "offset", "kind"].includes(key) ||
         query.getAll(key).length !== 1 ||
-        !/^(0|[1-9]\d*)$/.test(value)
+        (key !== "kind" && !/^(0|[1-9]\d*)$/.test(value))
       )
         throw new DomainError(
           "VALIDATION_ERROR",
-          "Use one integer limit and offset parameter",
+          "Use one valid kind, limit and offset parameter",
         );
-      values[key] = Number(value);
+      values[key] = key === "kind" ? value : Number(value);
     }
-    const parsed = keyListQuery.safeParse(values);
+    const parsed = managedKeyListQuery.safeParse(values);
     if (!parsed.success)
       throw new DomainError(
         "VALIDATION_ERROR",
-        "Limit must be 1–100 and offset 0–1000000",
+        "Use a valid kind, limit and offset",
       );
-    return c.json(await keys.list(parsed.data.limit, parsed.data.offset, true));
+    return c.json(
+      await keys.list(
+        parsed.data.limit,
+        parsed.data.offset,
+        true,
+        parsed.data.kind,
+      ),
+    );
   });
   app.post("/auth/key-management/api-keys", async (c) => {
     await noRevocationArguments(c);
@@ -706,8 +723,15 @@ export function application(
     return c.json(await keys.revoke(id.data, true));
   });
   app.delete("/auth/key-management/api-keys", async (c) => {
-    await noRevocationArguments(c);
-    return c.json(await keys.revokeAll(true));
+    await noRevocationArguments(c, true);
+    const query = new URL(c.req.url).searchParams;
+    const kind = query.get("kind");
+    if (
+      query.getAll("kind").length > 1 ||
+      (kind !== null && kind !== "mcp" && kind !== "api-key")
+    )
+      throw new DomainError("VALIDATION_ERROR", "Use one valid kind parameter");
+    return c.json(await keys.revokeAll(true, kind ?? undefined));
   });
   app.get("/readyz", async (c) => {
     const ready = await service.ready();

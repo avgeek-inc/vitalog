@@ -10,6 +10,9 @@ export const keyCreation = z.strictObject({
 export const keyMetadata = z.strictObject({
   id: z.uuid(),
   token_hint: z.string(),
+  oauth_client_id: z.string().nullable().optional(),
+  oauth_client_name: z.string().nullable().optional(),
+  oauth_scopes: z.array(z.string()).nullable().optional(),
   created_at: z.iso.datetime(),
   expires_at: z.iso.datetime(),
   revoked_at: z.iso.datetime().nullable(),
@@ -22,6 +25,10 @@ export const keyListQuery = z.strictObject({
   limit: z.number().int().min(1).max(100).default(50),
   offset: z.number().int().min(0).max(1_000_000).default(0),
 });
+export const managedKeyListQuery = keyListQuery.extend({
+  kind: z.enum(["api-key", "mcp"]).optional(),
+});
+
 export const keyList = z.strictObject({
   api_keys: z.array(keyMetadata),
   total: z.number().int().nonnegative(),

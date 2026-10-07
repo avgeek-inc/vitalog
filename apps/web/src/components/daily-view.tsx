@@ -3,15 +3,19 @@
 import { Widget } from "./ui/widget";
 import { useAccount } from "./account-context";
 import { formatDateTime } from "../lib/date-time";
-import Droplet from "@gravity-ui/icons/Droplet";
-import Flame from "@gravity-ui/icons/Flame";
-import HeartPulse from "@gravity-ui/icons/HeartPulse";
-import Clock from "@gravity-ui/icons/Clock";
-import FaceSad from "@gravity-ui/icons/FaceSad";
-import FaceNeutral from "@gravity-ui/icons/FaceNeutral";
-import FaceSmile from "@gravity-ui/icons/FaceSmile";
-import FaceFun from "@gravity-ui/icons/FaceFun";
-import { Beef, Wheat, Sprout } from "lucide-react";
+import {
+  Droplet,
+  Flame,
+  HeartPulse,
+  Clock,
+  Frown as FaceSad,
+  Meh as FaceNeutral,
+  Smile as FaceSmile,
+  Laugh as FaceFun,
+  Beef,
+  Wheat,
+  Sprout,
+} from "lucide-react";
 import { GoalMeter, MetricCard, MetricValue } from "./metric-card";
 import { Logs } from "./logs";
 import {

@@ -1,5 +1,7 @@
 "use client";
 
+import { McpConnectionsSettings } from "@avgeek-oss/design-system/patterns/account-settings/mcp-connections-settings";
+import { SettingsPageTitle } from "@avgeek-oss/design-system/patterns/settings/page-title";
 import { Chip } from "@avgeek-oss/design-system/data-display/chip";
 import { Field } from "@avgeek-oss/design-system/forms/field";
 import { Input } from "@avgeek-oss/design-system/forms/input";
@@ -22,6 +24,9 @@ import { formatDateTime } from "../lib/date-time";
 type ApiKey = {
   id: string;
   token_hint: string;
+  oauth_client_id?: string | null;
+  oauth_client_name?: string | null;
+  oauth_scopes?: string[] | null;
   created_at: string;
   expires_at: string;
   status: "active" | "expired" | "revoked";
@@ -91,7 +96,11 @@ function VerifyIdentity({
   );
 }
 
-export function ApiKeySettings() {
+export function ApiKeySettings({
+  kind = "api-key",
+}: {
+  kind?: "api-key" | "mcp";
+}) {
   const { preferences } = useAccount();
   const date = (value: string) => formatDateTime(value, preferences).date;
   const [keys, setKeys] = useState<ApiKey[]>([]);
@@ -107,52 +116,59 @@ export function ApiKeySettings() {
   const revoked = useRef(new Set<string>());
   const secretInput = useRef<HTMLInputElement>(null);
   const secretId = useId();
-  const load = useCallback(async (offset = 0) => {
-    const current = ++sequence.current;
-    setPending(true);
-    setError(false);
-    try {
-      const response = await fetch(endpoint + `?limit=50&offset=${offset}`, {
-        cache: "no-store",
-        redirect: "error",
-      });
-      if (current !== sequence.current) return;
-      if (response.status === 401) {
-        window.location.assign("/login");
-        setKeys([]);
-        setNextOffset(null);
-        return;
+  const load = useCallback(
+    async (offset = 0) => {
+      const current = ++sequence.current;
+      setPending(true);
+      setError(false);
+      try {
+        const response = await fetch(
+          endpoint + `?limit=50&offset=${offset}&kind=${kind}`,
+          {
+            cache: "no-store",
+            redirect: "error",
+          },
+        );
+        if (current !== sequence.current) return;
+        if (response.status === 401) {
+          window.location.assign("/login");
+          setKeys([]);
+          setNextOffset(null);
+          return;
+        }
+        if (!response.ok)
+          throw new Error("Unable to load API keys. Try again.");
+        const page: KeyPage = await response.json();
+        if (current !== sequence.current) return;
+        const visible = page.api_keys.filter(
+          (key) => key.status !== "revoked" && !revoked.current.has(key.id),
+        );
+        setKeys((previous) =>
+          offset
+            ? [
+                ...previous,
+                ...visible.filter(
+                  (key) => !previous.some((existing) => existing.id === key.id),
+                ),
+              ]
+            : visible,
+        );
+        setNextOffset(
+          offset + page.api_keys.length < page.total
+            ? offset + page.api_keys.length
+            : null,
+        );
+      } catch {
+        if (current === sequence.current) {
+          setError(true);
+          toast.danger("Unable to load API keys. Try again.");
+        }
+      } finally {
+        if (current === sequence.current) setPending(false);
       }
-      if (!response.ok) throw new Error("Unable to load API keys. Try again.");
-      const page: KeyPage = await response.json();
-      if (current !== sequence.current) return;
-      const visible = page.api_keys.filter(
-        (key) => key.status !== "revoked" && !revoked.current.has(key.id),
-      );
-      setKeys((previous) =>
-        offset
-          ? [
-              ...previous,
-              ...visible.filter(
-                (key) => !previous.some((existing) => existing.id === key.id),
-              ),
-            ]
-          : visible,
-      );
-      setNextOffset(
-        offset + page.api_keys.length < page.total
-          ? offset + page.api_keys.length
-          : null,
-      );
-    } catch {
-      if (current === sequence.current) {
-        setError(true);
-        toast.danger("Unable to load API keys. Try again.");
-      }
-    } finally {
-      if (current === sequence.current) setPending(false);
-    }
-  }, []);
+    },
+    [kind],
+  );
   useEffect(() => {
     void load();
     return () => {
@@ -218,7 +234,7 @@ export function ApiKeySettings() {
     const target = revoking;
     try {
       const response = await fetch(
-        endpoint + (target === "all" ? "" : "/" + target.id),
+        endpoint + (target === "all" ? `?kind=${kind}` : "/" + target.id),
         { method: "DELETE", cache: "no-store", redirect: "error" },
       ).catch(() => {
         throw new Error("Unable to revoke API keys. Try again.");
@@ -247,129 +263,195 @@ export function ApiKeySettings() {
 
   return (
     <ApplicationPage
-      title="API Keys"
+      title={kind === "mcp" ? "MCP Connections" : "API Keys"}
+      titleContent={
+        <SettingsPageTitle
+          section={kind === "mcp" ? "mcp-connections" : "api-keys"}
+        />
+      }
       breadcrumbAncestors={[{ label: "Settings" }, { label: "API & MCP" }]}
       actions={
-        <Button isDisabled={pending || busy} onPress={() => setCreating(true)}>
-          <HugeiconsIcon icon={PlusSignIcon} aria-hidden="true" />
-          Create API key
-        </Button>
+        kind === "api-key" ? (
+          <Button
+            isDisabled={pending || busy}
+            onPress={() => setCreating(true)}
+          >
+            <HugeiconsIcon icon={PlusSignIcon} size={16} aria-hidden="true" />
+            Create API key
+          </Button>
+        ) : undefined
       }
     >
       <section
-        aria-label="API keys"
+        aria-label={kind === "mcp" ? "MCP connections" : "API keys"}
         aria-busy={pending}
         className="content-grid"
       >
-        {keys.length || (!pending && !error) ? (
-          <ResourceTable
-            ariaLabel="API keys"
-            items={keys}
-            getRowKey={(key) => key.id}
-            emptyTitle="No API keys yet"
-            emptyDescription="Create an API key for your scripts or apps."
-            tableClassName="w-full table-fixed"
-            columns={[
-              {
-                key: "key",
-                header: "Key",
-                isRowHeader: true,
-                cell: (key) => (
-                  <div className="grid gap-1">
-                    <span className="font-mono text-sm">{key.token_hint}</span>
-                    <span className="text-xs text-muted md:hidden">
-                      {key.status === "active" ? "Active" : "Expired"} · Expires{" "}
-                      {date(key.expires_at)}
-                    </span>
-                  </div>
-                ),
-              },
-              {
-                key: "status",
-                header: "Status",
-                className: "hidden md:table-cell",
-                headerClassName: "hidden md:table-cell",
-                cell: (key) => (
-                  <Chip
-                    size="sm"
-                    color={key.status === "active" ? "success" : "warning"}
-                    variant="soft"
-                  >
-                    {key.status === "active" ? "Active" : "Expired"}
-                  </Chip>
-                ),
-              },
-              {
-                key: "created",
-                header: "Created",
-                className: "hidden md:table-cell",
-                headerClassName: "hidden md:table-cell",
-                cell: (key) => (
-                  <time
-                    dateTime={key.created_at}
-                    className="text-sm text-muted"
-                  >
-                    {date(key.created_at)}
-                  </time>
-                ),
-              },
-              {
-                key: "expires",
-                header: "Expires",
-                className: "hidden md:table-cell",
-                headerClassName: "hidden md:table-cell",
-                cell: (key) => (
-                  <time
-                    dateTime={key.expires_at}
-                    className="text-sm text-muted"
-                  >
-                    {date(key.expires_at)}
-                  </time>
-                ),
-              },
-              {
-                key: "action",
-                header: "Action",
-                headerClassName: "w-24 text-end",
-                className: "text-end",
-                cell: (key) => (
-                  <Button
-                    size="sm"
-                    variant="danger-soft"
-                    isDisabled={busy}
-                    onPress={() => setRevoking(key)}
-                  >
-                    Revoke
-                  </Button>
-                ),
-              },
-            ]}
-            footer={
-              keys.length ? (
-                <div className="flex w-full flex-wrap items-center justify-between gap-3">
-                  <div>
-                    {nextOffset !== null ? (
-                      <Button
-                        variant="secondary"
-                        isPending={pending}
-                        onPress={() => void load(nextOffset)}
+        {kind === "mcp" && (keys.length || (!pending && !error)) ? (
+          <>
+            <McpConnectionsSettings
+              items={keys.map((key) => ({
+                id: key.id,
+                name: key.oauth_client_name ?? "MCP client",
+                createdAt: key.created_at,
+                expiresAt: key.expires_at,
+                permissions:
+                  key.oauth_scopes === null || key.oauth_scopes === undefined
+                    ? "—"
+                    : key.oauth_scopes.includes("health:write")
+                      ? "Edit"
+                      : "Read-only",
+                client: {
+                  name: key.oauth_client_name ?? "MCP client",
+                  id: key.oauth_client_id ?? undefined,
+                },
+              }))}
+              formatDate={date}
+              onRevoke={async (id) => {
+                const response = await fetch(`${endpoint}/${id}`, {
+                  method: "DELETE",
+                  cache: "no-store",
+                  redirect: "error",
+                });
+                if (response.status === 401) {
+                  managementExpired();
+                  throw new Error(
+                    "Verify your identity to manage connections.",
+                  );
+                }
+                if (!response.ok)
+                  throw new Error("Unable to revoke connection. Try again.");
+                revoked.current.add(id);
+                setKeys((previous) => previous.filter((key) => key.id !== id));
+                toast.success("Connection revoked");
+                void load();
+              }}
+            />
+            {nextOffset !== null ? (
+              <Button
+                variant="secondary"
+                isPending={pending}
+                onPress={() => void load(nextOffset)}
+              >
+                Load more connections
+              </Button>
+            ) : null}
+          </>
+        ) : (
+          <>
+            {keys.length || (!pending && !error) ? (
+              <ResourceTable
+                ariaLabel="API keys"
+                items={keys}
+                getRowKey={(key) => key.id}
+                emptyTitle="No API keys yet"
+                emptyDescription="Create an API key for your scripts or apps."
+                tableClassName="w-full table-fixed"
+                columns={[
+                  {
+                    key: "key",
+                    header: "Key",
+                    isRowHeader: true,
+                    cell: (key) => (
+                      <div className="grid gap-1">
+                        <span className="font-mono text-sm">
+                          {key.token_hint}
+                        </span>
+                        <span className="text-xs text-muted md:hidden">
+                          {key.status === "active" ? "Active" : "Expired"} ·
+                          Expires {date(key.expires_at)}
+                        </span>
+                      </div>
+                    ),
+                  },
+                  {
+                    key: "status",
+                    header: "Status",
+                    className: "hidden md:table-cell",
+                    headerClassName: "hidden md:table-cell",
+                    cell: (key) => (
+                      <Chip
+                        size="sm"
+                        color={key.status === "active" ? "success" : "warning"}
+                        variant="soft"
                       >
-                        Load more API keys
+                        {key.status === "active" ? "Active" : "Expired"}
+                      </Chip>
+                    ),
+                  },
+                  {
+                    key: "created",
+                    header: "Created",
+                    className: "hidden md:table-cell",
+                    headerClassName: "hidden md:table-cell",
+                    cell: (key) => (
+                      <time
+                        dateTime={key.created_at}
+                        className="text-sm text-muted"
+                      >
+                        {date(key.created_at)}
+                      </time>
+                    ),
+                  },
+                  {
+                    key: "expires",
+                    header: "Expires",
+                    className: "hidden md:table-cell",
+                    headerClassName: "hidden md:table-cell",
+                    cell: (key) => (
+                      <time
+                        dateTime={key.expires_at}
+                        className="text-sm text-muted"
+                      >
+                        {date(key.expires_at)}
+                      </time>
+                    ),
+                  },
+                  {
+                    key: "action",
+                    header: "Action",
+                    headerClassName: "w-24 text-end",
+                    className: "text-end",
+                    cell: (key) => (
+                      <Button
+                        size="sm"
+                        variant="danger-soft"
+                        isDisabled={busy}
+                        onPress={() => setRevoking(key)}
+                      >
+                        Revoke
                       </Button>
-                    ) : null}
-                  </div>
-                  <Button
-                    variant="danger-soft"
-                    isDisabled={pending || busy}
-                    onPress={() => setRevoking("all")}
-                  >
-                    Revoke all API keys
-                  </Button>
-                </div>
-              ) : undefined
-            }
-          />
-        ) : null}
+                    ),
+                  },
+                ]}
+                footer={
+                  keys.length ? (
+                    <div className="flex w-full flex-wrap items-center justify-between gap-3">
+                      <div>
+                        {nextOffset !== null ? (
+                          <Button
+                            variant="secondary"
+                            isPending={pending}
+                            onPress={() => void load(nextOffset)}
+                          >
+                            Load more API keys
+                          </Button>
+                        ) : null}
+                      </div>
+                      <Button
+                        variant="danger-soft"
+                        isDisabled={pending || busy}
+                        onPress={() => setRevoking("all")}
+                      >
+                        Revoke all API keys
+                      </Button>
+                    </div>
+                  ) : undefined
+                }
+              />
+            ) : null}
+          </>
+        )}
         {error ? (
           <Button
             variant="secondary"

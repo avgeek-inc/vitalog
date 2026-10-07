@@ -8,6 +8,9 @@ const digest = (key: string) => createHash("sha256").update(key).digest("hex");
 const projection = {
   id: apiKeys.id,
   token_hint: apiKeys.tokenHint,
+  oauth_client_id: apiKeys.oauthClientId,
+  oauth_client_name: apiKeys.oauthClientName,
+  oauth_scopes: apiKeys.oauthScopes,
   created_at: apiKeys.createdAt,
   expires_at: apiKeys.expiresAt,
   revoked_at: apiKeys.revokedAt,
@@ -66,10 +69,20 @@ export class ApiKeys {
     return { ...metadata(rows[0]!), api_key: key };
   }
 
-  async list(limit: number, offset: number, externalOnly = false) {
+  async list(
+    limit: number,
+    offset: number,
+    externalOnly = false,
+    kind?: "api-key" | "mcp",
+  ) {
     const filter = externalOnly
       ? and(
-          sql`left(${apiKeys.tokenHint}, 4) in ('vlk_', 'vlo_')`,
+          kind
+            ? eq(
+                sql`left(${apiKeys.tokenHint}, 4)`,
+                kind === "mcp" ? "vlo_" : "vlk_",
+              )
+            : sql`left(${apiKeys.tokenHint}, 4) in ('vlk_', 'vlo_')`,
           isNull(apiKeys.revokedAt),
         )
       : undefined;
@@ -116,14 +129,17 @@ export class ApiKeys {
     return metadata(rows[0]);
   }
 
-  async revokeAll(externalOnly = false) {
+  async revokeAll(externalOnly = false, kind?: "api-key" | "mcp") {
     return this.db.transaction(async (transaction) => {
-      await transaction.delete(oauthCodes).where(isNull(oauthCodes.consumedAt));
+      if (kind !== "api-key")
+        await transaction
+          .delete(oauthCodes)
+          .where(isNull(oauthCodes.consumedAt));
       const result = await transaction.execute<{ revoked_count: number }>(sql`
         with revoked as (
           update ${apiKeys} set revoked_at = clock_timestamp()
           where revoked_at is null
-            ${externalOnly ? sql`and left(token_hint, 4) in ('vlk_', 'vlo_')` : sql``}
+            ${kind ? sql`and left(token_hint, 4) = ${kind === "mcp" ? "vlo_" : "vlk_"}` : externalOnly ? sql`and left(token_hint, 4) in ('vlk_', 'vlo_')` : sql``}
           returning 1
         ) select count(*)::integer as revoked_count from revoked
       `);

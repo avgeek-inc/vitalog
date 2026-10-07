@@ -3,7 +3,7 @@ import {
   keyCreated,
   keyCreation,
   keyList,
-  keyListQuery,
+  managedKeyListQuery,
   keyMetadata,
   keysRevoked,
 } from "./contracts.js";
@@ -47,7 +47,7 @@ export const keyManagementOperations = [
     method: "GET",
     path: "/auth/key-management/api-keys",
     status: "200",
-    input: keyListQuery,
+    input: managedKeyListQuery,
     output: keyList,
     description:
       "Using a browser or management session, list unrevoked API keys and MCP connections, filtering before pagination. Excludes dashboard and management sessions. Never returns tokens or hashes.",
@@ -77,6 +77,6 @@ export const keyManagementOperations = [
     status: "200",
     output: keysRevoked,
     description:
-      "Revoke all API keys and MCP connections, including expired records, and cancel pending OAuth authorization codes. Dashboard and management sessions remain signed in. The environment AUTH_KEY is unaffected.",
+      "Revoke all API keys and MCP connections, including expired records, and cancel pending OAuth authorization codes. An optional kind filter revokes only manual keys or MCP connections. Dashboard and management sessions remain signed in. The environment AUTH_KEY is unaffected.",
   },
 ] as const;

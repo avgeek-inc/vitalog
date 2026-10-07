@@ -67039,6 +67039,31 @@
                     "token_hint": {
                       "type": "string"
                     },
+                    "oauth_client_id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "oauth_client_name": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "oauth_scopes": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "created_at": {
                       "type": "string",
                       "format": "date-time",
@@ -67217,6 +67242,31 @@
                           },
                           "token_hint": {
                             "type": "string"
+                          },
+                          "oauth_client_id": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "oauth_client_name": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "oauth_scopes": {
+                            "anyOf": [
+                              {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
                           },
                           "created_at": {
                             "type": "string",
@@ -67508,6 +67558,31 @@
                     },
                     "token_hint": {
                       "type": "string"
+                    },
+                    "oauth_client_id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "oauth_client_name": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "oauth_scopes": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "created_at": {
                       "type": "string",
@@ -68809,6 +68884,31 @@
                           "token_hint": {
                             "type": "string"
                           },
+                          "oauth_client_id": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "oauth_client_name": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "oauth_scopes": {
+                            "anyOf": [
+                              {
+                                "type": "array",
+                                "items": {
+                                  "type": "string"
+                                }
+                              },
+                              {
+                                "type": "null"
+                              }
+                            ]
+                          },
                           "created_at": {
                             "type": "string",
                             "format": "date-time",
@@ -68990,6 +69090,31 @@
                     "token_hint": {
                       "type": "string"
                     },
+                    "oauth_client_id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "oauth_client_name": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "oauth_scopes": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "created_at": {
                       "type": "string",
                       "format": "date-time",
@@ -69136,7 +69261,7 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": "Revoke all API keys and MCP connections, including expired records, and cancel pending OAuth authorization codes. Dashboard and management sessions remain signed in. The environment AUTH_KEY is unaffected.",
+            "description": "Revoke all API keys and MCP connections, including expired records, and cancel pending OAuth authorization codes. An optional kind filter revokes only manual keys or MCP connections. Dashboard and management sessions remain signed in. The environment AUTH_KEY is unaffected.",
             "content": {
               "application/json": {
                 "schema": {
@@ -69238,7 +69363,7 @@
             }
           }
         },
-        "description": "Revoke all API keys and MCP connections, including expired records, and cancel pending OAuth authorization codes. Dashboard and management sessions remain signed in. The environment AUTH_KEY is unaffected."
+        "description": "Revoke all API keys and MCP connections, including expired records, and cancel pending OAuth authorization codes. An optional kind filter revokes only manual keys or MCP connections. Dashboard and management sessions remain signed in. The environment AUTH_KEY is unaffected."
       }
     },
     "/auth/key-management/api-keys/{id}": {
@@ -69280,6 +69405,31 @@
                     },
                     "token_hint": {
                       "type": "string"
+                    },
+                    "oauth_client_id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "oauth_client_name": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "oauth_scopes": {
+                      "anyOf": [
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     },
                     "created_at": {
                       "type": "string",

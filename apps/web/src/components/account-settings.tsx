@@ -2,8 +2,8 @@
 import { ProfileSettings } from "@avgeek-oss/design-system/patterns/account-settings/profile-settings";
 import { PreferencesSettings } from "@avgeek-oss/design-system/patterns/account-settings/preferences-settings";
 import { ApplicationPage } from "@avgeek-oss/design-system/patterns/pages/page";
-import { UserAvatar } from "@avgeek-oss/design-system/patterns/user-avatar";
-import { Widget } from "./ui/widget";
+import { ProfileImageSettings } from "@avgeek-oss/design-system/patterns/account-settings/profile-image-settings";
+import { SettingsPageTitle } from "@avgeek-oss/design-system/patterns/settings/page-title";
 import { useRouter } from "next/navigation";
 import { useAccount } from "./account-context";
 import { formatDateTime, type Preferences } from "../lib/date-time";
@@ -30,39 +30,15 @@ export function ProfilePage() {
   return (
     <ApplicationPage
       title="Profile"
+      titleContent={<SettingsPageTitle section="profile" />}
       breadcrumbAncestors={[{ label: "Settings" }, { label: "Account" }]}
     >
-      <div className="content-grid max-w-2xl">
-        <Widget>
-          <Widget.Header>
-            <Widget.Title>Appearance</Widget.Title>
-          </Widget.Header>
-          <Widget.Content>
-            <div className="grid gap-3">
-              <span className="text-sm font-medium">Gravatar Image</span>
-              <p className="text-sm text-muted">
-                Click the image to update it on Gravatar.
-              </p>
-              <a
-                href="https://gravatar.com/profile/avatars"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-fit rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent"
-                aria-label="Edit Gravatar image (opens in a new tab)"
-              >
-                <UserAvatar
-                  email={account.email}
-                  name={account.name}
-                  className="size-12"
-                />
-              </a>
-            </div>
-          </Widget.Content>
-        </Widget>
+      <div className="content-grid min-w-0 lg:grid-cols-2 lg:items-start">
+        <ProfileImageSettings name={account.name} email={account.email} />
         <ProfileSettings
           key={account.name}
           value={account.name}
-          label="Full name"
+          label="Your Name"
           onSave={async (name) => {
             await save("/auth/profile", "PATCH", { name });
             router.refresh();
@@ -84,9 +60,10 @@ export function PreferencesPage({
   return (
     <ApplicationPage
       title="Preferences"
+      titleContent={<SettingsPageTitle section="preferences" />}
       breadcrumbAncestors={[{ label: "Settings" }, { label: "Account" }]}
     >
-      <div className="max-w-2xl">
+      <div className="content-grid min-w-0 lg:grid-cols-2 lg:items-start">
         <PreferencesSettings
           key={JSON.stringify(account.preferences)}
           value={account.preferences}

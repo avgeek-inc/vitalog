@@ -258,7 +258,7 @@ export function logView(record: HealthRecord, timezone: string): Log {
             : "—";
       add(
         "Drink",
-        typeof data.drink_type === "string"
+        typeof data.drink_type === "string" && label(data.drink_type) !== vital
           ? label(data.drink_type)
           : undefined,
       );
@@ -404,7 +404,6 @@ export function logView(record: HealthRecord, timezone: string): Log {
     );
   }
   add("Notes", data.notes);
-  if (!details.length) add("Value", metric);
   return {
     id: record.id,
     vital,

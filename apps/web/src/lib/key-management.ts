@@ -23,7 +23,13 @@ export async function keyManagementProxy(request: Request, path: string) {
     )
       return NextResponse.json({}, { status: 403 });
   } else {
-    if (!permitsBrowserRequest(request))
+    const scopedRevocation =
+      request.method === "DELETE" &&
+      path === "api-keys" &&
+      url.searchParams.size === 1 &&
+      ["api-key", "mcp"].includes(url.searchParams.get("kind") ?? "") &&
+      request.headers.get("origin") === webConfiguration().uiBaseUrl;
+    if (!permitsBrowserRequest(request) && !scopedRevocation)
       return NextResponse.json({}, { status: 403 });
     if (request.headers.has("content-type"))
       return NextResponse.json({}, { status: 422 });
@@ -53,7 +59,10 @@ export async function keyManagementProxy(request: Request, path: string) {
     const response = await apiRequest(
       "/auth/key-management/" +
         path +
-        (request.method === "GET" ? url.search : ""),
+        (request.method === "GET" ||
+        (request.method === "DELETE" && path === "api-keys")
+          ? url.search
+          : ""),
       request.method === "GET" ? browser : management!,
       {
         method: request.method,

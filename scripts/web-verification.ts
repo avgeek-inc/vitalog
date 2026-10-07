@@ -658,6 +658,7 @@ try {
         const verifier = randomBytes(32).toString("base64url");
         const grant = {
           client_id: "https://client.example.test",
+          client_name: "Example client",
           redirect_uri: "https://client.example.test/callback",
           resource: apiUrl + "/mcp",
           scopes: ["health:read"],
@@ -679,6 +680,36 @@ try {
         assert.equal(list.status, 200);
         assert.equal(list.data.total, 2);
         assert.equal((list.data.api_keys as Data[]).length, 1);
+        const manual = await api(
+          "/auth/key-management/api-keys?kind=api-key&limit=1",
+          token,
+        );
+        const connections = await api(
+          "/auth/key-management/api-keys?kind=mcp&limit=1",
+          token,
+        );
+        assert.equal(manual.data.total, 1);
+        assert.equal(connections.data.total, 1);
+        const connectionKey = (connections.data.api_keys as Data[])[0]!;
+        assert.equal(connectionKey.oauth_client_name, "Example client");
+        assert.equal(connectionKey.oauth_client_id, grant.client_id);
+        assert.deepEqual(connectionKey.oauth_scopes, grant.scopes);
+        assert.equal(
+          (await api("/auth/key-management/api-keys?kind=invalid", token))
+            .status,
+          422,
+        );
+        assert.equal(
+          (
+            await api(
+              "/auth/key-management/api-keys?kind=api-key",
+              token,
+              "DELETE",
+            )
+          ).status,
+          200,
+        );
+        assert(await store.authenticate("Bearer " + oauth.access_token));
         assert(!list.text.includes(token));
         assert(!list.text.includes(String(key.api_key)));
         assert.equal(
@@ -1411,7 +1442,7 @@ try {
           422,
         );
         await page.goto(uiUrl + "/settings/profile");
-        const name = page.getByLabel("Full name", { exact: true });
+        const name = page.getByRole("textbox", { name: /^Your Name/ });
         await name.fill("Preview Reader");
         await page.getByRole("button", { name: "Save", exact: true }).click();
         await page
@@ -1482,7 +1513,9 @@ try {
         assert.equal(stored.rows[0].name, "Preview Reader");
         assert.equal(stored.rows[0].time_zone, "America/New_York");
         await page.goto(uiUrl + "/daily");
-        await page.getByRole("heading", { name: new RegExp(today) }).waitFor();
+        await page
+          .getByRole("button", { name: /^Choose date(?: Choose date)?$/ })
+          .waitFor();
         await page
           .getByRole("heading", { name: "Daily nutrition", exact: true })
           .waitFor();
@@ -1526,7 +1559,7 @@ try {
         try {
           await signIn();
           await profilePage.goto(uiUrl + "/settings/profile");
-          const name = profilePage.getByLabel("Full name", { exact: true });
+          const name = profilePage.getByRole("textbox", { name: /^Your Name/ });
           await name.fill("Retry Reader");
           assert.equal(
             (
@@ -1661,6 +1694,10 @@ try {
           );
         assert.equal(await page.locator(".macro").count(), 4);
         assert.equal(await page.locator(".log-trigger").count(), 11);
+        assert.equal(
+          await page.getByRole("button", { name: /Water .*mL/ }).count(),
+          0,
+        );
         for (const width of [
           1440, 1280, 1080, 896, 895, 768, 736, 390, 352, 320,
         ]) {
@@ -1744,17 +1781,13 @@ try {
                   (view === "daily" ? `/daily?date=${yesterday}` : "/weight"),
                 { waitUntil: "commit" },
               );
-              await page
-                .getByRole("heading", {
-                  name:
-                    view === "daily"
-                      ? new RegExp(
-                          `^${new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(yesterday + "T12:00:00Z"))}\\s+Choose date$`,
-                        )
-                      : "Weight",
-                  exact: true,
-                })
-                .waitFor();
+              await (
+                view === "daily"
+                  ? page.getByRole("button", {
+                      name: /^Choose date(?: Choose date)?$/,
+                    })
+                  : page.getByRole("heading", { name: "Weight", exact: true })
+              ).waitFor();
               await page
                 .getByRole("status", { name: "Loading health data" })
                 .waitFor();
@@ -1769,15 +1802,19 @@ try {
                 }));
               assert.equal(surface.card, surface.skeleton);
               assert.equal(await page.locator("h1 .skeleton").count(), 0);
-              assert.equal(
-                await page
-                  .locator("h1")
-                  .evaluate(
-                    (heading) =>
-                      heading.closest("header")?.querySelectorAll("p").length,
-                  ),
-                0,
-              );
+              if (view === "weight") {
+                assert.equal(
+                  await page
+                    .locator("h1")
+                    .evaluate(
+                      (heading) =>
+                        heading.closest("header")?.querySelectorAll("p").length,
+                    ),
+                  0,
+                );
+              } else {
+                assert.equal(await page.locator("h1").count(), 0);
+              }
               await page.screenshot({
                 path: `.test-artifacts/web/loading-${view}-${colorScheme}.png`,
                 animations: "disabled",
@@ -2064,7 +2101,7 @@ try {
           "Other clients",
           "Cursor",
         ]) {
-          await page.getByRole("button", { name: / Client$/ }).click();
+          await page.getByRole("button", { name: / App$/ }).click();
           await page.getByRole("option", { name: client, exact: true }).click();
           assert(
             (
@@ -2293,8 +2330,7 @@ try {
             ).startsWith("0"),
           );
         const picker = page.getByRole("button", {
-          name: "Choose date",
-          exact: true,
+          name: /^Choose date(?: Choose date)?$/,
         });
         const calendarDate = (day: string) =>
           new Intl.DateTimeFormat("en-US", {

@@ -9,6 +9,7 @@ export const pkceChallenge = (value: string) =>
   createHash("sha256").update(value).digest("base64url");
 export type OAuthGrant = {
   client_id: string;
+  client_name?: string;
   redirect_uri: string;
   resource: string;
   scopes: string[];
@@ -73,6 +74,7 @@ export class OAuthStore {
       codeDigest: digest(code),
       apiKeyId,
       clientId: grant.client_id,
+      clientName: grant.client_name,
       redirectUri: grant.redirect_uri,
       resource: grant.resource,
       scopes: grant.scopes,
@@ -89,6 +91,7 @@ export class OAuthStore {
         .select({
           apiKeyId: oauthCodes.apiKeyId,
           scopes: oauthCodes.scopes,
+          clientName: oauthCodes.clientName,
         })
         .from(oauthCodes)
         .where(
@@ -131,6 +134,9 @@ export class OAuthStore {
               id: randomUUID(),
               tokenDigest: digest(token),
               tokenHint: "vlo_…" + token.slice(-4),
+              oauthClientId: input.client_id,
+              oauthClientName: grant.clientName,
+              oauthScopes: grant.scopes,
             })
             .returning(projection);
       if (!key || key.remaining < 1) return;

@@ -99,6 +99,13 @@
       "when": 1791327679800,
       "tag": "0013_account_preference_defaults",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1791382686515,
+      "tag": "0014_mcp_connection_metadata",
+      "breakpoints": true
     }
   ]
 }

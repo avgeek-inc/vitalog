@@ -15,7 +15,9 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { AccountProvider } from "./account-context";
 import type { Account } from "../../../../src/auth/account-contracts";
 import Calendar01Icon from "@hugeicons/core-free-icons/Calendar01Icon";
-import Logout03Icon from "@hugeicons/core-free-icons/Logout03Icon";
+import UserAccountIcon from "@hugeicons/core-free-icons/UserAccountIcon";
+import Key01Icon from "@hugeicons/core-free-icons/Key01Icon";
+import Logout01Icon from "@hugeicons/core-free-icons/Logout01Icon";
 import Settings01Icon from "@hugeicons/core-free-icons/Settings01Icon";
 import WeightScaleIcon from "@hugeicons/core-free-icons/WeightScaleIcon";
 import { usePathname, useRouter } from "next/navigation";
@@ -145,8 +147,18 @@ export function DashboardShell({
                           items: [
                             {
                               id: "profile",
-                              label: "Account settings",
+                              label: "Profile",
+                              icon: <HugeiconsIcon icon={UserAccountIcon} />,
+                            },
+                            {
+                              id: "preferences",
+                              label: "Preferences",
                               icon: <HugeiconsIcon icon={Settings01Icon} />,
+                            },
+                            {
+                              id: "api-keys",
+                              label: "My API Keys",
+                              icon: <HugeiconsIcon icon={Key01Icon} />,
                             },
                           ],
                         },
@@ -157,7 +169,7 @@ export function DashboardShell({
                             {
                               id: "sign-out",
                               label: pending ? "Signing out…" : "Sign out",
-                              icon: <HugeiconsIcon icon={Logout03Icon} />,
+                              icon: <HugeiconsIcon icon={Logout01Icon} />,
                               destructive: true,
                             },
                           ],
@@ -165,7 +177,7 @@ export function DashboardShell({
                       ]}
                       onAction={(id) => {
                         if (id === "sign-out") void signOut();
-                        else router.push("/settings/profile");
+                        else router.push(`/settings/${id}`);
                       }}
                     />
                   ),
