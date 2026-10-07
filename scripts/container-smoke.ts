@@ -248,12 +248,26 @@ try {
   });
   assert.equal(preflight.status, 204);
   assert.equal(preflight.headers.get("access-control-allow-origin"), uiUrl);
+  const missingSettings = await fetch(url + "/auth/api-keys", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Origin: uiUrl },
+    body: JSON.stringify({
+      email: env.ROOT_EMAIL,
+      password: env.ROOT_PASSWORD,
+    }),
+  });
+  assert.equal(missingSettings.status, 422);
+  await missingSettings.text();
   const issued = await fetch(url + "/auth/api-keys", {
     method: "POST",
     headers: { "Content-Type": "application/json", Origin: uiUrl },
     body: JSON.stringify({
       email: env.ROOT_EMAIL,
       password: env.ROOT_PASSWORD,
+      name: "Container verification",
+      access: "edit",
+      includeAdmin: false,
+      expiresAt: null,
     }),
   });
   assert.equal(issued.status, 201);
