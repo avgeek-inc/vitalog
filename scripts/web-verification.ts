@@ -21,6 +21,7 @@ import { keyManagementCreated } from "../src/auth/key-management-contracts.js";
 import { OAuthStore, pkceChallenge } from "../src/auth/oauth-store.js";
 import { sessionCreated, sessionInfo } from "../src/auth/session-contracts.js";
 import { dateOffset } from "../apps/web/src/lib/health.js";
+import { dayProgressPercent } from "../apps/web/src/lib/day-progress.js";
 import { operations } from "../src/registry/operations.js";
 import {
   defaultDateTimePreferences,
@@ -1751,6 +1752,40 @@ try {
           await page.getByRole("button", { name: /Water .*mL/ }).count(),
           0,
         );
+        await page.waitForFunction(
+          () => document.querySelectorAll(".day-progress-dot").length === 8,
+        );
+        for (const [tone, count] of [
+          ["nutrition", 5],
+          ["water", 1],
+          ["exercise", 2],
+        ] as const)
+          assert.equal(
+            await page
+              .locator(`.day-progress-dot[data-tone="${tone}"]`)
+              .count(),
+            count,
+          );
+        const markers = await page
+          .locator(".day-progress-dot")
+          .evaluateAll((dots) =>
+            dots.map((dot) => {
+              const bounds = dot.getBoundingClientRect();
+              const track = dot.parentElement!.getBoundingClientRect();
+              return {
+                percentage:
+                  ((bounds.x + bounds.width / 2 - track.x) / track.width) * 100,
+                description: dot
+                  .closest(".goal-meter")!
+                  .querySelector(".sr-only")!.textContent,
+              };
+            }),
+          );
+        const elapsed = dayProgressPercent(today, "Asia/Kolkata", Date.now())!;
+        for (const marker of markers) {
+          assert(Math.abs(marker.percentage - elapsed) < 0.2);
+          assert(marker.description?.includes("% of the day elapsed"));
+        }
         for (const width of [
           1440, 1280, 1080, 896, 895, 768, 736, 390, 352, 320,
         ]) {
@@ -2330,6 +2365,7 @@ try {
           "52.5",
         );
         assert.equal(await page.locator(".weight-history dl > div").count(), 7);
+        assert.equal(await page.locator(".day-progress-dot").count(), 0);
         assert.equal(await page.locator(".chart-point").count(), 7);
         await page.screenshot({
           path: ".test-artifacts/web/weight-mobile.png",
@@ -2467,6 +2503,7 @@ try {
         for (const macro of await page.locator(".macro .metric-value").all())
           assert((await macro.innerText()).startsWith("0"));
         assert.equal(await page.getByRole("progressbar").count(), 0);
+        assert.equal(await page.locator(".day-progress-dot").count(), 0);
         for (const name of ["Water", "Calories burned", "Active minutes"])
           assert(
             (

@@ -2,17 +2,25 @@
 
 import { ProgressBar } from "@heroui/react";
 import { Widget } from "./ui/widget";
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import { formatNumber, type GoalProgress } from "../lib/health";
+
+type DayProgressTone = "nutrition" | "water" | "exercise";
 
 export function GoalMeter({
   progress,
   title,
+  dayProgress,
+  dayProgressTone = "nutrition",
 }: {
   progress?: GoalProgress;
   title: string;
+  dayProgress?: number | null;
+  dayProgressTone?: DayProgressTone;
 }) {
+  const descriptionId = useId();
   if (!progress) return null;
+  const hasDayProgress = dayProgress !== undefined && dayProgress !== null;
   const { goal } = progress;
   const percent = progress.progress_percent ?? 0;
   const nearLimit =
@@ -27,11 +35,25 @@ export function GoalMeter({
         data-goal-status={progress.status}
         data-near-limit={nearLimit || undefined}
         aria-label={`${title} ${goal.direction === "maximum" ? "limit utilization" : "goal progress"}`}
+        aria-describedby={hasDayProgress ? descriptionId : undefined}
       >
         <ProgressBar.Track>
           <ProgressBar.Fill />
+          {hasDayProgress ? (
+            <span
+              className="day-progress-dot"
+              data-tone={dayProgressTone}
+              aria-hidden="true"
+              style={{ left: `${dayProgress}%` }}
+            />
+          ) : null}
         </ProgressBar.Track>
       </ProgressBar>
+      {hasDayProgress ? (
+        <span id={descriptionId} className="sr-only">
+          {Math.floor(dayProgress)}% of the day elapsed
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -64,6 +86,8 @@ export function MetricCard({
   value,
   unit,
   progress,
+  dayProgress,
+  dayProgressTone,
   children,
   className = "",
 }: {
@@ -72,6 +96,8 @@ export function MetricCard({
   value?: unknown;
   unit?: string;
   progress?: GoalProgress;
+  dayProgress?: number | null;
+  dayProgressTone?: DayProgressTone;
   children?: ReactNode;
   className?: string;
 }) {
@@ -84,7 +110,12 @@ export function MetricCard({
       </Widget.Header>
       <Widget.Content>
         <MetricValue value={value} unit={unit} target={progress?.goal.target} />
-        <GoalMeter title={title} progress={progress} />
+        <GoalMeter
+          title={title}
+          progress={progress}
+          dayProgress={dayProgress}
+          dayProgressTone={dayProgressTone}
+        />
         {children}
       </Widget.Content>
     </Widget>

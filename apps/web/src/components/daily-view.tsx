@@ -2,6 +2,7 @@
 
 import { Widget } from "./ui/widget";
 import { useAccount } from "./account-context";
+import { useDayProgress } from "./use-day-progress";
 import { formatDateTime } from "../lib/date-time";
 import { HealthIcon, type HealthIconKind } from "./health-icon";
 import { GoalMeter, MetricCard, MetricValue } from "./metric-card";
@@ -31,6 +32,7 @@ export function DailyView({
   records: HealthRecord[];
 }) {
   const { preferences } = useAccount();
+  const dayProgress = useDayProgress(date, timezone);
   const byMetric = new Map(
     goals.map((progress) => [progress.goal.metric, progress]),
   );
@@ -71,6 +73,7 @@ export function DailyView({
             value={actual("nutrient:energy_kcal", exact(nutrition.energy))}
             unit="kcal"
             progress={byMetric.get("nutrient:energy_kcal")}
+            dayProgress={dayProgress}
             className="nutrition-card"
           >
             <div className="macros">
@@ -91,6 +94,7 @@ export function DailyView({
                   <GoalMeter
                     title={title}
                     progress={byMetric.get(`nutrient:${key}`)}
+                    dayProgress={dayProgress}
                   />
                 </div>
               ))}
@@ -116,6 +120,8 @@ export function DailyView({
             value={water}
             unit="mL"
             progress={byMetric.get("hydration:water_ml")}
+            dayProgress={dayProgress}
+            dayProgressTone="water"
           />
           <MetricCard
             title="Calories burned"
@@ -123,6 +129,8 @@ export function DailyView({
             value={calories}
             unit="kcal"
             progress={byMetric.get("activity:active_energy_kcal")}
+            dayProgress={dayProgress}
+            dayProgressTone="exercise"
           />
           <MetricCard
             title="Active minutes"
@@ -130,6 +138,8 @@ export function DailyView({
             value={minutes}
             unit="min"
             progress={byMetric.get("activity:exercise_minutes")}
+            dayProgress={dayProgress}
+            dayProgressTone="exercise"
           />
         </section>
         <Logs
