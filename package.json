@@ -62,7 +62,7 @@
     "esbuild": "0.28.2"
   },
   "devDependencies": {
-    "@avgeek-oss/design-system": "file:vendor/avgeek-oss-design-system-1.2.6.tgz",
+    "@avgeek-oss/design-system": "file:vendor/avgeek-oss-design-system-1.2.7.tgz",
     "@types/node": "24.10.13",
     "@types/pg": "8.16.0",
     "ajv": "8.20.0",
