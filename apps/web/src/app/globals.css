@@ -22,18 +22,6 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-.brand {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  justify-content: center;
-}
-
-.vitalog-auth [data-slot="identity-auth-heading"] :is(h1, p) {
-  text-align: center;
-  overflow-wrap: anywhere;
-}
-
 .key-value {
   font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
   overflow-wrap: anywhere;

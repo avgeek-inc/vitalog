@@ -1115,6 +1115,33 @@ try {
               await signInPage
                 .getByText("Sign in to your account.", { exact: true })
                 .waitFor();
+              const lockup = signInPage.locator('[data-slot="brand-lockup"]');
+              assert.equal(
+                await lockup
+                  .locator('[data-slot="brand-lockup-label"]')
+                  .textContent(),
+                "Vitalog",
+              );
+              const geometry = await signInPage.evaluate(() => {
+                const logo = document
+                  .querySelector('[data-slot="brand-lockup-logo"]')!
+                  .getBoundingClientRect();
+                const brand = document
+                  .querySelector('[data-slot="brand-lockup"]')!
+                  .getBoundingClientRect();
+                const heading = document.querySelector("h1")!;
+                return {
+                  logoWidth: logo.width,
+                  logoHeight: logo.height,
+                  brandLeft: brand.left,
+                  headingLeft: heading.getBoundingClientRect().left,
+                  textAlign: getComputedStyle(heading).textAlign,
+                };
+              });
+              assert.equal(geometry.logoWidth, 32);
+              assert.equal(geometry.logoHeight, 32);
+              assert(Math.abs(geometry.brandLeft - geometry.headingLeft) < 1);
+              assert.notEqual(geometry.textAlign, "center");
               const email = signInPage.getByLabel("Email", { exact: true });
               const password = signInPage.getByLabel("Password", {
                 exact: true,
