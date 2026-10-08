@@ -1,5 +1,5 @@
 {
-  "tested_at": "2026-10-02T15:29:02.011Z",
+  "tested_at": "2026-10-08T15:20:09.590Z",
   "node": "v24.16.0",
   "postgres": "17.11 (Debian 17.11-1.pgdg12+2)",
   "mcp_sdk": "@modelcontextprotocol/sdk@1.31.0",
@@ -13,9 +13,9 @@
       "assertions": 1
     },
     {
-      "name": "Authenticated MCP initialization, exact 16 tools, schemas, annotations and no UI resources",
+      "name": "Authenticated MCP initialization, all registered tools, schemas, annotations and no UI resources",
       "status": "passed",
-      "assertions": 16
+      "assertions": 27
     },
     {
       "name": "Unauthenticated, invalid, duplicate and malformed authorization fail before REST/MCP discovery",
@@ -118,9 +118,14 @@
       "assertions": 1
     },
     {
-      "name": "Rate limits cannot be bypassed with untrusted forwarded addresses",
+      "name": "Rate limits use the socket peer despite forged forwarded addresses",
       "status": "passed",
       "assertions": 1
+    },
+    {
+      "name": "Mood enums round-trip across REST/MCP with discovery, retries, latest selection, correction, void and restart persistence",
+      "status": "passed",
+      "assertions": 63
     }
   ],
   "definition_coverage": {

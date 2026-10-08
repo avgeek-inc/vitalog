@@ -1800,7 +1800,7 @@ try {
     },
   );
   await check(
-    "Rate limits cannot be bypassed with untrusted forwarded addresses",
+    "Rate limits use the socket peer despite forged forwarded addresses",
     async () => {
       const config = configuration({
         AUTH_KEY: key,
@@ -1816,22 +1816,46 @@ try {
         config,
         () => {},
       );
-      const first = await limited.request("http://localhost:3000/v1/catalog", {
-        headers: {
-          Authorization: `Bearer ${key}`,
-          "X-Forwarded-For": "203.0.113.1",
-        },
+      const limitedServer = serve({
+        fetch: limited.fetch,
+        port: 0,
+        hostname: "127.0.0.1",
       });
-      assert.equal(first.status, 200);
-      const next = await limited.request("http://localhost:3000/v1/catalog", {
-        headers: {
-          Authorization: `Bearer ${key}`,
-          "X-Forwarded-For": "203.0.113.2",
-        },
-      });
-      assert.equal(next.status, 429);
-      assert.equal(next.headers.get("Retry-After"), "60");
-      assert.equal(object(await next.json()).code, "RATE_LIMITED");
+      assert(limitedServer instanceof Server);
+      try {
+        if (!limitedServer.listening) await once(limitedServer, "listening");
+        const address = limitedServer.address();
+        assert(address && typeof address === "object");
+        const url = `http://127.0.0.1:${address.port}/v1/catalog`;
+        config.allowedHosts = [`127.0.0.1:${address.port}`];
+        const first = await fetch(url, {
+          headers: {
+            Authorization: `Bearer ${key}`,
+            "X-Forwarded-For": "203.0.113.1",
+            Forwarded: "for=203.0.113.1",
+            "CF-Connecting-IP": "203.0.113.1",
+            "X-Real-IP": "203.0.113.1",
+          },
+        });
+        assert.equal(first.status, 200);
+        const next = await fetch(url, {
+          headers: {
+            Authorization: `Bearer ${key}`,
+            "X-Forwarded-For": "203.0.113.2",
+            Forwarded: "for=203.0.113.2",
+            "CF-Connecting-IP": "203.0.113.2",
+            "X-Real-IP": "203.0.113.2",
+          },
+        });
+        assert.equal(next.status, 429);
+        assert.equal(next.headers.get("Retry-After"), "60");
+        assert.equal(object(await next.json()).code, "RATE_LIMITED");
+      } finally {
+        await new Promise<void>((resolve) =>
+          limitedServer.close(() => resolve()),
+        );
+        limitedServer.closeAllConnections();
+      }
     },
   );
   await check(

@@ -7,23 +7,24 @@ Set secrets through your deployment's secret manager. For local development, cop
 
 ## API
 
-| Variable                           | Purpose                                                                                                                                    |
-| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `DATABASE_URL`                     | PostgreSQL connection string.                                                                                                              |
-| `AUTH_KEY`                         | Primary high-entropy Bearer key with full ledger access and API-key administration.                                                        |
-| `ROOT_EMAIL`, `ROOT_PASSWORD`      | Configure both to enable browser sign-in, key issuance and OAuth consent. Leave both empty to disable new issuance and sign-in.            |
-| `DEFAULT_TIMEZONE`                 | IANA timezone for local dates and daily summary boundaries; example: `Asia/Kolkata`.                                                       |
-| `PORT`                             | API listening port; default `3000`.                                                                                                        |
-| `NODE_ENV`                         | Use `production` in deployed services.                                                                                                     |
-| `ALLOWED_HOSTS`                    | Comma-separated accepted Host values. Include the private API Host when using an internal server origin.                                   |
-| `PUBLIC_BASE_URL`                  | Exact public API origin used for OAuth discovery. HTTPS is required except on loopback.                                                    |
-| `UI_BASE_URL`                      | Exact trusted UI origin for sign-in, key creation and OAuth consent requests.                                                              |
-| `ALLOWED_ORIGINS`                  | Exact origins of browser MCP clients that need CORS. Keep this list limited to intended clients.                                           |
-| `OAUTH_CLIENTS`                    | Optional JSON array of pre-registered clients. The default empty array permits supported metadata-document and dynamic registration flows. |
-| `TRUST_PROXY`, `TRUSTED_PROXY_IPS` | Enable proxy-derived client addresses only for the explicitly trusted ingress addresses.                                                   |
-| `RATE_LIMIT_PER_MINUTE`            | General per-client request limit; default `600`. Root sign-in and client registration have additional limits.                              |
+| Variable                      | Purpose                                                                                                                                    |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `DATABASE_URL`                | PostgreSQL connection string.                                                                                                              |
+| `AUTH_KEY`                    | Primary high-entropy Bearer key with full ledger access and API-key administration.                                                        |
+| `ROOT_EMAIL`, `ROOT_PASSWORD` | Configure both to enable browser sign-in, key issuance and OAuth consent. Leave both empty to disable new issuance and sign-in.            |
+| `DEFAULT_TIMEZONE`            | IANA timezone for local dates and daily summary boundaries; example: `Asia/Kolkata`.                                                       |
+| `PORT`                        | API listening port; default `3000`.                                                                                                        |
+| `NODE_ENV`                    | Use `production` in deployed services.                                                                                                     |
+| `ALLOWED_HOSTS`               | Comma-separated accepted Host values. Include the private API Host when using an internal server origin.                                   |
+| `PUBLIC_BASE_URL`             | Exact public API origin used for OAuth discovery. HTTPS is required except on loopback.                                                    |
+| `UI_BASE_URL`                 | Exact trusted UI origin for sign-in, key creation and OAuth consent requests.                                                              |
+| `ALLOWED_ORIGINS`             | Exact origins of browser MCP clients that need CORS. Keep this list limited to intended clients.                                           |
+| `OAUTH_CLIENTS`               | Optional JSON array of pre-registered clients. The default empty array permits supported metadata-document and dynamic registration flows. |
+| `RATE_LIMIT_PER_MINUTE`       | General request limit per connecting IP address; default `600`. Root sign-in and client registration have additional limits.               |
 
 Root credentials are used for issuance and consent. They cannot authenticate health requests directly. Changing root credentials affects new sign-ins and issuance after the API restarts; revoke existing keys and sessions separately if needed.
+
+Address-based limits use the IP address connecting directly to the API. Requests through one proxy may share a bucket; supplied client-address headers do not change it.
 
 ## Web app
 

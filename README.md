@@ -22,7 +22,7 @@ Compose runs separate API, Next.js UI and PostgreSQL 17.11 containers. It publis
 
 For production, put a TLS ingress in front of the loopback API. Forward its original Host header and configure that host in `ALLOWED_HOSTS`. Prevent direct public access to the container network and PostgreSQL. Keep ingress access logs free of Authorization, query strings containing secrets, request/response bodies and health data. The API rejects its configured key anywhere outside the Authorization header before domain validation, including record text, encoded property names, URLs and idempotency headers. Avoid request-body capture and health payload capture in tracing systems.
 
-The default installation ignores forwarded client addresses. To trust one ingress, set `TRUST_PROXY=true` and exact `TRUSTED_PROXY_IPS` matching the API's immediate socket peer. The ingress must overwrite `X-Forwarded-For` with one validated client IP. Forwarded host/protocol values do not expand the host allowlist. CORS is not an authentication mechanism.
+Request rate limits use the immediate socket peer address, including when an ingress connects to the API. Forwarded client-address headers do not change the rate-limit bucket. Forwarded host/protocol values do not expand the host allowlist. CORS is not an authentication mechanism.
 
 `GET /healthz` returns minimal unauthenticated liveness. `GET /readyz` requires the key and checks the migrated database without returning connection details. Missing credentials, a placeholder secret, invalid configuration or unapplied migrations prevent startup. All health responses use `Cache-Control: no-store`.
 
@@ -66,7 +66,7 @@ See [API-key setup and contracts](docs/api-keys.md) for request examples and ope
 
 To rotate `AUTH_KEY`, replace the deployment secret, restart the API, and update each trusted client's private header configuration. Generated keys, database idempotency and history survive rotation. Signed ledger pagination cursors use a digest-derived signing key, so clients restart pagination after key rotation. Changing root credentials affects future issuance and does not revoke generated keys; use the revoke-all API when that is intended.
 
-The default request limit is 1 MiB. Domain responses and discovery responses are bounded to 8 MiB. Requests have a 25-second application deadline, a 30-second HTTP request timeout, and a 15-second PostgreSQL statement timeout. If a mutation response is lost or times out, retry with its original idempotency key. A committed write may outlive an interrupted response. `RATE_LIMIT_PER_MINUTE` defaults to 600 per socket/client address. Read queries have explicit record, date and page limits described in [the integration guide](docs/integration.md).
+The default request limit is 1 MiB. Domain responses and discovery responses are bounded to 8 MiB. Requests have a 25-second application deadline, a 30-second HTTP request timeout, and a 15-second PostgreSQL statement timeout. If a mutation response is lost or times out, retry with its original idempotency key. A committed write may outlive an interrupted response. `RATE_LIMIT_PER_MINUTE` defaults to 600 per socket peer address. Read queries have explicit record, date and page limits described in [the integration guide](docs/integration.md).
 
 Operational logs contain event, method, status and elapsed time. They omit route parameters, credentials, health bodies, tool arguments and database parameters. Docker log rotation is bounded to three 10 MiB files.
 

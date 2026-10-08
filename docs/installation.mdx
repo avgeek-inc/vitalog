@@ -44,7 +44,7 @@ PUBLIC_BASE_URL=https://vitalog-api.example.com
 ALLOWED_HOSTS=vitalog-api.example.com
 ```
 
-The API must know its exact public origin for OAuth resource and issuer validation. Compose sets `API_INTERNAL_BASE_URL=http://api:3000` for private server reads. Use [Configuration](/configuration) to configure trusted proxies and allowed browser-client origins for your ingress.
+The API must know its exact public origin for OAuth resource and issuer validation. Compose sets `API_INTERNAL_BASE_URL=http://api:3000` for private server reads. Use [Configuration](/configuration) to configure allowed browser-client origins for your ingress.
 
 For a Towbar deployment, use the [checked-in PostgreSQL, API and web manifests](/towbar).
 

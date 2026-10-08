@@ -48,7 +48,7 @@ Additional regression evidence covers the contracts that independent review foun
 | I20      | Related records, cycles, daily date conflicts, cursors and errors                             |
 | I21      | Complete export/restored values, immutable history, committed retries and permanent erasure   |
 | I22      | Oversized requests, secret arguments and operational log privacy                              |
-| I23      | Rate limiting and untrusted forwarded-address rejection                                       |
+| I23      | Rate limiting uses the socket peer despite forged forwarded addresses                         |
 | I24      | Mood enum discovery, REST/MCP parity, retries, daily selection, corrections, void and restart |
 
 | Requirement                                                | Implementation and evidence                                                                                                                              |
