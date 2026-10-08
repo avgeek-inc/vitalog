@@ -5,7 +5,7 @@
 - Add a shared three-section documentation footer with links to the OSS philosophy and other applications, and space below the final homepage actions.
 - Capture fresh lossless 4× dashboard screenshots with new asset URLs for Retina displays and cached clients.
 - Publish the Vitalog homepage and public usage, API, MCP and self-hosting guides at vitalog.dev, with synthetic dashboard screenshots and shared documentation styling.
-- Adopt design system 1.2.10 and shared docs kit 0.1.4.
+- Adopt design system 1.2.10 and shared docs kit 0.1.5.
 
 ## 1.0.1 (release candidate)
 
