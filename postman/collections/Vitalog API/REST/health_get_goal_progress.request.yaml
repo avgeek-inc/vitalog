@@ -1,0 +1,12 @@
+$kind: http-request
+id: 074590d7-0fa7-50fe-8649-fd6633ad8ded
+description: Compare goals effective on a local date with qualified observed
+  values. Unknown stays null. Nutrition uses limit utilization; water and
+  exercise use target completion; weight uses an explicit baseline. Daily totals
+  take precedence, gross calories are excluded, and elapsed time is never
+  inferred as active minutes.
+method: GET
+url: "{{baseUrl}}/v1/days/{{date}}/goal-progress"
+headers:
+  Accept: application/json
+order: 22000

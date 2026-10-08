@@ -38,7 +38,7 @@ describe("Inventory and schema parity", () => {
     expect(new Set(analyteKeys).size).toBe(424);
     expect(new Set(measurementKeys).size).toBe(110);
     expect(inventory.lab_panels).toHaveLength(30);
-    expect(operations).toHaveLength(16);
+    expect(operations).toHaveLength(27);
     expect(recordTypes).toHaveLength(8);
     expect(
       new Set(inventory.lab_panels.flatMap((panel) => panel.analyte_keys)),
@@ -226,17 +226,29 @@ describe("Catalog invariants", () => {
     const doc = openapi();
     const text = JSON.stringify(doc);
     expect(text).not.toContain("example-nutrition-event-001");
-    for (const term of [
-      "/goals",
-      "/users",
-      "/uploads",
-      "/recipes",
-      "/catalog/metrics",
-    ])
+    for (const term of ["/users", "/recipes", "/catalog/metrics"])
       expect(text.includes(term), `Generated interfaces contain ${term}`).toBe(
         false,
       );
-    expect(Object.keys(doc.paths as object)).toHaveLength(31);
+    expect(Object.keys(doc.paths as object)).toHaveLength(47);
+    expect(Object.keys(doc.paths as object)).toEqual(
+      expect.arrayContaining([
+        "/auth/profile",
+        "/auth/preferences",
+        "/auth/key-management/session",
+        "/auth/key-management/api-keys",
+        "/auth/key-management/api-keys/{id}",
+      ]),
+    );
+    expect(Object.keys(doc.paths as object)).toContain("/v1/goals");
+    const paths = doc.paths as Record<
+      string,
+      Record<string, { operationId: string }>
+    >;
+    for (const operation of operations)
+      expect(
+        paths[operation.path]?.[operation.method.toLowerCase()]?.operationId,
+      ).toBe(operation.name);
     expect(catalog({}, cursors).catalog_version).toBe(CATALOG_VERSION);
   });
   test("Oversized responses fail without truncating the requested value", () => {

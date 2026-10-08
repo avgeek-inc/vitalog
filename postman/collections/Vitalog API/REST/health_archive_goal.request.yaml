@@ -1,0 +1,17 @@
+$kind: http-request
+id: 4124ef92-68e7-5a22-831a-d991bf81a67b
+description: Archive a goal from today with an expected version. Preserve
+  history and previous-day progress. Reactivate with health_set_goal.
+method: POST
+url: "{{baseUrl}}/v1/goals/{{goalId}}/archive"
+headers:
+  Accept: application/json
+  Content-Type: application/json
+  Idempotency-Key: "{{idempotencyKey}}"
+body:
+  type: json
+  content: |-
+    {
+      "expected_version": 1
+    }
+order: 21000

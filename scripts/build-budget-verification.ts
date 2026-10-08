@@ -20,6 +20,7 @@ const docker = (args: string[]) =>
     timeout: 600_000,
   }).trim();
 const checks = [];
+const peakMemory = `node -e 'const fs = require("node:fs"); const path = "/sys/fs/cgroup/memory.peak"; const events = "/sys/fs/cgroup/memory.events"; const kills = fs.existsSync(events) ? /^oom_kill\\s+(\\d+)$/m.exec(fs.readFileSync(events, "utf8")) : null; console.log(JSON.stringify({peak_memory_bytes: fs.existsSync(path) ? Number(fs.readFileSync(path, "utf8")) : null, oom_kills: kills ? Number(kills[1]) : null}))'`;
 
 for (const name of ["api", "web"] as const) {
   const manifest = parse(
@@ -46,7 +47,7 @@ for (const name of ["api", "web"] as const) {
       "tsconfig.build.json",
     ])
       await cp(file, join(context, file));
-    for (const folder of ["src", "scripts", "drizzle"])
+    for (const folder of ["src", "scripts", "drizzle", "vendor"])
       await cp(folder, join(context, folder), { recursive: true });
     await mkdir(join(context, "apps"));
     await cp("apps/web", join(context, "apps/web"), {
@@ -76,8 +77,8 @@ for (const name of ["api", "web"] as const) {
       "sh",
       "-c",
       name === "api"
-        ? "npm ci --workspaces=false && npm run build:api && npm prune --omit=dev --workspaces=false"
-        : "npm ci && npm run build:web",
+        ? `npm ci --workspaces=false && npm run build:api && npm prune --omit=dev --workspaces=false && node --input-type=module -e 'await import("./dist/src/app.js")'; build_result=$?; ${peakMemory}; exit "$build_result"`
+        : `npm ci && node --run build:web; build_result=$?; ${peakMemory}; exit "$build_result"`,
     ]);
     created = true;
     docker(["cp", context + "/.", container + ":/app"]);
@@ -98,6 +99,15 @@ for (const name of ["api", "web"] as const) {
     );
     assert.equal(state.OOMKilled, false);
     assert.equal(state.Status, "exited");
+    const peak =
+      /^\{"peak_memory_bytes":(\d+|null),"oom_kills":(\d+|null)\}$/m.exec(
+        output,
+      );
+    assert(peak, "The builder must report whether peak memory is available");
+    assert(
+      ["0", "null"].includes(peak[2]!),
+      "No build process may be OOM killed",
+    );
     checks.push({
       name,
       memory,
@@ -106,6 +116,8 @@ for (const name of ["api", "web"] as const) {
       swap: false,
       image,
       status: "passed",
+      peak_memory_bytes: peak[1] === "null" ? null : Number(peak[1]),
+      oom_kills: peak[2] === "null" ? null : Number(peak[2]),
     });
     process.stdout.write(
       `PASS ${name} ${platform} production build within ${memory} and ${cpus} CPU without swap\n`,

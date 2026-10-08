@@ -1,0 +1,107 @@
+---
+title: "MCP setup and troubleshooting"
+description: "Connect any compatible MCP client to Vitalog's Streamable HTTP endpoint."
+---
+
+Use your API's MCP URL, such as `https://vitalog-api.praveent.com/mcp`. The UI address is where you sign in and review records; it is not the MCP endpoint.
+
+Open **Account Settings → MCP Guide** in Vitalog to copy configurations for your installation. The examples below use the example API hostname. Replace it when self-hosting.
+
+## Connect with OAuth
+
+Add the MCP URL to a client that supports Streamable HTTP and MCP authorization. The client discovers the authorization server, registers or supplies its client metadata, and opens Vitalog's consent page. Sign in with the root email and password, review the requesting client's identity, callback destination and requested access, then approve.
+
+The client receives its token through the OAuth callback and token exchange. You do not need to create or paste an API key. Tokens expire after 30 days; reconnect after expiry. Revoke a connection from **Account Settings → MCP Connections** after verifying your root credentials.
+
+<Tabs>
+  <Tab title="Codex">
+    Add this to `~/.codex/config.toml`:
+
+    ```toml
+    [mcp_servers.vitalog]
+    url = "https://vitalog-api.praveent.com/mcp"
+    ```
+
+    Run `codex mcp login vitalog` to sign in.
+
+  </Tab>
+  <Tab title="Claude Code">
+    ```sh
+    claude mcp add --transport http vitalog 'https://vitalog-api.praveent.com/mcp'
+    ```
+
+    Open `/mcp` in Claude Code and select Vitalog to sign in.
+
+  </Tab>
+  <Tab title="Cursor">
+    Add this to `.cursor/mcp.json`:
+
+    ```json
+    {
+      "mcpServers": {
+        "vitalog": {
+          "url": "https://vitalog-api.praveent.com/mcp"
+        }
+      }
+    }
+    ```
+
+    Connect the server in Cursor's MCP settings and complete the sign-in flow.
+
+  </Tab>
+  <Tab title="VS Code">
+    Add this to `.vscode/mcp.json`:
+
+    ```json
+    {
+      "servers": {
+        "vitalog": {
+          "type": "http",
+          "url": "https://vitalog-api.praveent.com/mcp"
+        }
+      }
+    }
+    ```
+
+    Start the server and approve the sign-in prompt.
+
+  </Tab>
+</Tabs>
+
+Other clients can use the same URL and OAuth discovery. Vitalog follows the MCP authorization specification independently of the client's brand. See [the OAuth contract](/oauth) for registration, PKCE, scopes and callback requirements.
+
+## Connect with an API key
+
+Create a 30-day key in **Account Settings → API Keys** or at `/api-keys` on the UI. Store it privately in your client and send `Authorization: Bearer <your-key>` with every MCP request, including initialization and discovery. Do not put the key in the URL.
+
+For example, a client accepting custom headers can use this structure:
+
+```json
+{
+  "mcpServers": {
+    "vitalog": {
+      "url": "https://vitalog-api.praveent.com/mcp",
+      "headers": { "Authorization": "Bearer YOUR_VITALOG_API_KEY" }
+    }
+  }
+}
+```
+
+Prefer your client's secret storage or environment-variable support when available. Manually generated API keys have full ledger access. OAuth connections use the requested `health:read` and/or `health:write` scopes. Browser dashboard sessions cannot authenticate MCP.
+
+## Tool discovery and calls
+
+Vitalog uses stateless Streamable HTTP with JSON responses. For raw MCP POST requests, send `Accept: application/json, text/event-stream`. The official SDK negotiates the protocol version. Clients initialize, list tools and call the [MCP tools](/mcp-tools); logging, discovery, reading, correction and goals share the REST domain service.
+
+## Troubleshooting
+
+| Symptom                                | Check                                                                                                                            |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Sign-in works, but tools do not appear | Use the API's `/mcp` endpoint. Reconnect to refresh discovery, then inspect the client's initialization and `tools/list` errors. |
+| HTTP 401                               | The token is missing, expired or revoked. Sign in again or create a replacement key.                                             |
+| HTTP 403 on a write                    | The OAuth connection needs `health:write`; review the scopes before reconnecting.                                                |
+| The callback is rejected               | The callback must match registered client metadata and the resource must be the exact MCP URL.                                   |
+| A browser client is blocked by CORS    | Ask the operator to allow that exact origin in `ALLOWED_ORIGINS`; UI consent requests use `UI_BASE_URL`.                         |
+| HTTP 429                               | Wait for `Retry-After`, then retry with the same idempotency key and original arguments for a write.                             |
+
+Check your client's current documentation for client-specific connection controls: [Codex](https://developers.openai.com/codex/mcp/), [Claude Code](https://code.claude.com/docs/en/mcp), [Cursor](https://cursor.com/docs/mcp) and [VS Code](https://code.visualstudio.com/docs/agents/reference/mcp-configuration).

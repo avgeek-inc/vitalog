@@ -1,0 +1,21 @@
+$kind: http-request
+id: acd0969f-99b6-5882-8891-e904c060f52b
+description: Set or reactivate a user-supplied goal from today in the server
+  timezone. Use expected_version=0 for a new metric, otherwise its current
+  version. Weight requires an explicit baseline on creation; it is retained on
+  edits unless supplied. No automatic recommendations.
+method: POST
+url: "{{baseUrl}}/v1/goals"
+headers:
+  Accept: application/json
+  Content-Type: application/json
+  Idempotency-Key: "{{idempotencyKey}}"
+body:
+  type: json
+  content: |-
+    {
+      "metric": "hydration:water_ml",
+      "target": 2500,
+      "expected_version": 0
+    }
+order: 18000

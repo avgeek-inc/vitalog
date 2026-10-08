@@ -1,0 +1,26 @@
+$kind: http-request
+id: 7d3a8cc5-78b4-56cf-8bca-e429336a5bda
+description: Generate a personal API key using a verified management session
+  with required name, access, includeAdmin and expiresAt settings. Null expiry
+  means Never. Credential and account management remain browser/root-only. The
+  complete key is returned once.
+method: POST
+url: "{{baseUrl}}/auth/key-management/api-keys"
+headers:
+  Accept: application/json
+  Content-Type: application/json
+auth:
+  - id: 70fcf599-ae57-59ca-86e8-2aa7947636ea
+    type: bearer
+    name: Key management session
+    credentials:
+      token: "{{keyManagementToken}}"
+body:
+  type: json
+  content: |-
+    {
+      "name": "Personal automation",
+      "access": "read",
+      "includeAdmin": false,
+      "expiresAt": null
+    }

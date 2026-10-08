@@ -91,11 +91,13 @@ export const oauthPaths: Data = {
       ...shared,
       operationId: "oauth_authorize",
       summary: "Open the MCP client's authorization and consent page",
-      parameters: Object.entries(properties).map(([name, schema]) => ({
+      parameters: Object.keys(properties).map((name) => ({
         name,
         in: "query",
         required: (requestModel.required as string[]).includes(name),
-        schema,
+        schema: jsonSchema(
+          authorization.shape[name as keyof typeof authorization.shape],
+        ),
       })),
       responses: {
         "302": {
@@ -231,6 +233,7 @@ export const oauthPaths: Data = {
       responses: {
         "201": response(
           {
+            ...jsonSchema(registrationSchema),
             type: "object",
             required: [
               "client_id",

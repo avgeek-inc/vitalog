@@ -4,7 +4,7 @@ import { application } from "../src/app.js";
 import { configuration } from "../src/config.js";
 import { database } from "../src/db/client.js";
 import { DomainError, parse } from "../src/errors.js";
-import { operationByName } from "../src/registry/operations.js";
+import { operationByName, operations } from "../src/registry/operations.js";
 import { CATALOG_VERSION } from "../src/registry/definitions.js";
 import { inspectBody, MAX_REQUEST_BYTES } from "../src/security.js";
 import { Service } from "../src/service.js";
@@ -332,7 +332,8 @@ describe("Guard preserves ordinary contracts and request bounds", () => {
       expect(response.status).toBe(200);
       const result = (await response.json()).result;
       expect(result).toBeDefined();
-      if (method === "tools/list") expect(result.tools.length).toBe(16);
+      if (method === "tools/list")
+        expect(result.tools.length).toBe(operations.length);
       if (method === "tools/call")
         expect(result.structuredContent.catalog_version).toBe(CATALOG_VERSION);
     },
@@ -342,6 +343,7 @@ describe("Guard preserves ordinary contracts and request bounds", () => {
       "Content-Length": "1",
     });
     expect(response.status).toBe(413);
+    expect(response.headers.get("Connection")).toBe("close");
     expect((await response.json()).code).toBe("LIMIT_EXCEEDED");
     expect(execute.mock.calls.length).toBe(0);
   });

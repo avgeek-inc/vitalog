@@ -4,7 +4,12 @@ import { application } from "../src/app.js";
 import { configuration } from "../src/config.js";
 import { database } from "../src/db/client.js";
 import { Service } from "../src/service.js";
-import { webConfiguration } from "../apps/web/src/lib/config.js";
+import {
+  documentationUrl,
+  mcpDocumentationUrl,
+  serverApiBaseUrl,
+  webConfiguration,
+} from "../apps/web/src/lib/config.js";
 
 const issuer = "https://vitalog-api.praveent.com";
 const ui = "https://vitalog.praveent.com";
@@ -24,6 +29,30 @@ const app = application(
 afterAll(() => connection.pool.end());
 
 describe("Separate UI and API origins", () => {
+  test("Documentation destinations use the runtime docs origin or repository fallback", () => {
+    expect(documentationUrl({})).toBe(
+      "https://github.com/avgeek-oss/vitalog/tree/main/docs/mintlify",
+    );
+    expect(mcpDocumentationUrl({})).toBe(
+      "https://github.com/avgeek-oss/vitalog/blob/main/docs/mintlify/mcp-guide.mdx",
+    );
+    for (const origin of [
+      "https://docs.example.com",
+      "http://127.0.0.1:4175",
+    ]) {
+      expect(documentationUrl({ DOCS_BASE_URL: origin })).toBe(origin);
+      expect(mcpDocumentationUrl({ DOCS_BASE_URL: origin })).toBe(
+        origin + "/mcp-guide",
+      );
+    }
+    for (const origin of [
+      "javascript:alert(1)",
+      "https://docs.example.com/path",
+    ]) {
+      expect(() => documentationUrl({ DOCS_BASE_URL: origin })).toThrow();
+      expect(() => mcpDocumentationUrl({ DOCS_BASE_URL: origin })).toThrow();
+    }
+  });
   test("An unconfigured consent UI fails closed instead of redirecting to itself", async () => {
     const withoutUi = { ...config, uiBaseUrl: undefined };
     const server = application(
@@ -146,5 +175,27 @@ describe("Separate UI and API origins", () => {
         }),
       ).toThrow();
     }
+  });
+  test("The private API origin is server-only and rejects credentials, paths and non-HTTP protocols", () => {
+    const env = {
+      API_BASE_URL: issuer,
+      UI_BASE_URL: ui,
+      API_INTERNAL_BASE_URL: "http://api:3000",
+    };
+    expect(serverApiBaseUrl(env)).toBe("http://api:3000");
+    expect(webConfiguration(env)).toEqual({
+      apiBaseUrl: issuer,
+      uiBaseUrl: ui,
+    });
+    expect(serverApiBaseUrl({ API_BASE_URL: issuer })).toBe(issuer);
+    for (const invalid of [
+      "http://user:password@api:3000",
+      "http://api:3000/path",
+      "http://api:3000?token=value",
+      "file:///tmp/api",
+    ])
+      expect(() =>
+        serverApiBaseUrl({ ...env, API_INTERNAL_BASE_URL: invalid }),
+      ).toThrow();
   });
 });

@@ -1,7 +1,8 @@
 $kind: http-request
 id: c845b614-9f20-5150-878e-f9152f713670
-description: Save one supplied checkin observation. Actual recorded events only.
-  Use health_get_catalog for exact fields and units; do not infer missing
+description: Save one supplied check-in, including optional data.mood (very_low,
+  low, neutral, good, great). Actual recorded events only. Numeric ratings
+  remain separate. Use health_get_catalog for exact fields; do not infer missing
   values.
 method: POST
 url: "{{baseUrl}}/v1/checkins"
@@ -20,6 +21,7 @@ body:
         "value_kind": "reported"
       },
       "data": {
+        "mood": "good",
         "ratings": {
           "energy": {
             "value": 7,

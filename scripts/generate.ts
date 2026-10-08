@@ -13,6 +13,10 @@ import { recordDescriptor } from "../src/domain/catalog.js";
 import { base, examples } from "../tests/fixtures.js";
 import type { Data } from "../src/domain/types.js";
 import { keyOperations } from "../src/auth/contracts.js";
+import { keyManagementOperations } from "../src/auth/key-management-contracts.js";
+import { accountOperations } from "../src/auth/account-contracts.js";
+import { sessionOperations } from "../src/auth/session-contracts.js";
+import { goalMetrics } from "../src/registry/goals.js";
 
 const check = process.argv.includes("--check");
 const stableId = (value: string) => {
@@ -32,7 +36,27 @@ async function save(path: string, content: string) {
   }
 }
 const json = (data: unknown) => JSON.stringify(data, null, 2) + "\n";
+const requestJson = (data: unknown) =>
+  json(data).replaceAll(
+    '"{{attachmentByteLength}}"',
+    "{{attachmentByteLength}}",
+  );
 const requestArgs = (operation: (typeof operations)[number]): Data => {
+  if (operation.name === "health_create_attachment_upload")
+    return {
+      idempotency_key: "{{idempotencyKey}}",
+      filename: "meal.jpg",
+      content_type: "image/jpeg",
+      byte_length: "{{attachmentByteLength}}",
+      sha256: "{{attachmentSha256}}",
+    };
+  if (operation.name === "health_complete_attachment_upload")
+    return { id: "{{attachmentId}}", idempotency_key: "{{idempotencyKey}}" };
+  if (
+    operation.domain === "attachments" &&
+    operation.name !== "health_list_attachments"
+  )
+    return { id: "{{attachmentId}}" };
   if (operation.record_type) {
     const input = examples[operation.record_type];
     return {
@@ -42,6 +66,23 @@ const requestArgs = (operation: (typeof operations)[number]): Data => {
   }
   if (operation.name === "health_get_daily_summary")
     return { date: "{{date}}" };
+  if (operation.name === "health_get_goal_progress")
+    return { date: "{{date}}" };
+  if (operation.name === "health_set_goal")
+    return {
+      idempotency_key: "{{idempotencyKey}}",
+      metric: "hydration:water_ml",
+      target: 2500,
+      expected_version: 0,
+    };
+  if (operation.name === "health_get_goal")
+    return { id: "{{goalId}}", include_history: true, history_limit: 100 };
+  if (operation.name === "health_archive_goal")
+    return {
+      id: "{{goalId}}",
+      idempotency_key: "{{idempotencyKey}}",
+      expected_version: 1,
+    };
   if (operation.name === "health_get_trends")
     return {
       metrics: ["measurement:weight"],
@@ -111,6 +152,17 @@ await save(
         })),
     },
     record_types: [...recordTypes],
+    attachments: {
+      maximum_file_bytes: 20_000_000,
+      reusable_record_references: true,
+      test: "tests/attachments.test.ts",
+      integration_command: "npm run test:attachments",
+    },
+    goal_metrics: goalMetrics.map((metric) => ({
+      ...metric,
+      test: "tests/goals.test.ts",
+      integration_command: "npm run test:goals",
+    })),
     operation_parity: operations.map(({ name, method, path }) => ({
       tool: name,
       method,
@@ -150,6 +202,10 @@ await save(
       date: base.occurred_on,
       idempotencyKey: "",
       apiKeyId: "",
+      goalId: "",
+      attachmentId: "",
+      attachmentByteLength: "",
+      attachmentSha256: "",
     },
     auth: [
       {
@@ -161,7 +217,14 @@ await save(
     ],
   }),
 );
-for (const [index, name] of ["REST", "MCP", "API keys", "OAuth"].entries())
+for (const [index, name] of [
+  "REST",
+  "MCP",
+  "API keys",
+  "OAuth",
+  "Browser sessions",
+  "Key management",
+].entries())
   await save(
     `${collectionRoot}/${name}/.resources/definition.yaml`,
     stringify({
@@ -184,7 +247,14 @@ for (const [index, operation] of operations.entries()) {
         )
       : {};
   const path = operation.path
-    .replace("{id}", "{{recordId}}")
+    .replace(
+      "{id}",
+      operation.domain === "goals"
+        ? "{{goalId}}"
+        : operation.domain === "attachments"
+          ? "{{attachmentId}}"
+          : "{{recordId}}",
+    )
     .replace("{date}", "{{date}}");
   const queryText = Object.keys(query).length
     ? "?" + new URLSearchParams(query).toString()
@@ -199,7 +269,7 @@ for (const [index, operation] of operations.entries()) {
       : {}),
   };
   const body =
-    operation.method === "POST" ? json(restArgs).trimEnd() : undefined;
+    operation.method === "POST" ? requestJson(restArgs).trimEnd() : undefined;
   const item = {
     name: operation.name,
     request: {
@@ -265,6 +335,10 @@ for (const operation of keyOperations) {
       ? json({
           email: "{{rootEmail}}",
           password: "{{rootPassword}}",
+          name: "Personal automation",
+          access: "read",
+          includeAdmin: false,
+          expiresAt: null,
         }).trimEnd()
       : undefined;
   const authentication = operation.rootOnly
@@ -314,6 +388,156 @@ for (const operation of keyOperations) {
             : "Root credentials in JSON",
           ...(operation.rootOnly
             ? { credentials: { token: "{{rootAuthKey}}" } }
+            : {}),
+        },
+      ],
+      ...(body ? { body: { type: "json", content: body } } : {}),
+    }),
+  );
+}
+const managementItems: Data[] = [];
+for (const operation of keyManagementOperations) {
+  const credentials = "credentials" in operation;
+  const url = "{{baseUrl}}" + operation.path.replace("{id}", "{{apiKeyId}}");
+  const headers = {
+    Accept: "application/json",
+    ...("input" in operation && operation.method === "POST"
+      ? { "Content-Type": "application/json" }
+      : {}),
+  };
+  const body = credentials
+    ? json({ email: "{{rootEmail}}", password: "{{rootPassword}}" }).trimEnd()
+    : operation.name === "create_managed_api_key"
+      ? json({
+          name: "Personal automation",
+          access: "read",
+          includeAdmin: false,
+          expiresAt: null,
+        }).trimEnd()
+      : undefined;
+  const auth = credentials
+    ? { type: "noauth" }
+    : {
+        type: "bearer",
+        bearer: [
+          { key: "token", value: "{{keyManagementToken}}", type: "string" },
+        ],
+      };
+  managementItems.push({
+    name: operation.name,
+    request: {
+      method: operation.method,
+      url,
+      description: operation.description,
+      auth,
+      header: Object.entries(headers).map(([key, value]) => ({ key, value })),
+      ...(body
+        ? {
+            body: {
+              mode: "raw",
+              raw: body,
+              options: { raw: { language: "json" } },
+            },
+          }
+        : {}),
+    },
+  });
+  await save(
+    `${collectionRoot}/Key management/${operation.name}.request.yaml`,
+    stringify({
+      $kind: "http-request",
+      id: stableId(`Key management:${operation.name}`),
+      description: operation.description,
+      method: operation.method,
+      url,
+      headers,
+      auth: [
+        {
+          id: stableId(`Key management:${operation.name}:auth`),
+          type: credentials ? "noauth" : "bearer",
+          name: credentials
+            ? "Root credentials in JSON"
+            : "Key management session",
+          ...(!credentials
+            ? { credentials: { token: "{{keyManagementToken}}" } }
+            : {}),
+        },
+      ],
+      ...(body ? { body: { type: "json", content: body } } : {}),
+    }),
+  );
+}
+const sessionItems: Data[] = [];
+for (const operation of [...sessionOperations, ...accountOperations]) {
+  const creation = operation.method === "POST";
+  const accountUpdate =
+    operation.method === "PATCH" || operation.method === "PUT";
+  const url = "{{baseUrl}}" + operation.path;
+  const headers = {
+    Accept: "application/json",
+    Origin: "{{uiUrl}}",
+    ...(creation || accountUpdate
+      ? { "Content-Type": "application/json" }
+      : {}),
+  };
+  const body = creation
+    ? json({ email: "{{rootEmail}}", password: "{{rootPassword}}" }).trimEnd()
+    : accountUpdate
+      ? json(
+          operation.method === "PATCH"
+            ? { name: "Your name" }
+            : {
+                dateFormat: "day-short-month-year",
+                timeFormat: "24-hour",
+                timeZone: "Asia/Kolkata",
+              },
+        ).trimEnd()
+      : undefined;
+  const auth = creation
+    ? { type: "noauth" }
+    : {
+        type: "bearer",
+        bearer: [
+          { key: "token", value: "{{browserSessionToken}}", type: "string" },
+        ],
+      };
+  sessionItems.push({
+    name: operation.name,
+    request: {
+      method: operation.method,
+      url,
+      description: operation.description,
+      auth,
+      header: Object.entries(headers).map(([key, value]) => ({ key, value })),
+      ...(body
+        ? {
+            body: {
+              mode: "raw",
+              raw: body,
+              options: { raw: { language: "json" } },
+            },
+          }
+        : {}),
+    },
+  });
+  await save(
+    `${collectionRoot}/Browser sessions/${operation.name}.request.yaml`,
+    stringify({
+      $kind: "http-request",
+      id: stableId(`Browser sessions:${operation.name}`),
+      method: operation.method,
+      url,
+      description: operation.description,
+      headers,
+      auth: [
+        {
+          id: stableId(`Browser sessions:${operation.name}:auth`),
+          type: creation ? "noauth" : "bearer",
+          name: creation
+            ? "Root credentials in JSON"
+            : "Read-only browser session",
+          ...(!creation
+            ? { credentials: { token: "{{browserSessionToken}}" } }
             : {}),
         },
       ],
@@ -508,7 +732,7 @@ for (const { name, payload } of requests) {
       header: Object.entries(headers).map(([key, value]) => ({ key, value })),
       body: {
         mode: "raw",
-        raw: json(payload).trimEnd(),
+        raw: requestJson(payload).trimEnd(),
         options: { raw: { language: "json" } },
       },
     },
@@ -523,7 +747,7 @@ for (const { name, payload } of requests) {
       method: "POST",
       url: "{{baseUrl}}/mcp",
       headers,
-      body: { type: "json", content: json(payload).trimEnd() },
+      body: { type: "json", content: requestJson(payload).trimEnd() },
     }),
   );
 }
@@ -544,12 +768,18 @@ await save(
       { key: "date", value: base.occurred_on },
       { key: "idempotencyKey", value: "" },
       { key: "apiKeyId", value: "" },
+      { key: "goalId", value: "" },
+      { key: "attachmentId", value: "" },
+      { key: "attachmentByteLength", value: "" },
+      { key: "attachmentSha256", value: "" },
     ],
     item: [
       { name: "REST", item: items },
       { name: "MCP", item: mcp },
       { name: "API keys", item: keyItems },
       { name: "OAuth", item: oauthItems },
+      { name: "Browser sessions", item: sessionItems },
+      { name: "Key management", item: managementItems },
     ],
   }),
 );
@@ -568,6 +798,8 @@ await save(
       { key: "rootAuthKey", value: "", type: "secret", enabled: true },
       { key: "rootEmail", value: "", type: "secret", enabled: true },
       { key: "rootPassword", value: "", type: "secret", enabled: true },
+      { key: "browserSessionToken", value: "", type: "secret", enabled: true },
+      { key: "keyManagementToken", value: "", type: "secret", enabled: true },
       ...oauthVariables,
     ],
   }),
@@ -587,11 +819,14 @@ await save(
       { key: "rootAuthKey", value: "", type: "secret", enabled: true },
       { key: "rootEmail", value: "", type: "secret", enabled: true },
       { key: "rootPassword", value: "", type: "secret", enabled: true },
+      { key: "browserSessionToken", value: "", type: "secret", enabled: true },
+      { key: "keyManagementToken", value: "", type: "secret", enabled: true },
+      { key: "uiUrl", value: "https://vitalog.praveent.com", enabled: true },
       ...oauthVariables,
     ],
     _postman_variable_scope: "environment",
   }),
 );
 process.stdout.write(
-  `${check ? "Verified" : "Generated"} OpenAPI, full schemas, coverage and ${items.length + mcp.length + keyItems.length + oauthItems.length} Postman requests\n`,
+  `${check ? "Verified" : "Generated"} OpenAPI, full schemas, coverage and ${items.length + mcp.length + keyItems.length + oauthItems.length + sessionItems.length + managementItems.length} Postman requests\n`,
 );

@@ -1,0 +1,11 @@
+$kind: http-request
+id: 1b7add34-cc1d-5c72-88cf-51356f0f087d
+description: Get a private, signed download URL for a ready attachment, valid
+  for five minutes. Treat the URL as sensitive temporary access and do not save
+  it in records. Download the file outside MCP; health data and attachment
+  metadata stay separate.
+method: GET
+url: "{{baseUrl}}/v1/attachments/{{attachmentId}}/download"
+headers:
+  Accept: application/json
+order: 27000

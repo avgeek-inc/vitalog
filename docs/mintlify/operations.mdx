@@ -1,0 +1,44 @@
+---
+title: "Operations and security"
+description: "Check health, apply migrations, back up PostgreSQL and protect credentials."
+---
+
+## Health checks
+
+The API's `/healthz` is a public liveness check. `/readyz` requires Bearer authentication and verifies database/schema readiness. The web app has its own `/healthz`. A healthy process is not proof that DNS, TLS, OAuth callbacks or an MCP client connection are working.
+
+Check the Compose service state with `docker compose ps`, then test the public UI and API through your ingress. Keep request/response bodies, Authorization headers, health observations and root credentials out of proxy logs and tracing.
+
+## Upgrades and migrations
+
+Take a tested database backup before upgrading. Deploy the API and web app from the same reviewed revision. The API startup entrypoint applies checked-in Drizzle migrations and serializes concurrent migration attempts with a PostgreSQL advisory lock.
+
+For an operator-run migration, use `npm run db:migrate` with the intended `DATABASE_URL`. Keep applied migration files immutable and add forward migrations. Do not use `drizzle-kit push` for production upgrades.
+
+## Back up PostgreSQL
+
+A PostgreSQL backup retains records, immutable revisions, goals, API-key digests, OAuth client registrations and idempotency metadata. Store dumps encrypted with restricted access, and test restoring them into an isolated database before relying on them.
+
+```sh
+docker compose exec -T postgres pg_dump -U vitalog -d vitalog -Fc > vitalog.dump
+```
+
+Restore into a separate database while the API is stopped or disconnected. Verify migrations/readiness, record history, goals and authentication metadata before switching the API to it. An older backup can restore revoked credentials or previously erased observations; review its age before permitting access or new writes.
+
+Operator exports and erasure commands are documented in the [repository README](https://github.com/avgeek-oss/vitalog#export-backups-and-erasure). Voiding a record retains history and removes it from effective calculations. Permanent erasure is a separate operator action.
+
+## Credential boundaries
+
+- The environment `AUTH_KEY` can read/write the ledger and administer all authentication records.
+- Generated `vlk_` API keys have full ledger access for 30 days, but cannot administer keys.
+- OAuth `vlo_` tokens authorize their requested MCP health scopes for 30 days.
+- Dashboard `vls_` sessions can read health records only.
+- Root-verified `vlm_` sessions can manage generated keys and MCP connections for 30 minutes.
+
+Tokens are opaque and stored as hashes. They are checked for expiry and revocation on authenticated requests. Revoke a compromised credential immediately; rotating root sign-in credentials alone does not revoke already issued tokens.
+
+Serve public services through HTTPS, restrict accepted hosts/origins, and keep PostgreSQL private. The production containers run as non-root with health checks and bounded resources. See [Towbar deployment](/towbar) for workload limits and required runtime secrets.
+
+## File storage
+
+Back up attachment objects alongside PostgreSQL; database backups and JSONL exports contain only metadata and links. `operator:attachments:prune` clears expired staging uploads without removing ready files. Stop the API before permanent erasure; the erasure command removes ledger objects before database metadata and preserves unrelated prefixes. See [attachment operations](/attachments#backups-cleanup-and-erasure).

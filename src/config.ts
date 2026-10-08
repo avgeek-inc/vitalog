@@ -4,6 +4,10 @@ import { validTimezone } from "./domain/validation.js";
 import { credentialGuard, type CredentialGuard } from "./security.js";
 import { rootCredentials, type RootCredentials } from "./auth/root.js";
 import {
+  attachmentStorageConfiguration,
+  type AttachmentStorageConfig,
+} from "./attachments/config.js";
+import {
   configuredOAuthClients,
   type OAuthClient,
 } from "./auth/oauth-clients.js";
@@ -25,6 +29,7 @@ export type Config = {
   allowedOrigins: string[];
   trustedProxyIps: string[];
   rateLimit: number;
+  attachmentStorage?: AttachmentStorageConfig;
 };
 export function configuration(env: NodeJS.ProcessEnv = process.env): Config {
   const key = env.AUTH_KEY;
@@ -43,7 +48,20 @@ export function configuration(env: NodeJS.ProcessEnv = process.env): Config {
   if (env.ROOT_PASSWORD === key)
     throw new Error("ROOT_PASSWORD must differ from AUTH_KEY");
   const passwordSecrets = root ? [env.ROOT_PASSWORD!] : [];
+  const attachmentStorage = attachmentStorageConfiguration(env);
+  const storageSecrets = attachmentStorage
+    ? [attachmentStorage.secretAccessKey]
+    : [];
   const oauth = configuredOAuthClients(env.OAUTH_CLIENTS);
+  if (
+    attachmentStorage &&
+    [key, env.ROOT_PASSWORD, ...oauth.secrets].includes(
+      attachmentStorage.secretAccessKey,
+    )
+  )
+    throw new Error(
+      "S3_SECRET_ACCESS_KEY must differ from the primary key, root password and OAuth client secrets",
+    );
   if (
     oauth.secrets.some(
       (secret) => secret === key || secret === env.ROOT_PASSWORD,
@@ -152,16 +170,17 @@ export function configuration(env: NodeJS.ProcessEnv = process.env): Config {
     assertCredentialAbsent: credentialGuard(key, [
       ...passwordSecrets,
       ...oauth.secrets,
+      ...storageSecrets,
     ]),
-    assertAuthKeyAbsent: credentialGuard(key, [], false),
+    assertAuthKeyAbsent: credentialGuard(key, storageSecrets, false),
     assertEnvironmentCredentialsAbsent: credentialGuard(
       key,
-      [...passwordSecrets, ...oauth.secrets],
+      [...passwordSecrets, ...oauth.secrets, ...storageSecrets],
       false,
     ),
     assertPrimaryCredentialsAbsent: credentialGuard(
       key,
-      passwordSecrets,
+      [...passwordSecrets, ...storageSecrets],
       false,
     ),
     oauthClients: oauth.clients,
@@ -175,6 +194,7 @@ export function configuration(env: NodeJS.ProcessEnv = process.env): Config {
     allowedOrigins,
     trustedProxyIps,
     rateLimit,
+    attachmentStorage,
   };
 }
 export function authorized(

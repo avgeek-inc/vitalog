@@ -64,6 +64,55 @@
       "when": 1791022133281,
       "tag": "0008_oauth_client_approval",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791149816729,
+      "tag": "0009_fantastic_demogoblin",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791191796973,
+      "tag": "0010_brainy_fat_cobra",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791308427008,
+      "tag": "0011_reusable_attachments",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1791319046142,
+      "tag": "0012_root_account_settings",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1791327679800,
+      "tag": "0013_account_preference_defaults",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1791382686515,
+      "tag": "0014_mcp_connection_metadata",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1791413812799,
+      "tag": "0015_personal_api_key_policy",
+      "breakpoints": true
     }
   ]
 }

@@ -18,8 +18,12 @@ jobs:
       - run: npm ci
       - run: npm run verify
       - run: npm run test:integration
+      - run: npm run test:goals
+      - run: npm run test:attachments
       - run: npm run test:auth
       - run: npm run test:oauth
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:web
       - run: node --import tsx scripts/security-verification.ts
       - run: node --import tsx scripts/summary-verification.ts
       - run: npm run build
@@ -34,6 +38,10 @@ jobs:
           if-no-files-found: error
           path: |
             .test-artifacts/verification.json
+            .test-artifacts/goals-verification.json
+            .test-artifacts/attachments.json
+            .test-artifacts/web-verification.json
+            .test-artifacts/web/*.png
             .test-artifacts/container.json
             .test-artifacts/security.json
             .test-artifacts/auth.json
@@ -51,10 +59,10 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/avgeek-inc/vitalog:${{ github.ref_name }}
+          tags: ghcr.io/avgeek-oss/vitalog:${{ github.ref_name }}
       - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: apps/web/Dockerfile
           push: true
-          tags: ghcr.io/avgeek-inc/vitalog-web:${{ github.ref_name }}
+          tags: ghcr.io/avgeek-oss/vitalog-web:${{ github.ref_name }}

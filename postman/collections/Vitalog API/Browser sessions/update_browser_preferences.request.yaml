@@ -1,0 +1,25 @@
+$kind: http-request
+id: 951795b1-39a3-58dd-8715-87f5ef84894e
+method: PUT
+url: "{{baseUrl}}/auth/preferences"
+description: Save date format, time format and display time zone for the root
+  account using a browser session. Recorded dates, daily summary boundaries and
+  goal effective dates remain unchanged.
+headers:
+  Accept: application/json
+  Origin: "{{uiUrl}}"
+  Content-Type: application/json
+auth:
+  - id: f118fa55-006e-51fc-8554-f9fc42b88098
+    type: bearer
+    name: Read-only browser session
+    credentials:
+      token: "{{browserSessionToken}}"
+body:
+  type: json
+  content: |-
+    {
+      "dateFormat": "day-short-month-year",
+      "timeFormat": "24-hour",
+      "timeZone": "Asia/Kolkata"
+    }

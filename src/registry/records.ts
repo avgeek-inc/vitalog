@@ -4,6 +4,7 @@ import {
   inventory,
   nutrientKeys,
   recordTypes,
+  moodValues,
   scalarKeys,
   studyKeys,
   measurementDefinitions,
@@ -14,6 +15,7 @@ import {
   studyComponentKeys,
 } from "./definitions.js";
 import * as p from "./primitives.js";
+import { attachmentIds } from "./attachments.js";
 
 export const nutrients = z.strictObject(
   Object.fromEntries(
@@ -330,6 +332,7 @@ const exertion = z.strictObject({
 });
 const activityMetrics = {
   elapsed_seconds: p.nonnegative.optional(),
+  exercise_seconds: p.nonnegative.optional(),
   moving_seconds: p.nonnegative.optional(),
   paused_seconds: p.nonnegative.optional(),
   distance_m: p.nonnegative.optional(),
@@ -675,6 +678,12 @@ export const completeness = z.enum([
   "not_tracked",
 ]);
 export const checkin = z.strictObject({
+  mood: z
+    .enum(moodValues)
+    .describe(
+      "Supplied mood check-in. Numeric ratings are retained separately; no mood category is inferred from a score.",
+    )
+    .optional(),
   ratings: z
     .strictObject(
       Object.fromEntries(
@@ -1286,6 +1295,7 @@ export const recordInputSchemas = {
   lab_result: labResultInput,
 };
 export const commonEnvelope = {
+  attachment_ids: attachmentIds.optional(),
   occurred_on: p.date.nullable().optional(),
   occurred_at: p.instant.nullable().optional(),
   ended_at: p.instant.nullable().optional(),

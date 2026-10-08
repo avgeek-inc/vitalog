@@ -22,6 +22,14 @@ values:
     value: ""
     type: secret
     enabled: true
+  - key: browserSessionToken
+    value: ""
+    type: secret
+    enabled: true
+  - key: keyManagementToken
+    value: ""
+    type: secret
+    enabled: true
   - key: oauthClientId
     value: https://app.example.com/oauth/client.json
     enabled: true

@@ -367,13 +367,14 @@ function activityRules(data: Data, path: string): void {
   if (
     data.elapsed_seconds !== undefined &&
     (Number(data.moving_seconds ?? 0) > Number(data.elapsed_seconds) ||
+      Number(data.exercise_seconds ?? 0) > Number(data.elapsed_seconds) ||
       Number(data.paused_seconds ?? 0) > Number(data.elapsed_seconds) ||
       (data.moving_seconds !== undefined &&
         data.paused_seconds !== undefined &&
         Number(data.moving_seconds) + Number(data.paused_seconds) >
           Number(data.elapsed_seconds)))
   )
-    fail(path, "Moving/pause duration exceeds elapsed duration");
+    fail(path, "Moving, active or pause duration exceeds elapsed duration");
 }
 
 function periodConsistency(data: Data, path: string, timezone: string): void {
@@ -827,6 +828,10 @@ export function normalizeInput(
     warnings.push("source_status_excluded_by_default");
   return {
     occurred_on: occurredOn,
+    attachment_ids:
+      (input.attachment_ids as string[] | undefined)?.map((id) =>
+        id.toLowerCase(),
+      ) ?? [],
     occurred_at: occurredAt ? new Date(occurredAt).toISOString() : null,
     ended_at: endedAt ? new Date(endedAt).toISOString() : null,
     timezone,
@@ -863,6 +868,7 @@ export const validationRules = [
   "referential_integrity_and_hierarchy_cycles",
   "optimistic_version_check",
   "durable_cross_transport_idempotency",
+  "ready_reusable_attachments",
 ];
 export function readStoredSnapshot(
   snapshot: unknown,

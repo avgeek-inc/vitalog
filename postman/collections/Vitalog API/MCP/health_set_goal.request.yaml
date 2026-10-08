@@ -1,0 +1,27 @@
+$kind: http-request
+id: 541e087c-aa97-5d7e-815e-aeea923d96a3
+description: Stateless MCP with the same private Bearer header. Initialize
+  before discovery and calls.
+method: POST
+url: "{{baseUrl}}/mcp"
+headers:
+  Accept: application/json, text/event-stream
+  Content-Type: application/json
+  MCP-Protocol-Version: 2025-11-25
+body:
+  type: json
+  content: |-
+    {
+      "jsonrpc": "2.0",
+      "id": 20,
+      "method": "tools/call",
+      "params": {
+        "name": "health_set_goal",
+        "arguments": {
+          "idempotency_key": "{{idempotencyKey}}",
+          "metric": "hydration:water_ml",
+          "target": 2500,
+          "expected_version": 0
+        }
+      }
+    }

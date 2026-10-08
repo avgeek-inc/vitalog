@@ -32,6 +32,9 @@ export function discoverySchema(schema: z.ZodType) {
   };
   const summary = (node: Schema): Schema => ({
     ...(node.type ? { type: node.type } : {}),
+    ...(Array.isArray(node.enum) && node.enum.length <= 32
+      ? { enum: node.enum }
+      : {}),
     description: catalogGuidance,
   });
   let depthLimit = 4;

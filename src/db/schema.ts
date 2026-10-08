@@ -1,7 +1,9 @@
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   check,
   date,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -15,6 +17,114 @@ import {
 import type { Data, HealthRecord, Provenance } from "../domain/types.js";
 import type { ClientMetadata } from "../auth/oauth-clients.js";
 import { recordTypes } from "../registry/definitions.js";
+import type { Goal } from "../registry/goals.js";
+import {
+  MAX_ATTACHMENT_BYTES,
+  type Attachment,
+} from "../registry/attachments.js";
+import type { StorageLocation } from "../attachments/storage.js";
+
+export const attachments = pgTable(
+  "attachments",
+  {
+    id: uuid("id").primaryKey(),
+    filename: text("filename").notNull(),
+    contentType: text("content_type")
+      .$type<Attachment["content_type"]>()
+      .notNull(),
+    byteLength: integer("byte_length").notNull(),
+    sha256: text("sha256").notNull(),
+    status: text("status", { enum: ["pending", "ready", "expired"] }).notNull(),
+    storage: jsonb("storage").$type<StorageLocation>().notNull(),
+    createdAt: timestamp("created_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    uploadExpiresAt: timestamp("upload_expires_at", {
+      withTimezone: true,
+      mode: "string",
+    }).notNull(),
+    readyAt: timestamp("ready_at", { withTimezone: true, mode: "string" }),
+    uploadPrunedAt: timestamp("upload_pruned_at", {
+      withTimezone: true,
+      mode: "string",
+    }),
+  },
+  (t) => [
+    check(
+      "attachment_size",
+      sql`${t.byteLength} > 0 and ${t.byteLength} <= ${sql.raw(String(MAX_ATTACHMENT_BYTES))}`,
+    ),
+    check("attachment_sha256", sql`${t.sha256} ~ '^[0-9a-f]{64}$'`),
+    check(
+      "attachment_state",
+      sql`(${t.status} = 'ready' and ${t.readyAt} is not null) or (${t.status} in ('pending', 'expired') and ${t.readyAt} is null)`,
+    ),
+    check(
+      "attachment_lifetime",
+      sql`${t.uploadExpiresAt} = ${t.createdAt} + interval '15 minutes'`,
+    ),
+    index("attachment_creation_order").on(t.createdAt, t.id),
+    index("attachment_status_expiry").on(t.status, t.uploadExpiresAt),
+  ],
+);
+
+export const attachmentIdempotency = pgTable(
+  "attachment_idempotency_requests",
+  {
+    operation: text("operation").notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    requestHash: text("request_hash").notNull(),
+    attachmentId: uuid("attachment_id")
+      .notNull()
+      .references(() => attachments.id),
+    snapshot: jsonb("snapshot").$type<Attachment>().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.operation, t.idempotencyKey] })],
+);
+
+export const goals = pgTable(
+  "goals",
+  {
+    id: uuid("id").primaryKey(),
+    metric: text("metric").notNull(),
+    version: integer("version").notNull(),
+    snapshot: jsonb("snapshot").$type<Goal>().notNull(),
+  },
+  (t) => [
+    uniqueIndex("one_goal_per_metric").on(t.metric),
+    check("goal_positive_version", sql`${t.version} > 0`),
+    check(
+      "goal_snapshot_identity",
+      sql`${t.snapshot}->>'id' = ${t.id}::text and ${t.snapshot}->>'metric' = ${t.metric} and (${t.snapshot}->>'version')::integer = ${t.version}`,
+    ),
+  ],
+);
+export const goalRevisions = pgTable(
+  "goal_revisions",
+  {
+    goalId: uuid("goal_id")
+      .notNull()
+      .references(() => goals.id, { onDelete: "cascade" }),
+    version: integer("version").notNull(),
+    effectiveOn: date("effective_on", { mode: "string" }).notNull(),
+    snapshot: jsonb("snapshot").$type<Goal>().notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.goalId, t.version] }),
+    index("goal_effective_date").on(t.effectiveOn, t.goalId, t.version),
+  ],
+);
+export const goalIdempotency = pgTable(
+  "goal_idempotency_requests",
+  {
+    operation: text("operation").notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    requestHash: text("request_hash").notNull(),
+    snapshot: jsonb("snapshot").$type<Goal>().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.operation, t.idempotencyKey] })],
+);
 
 export const healthRecords = pgTable(
   "health_records",
@@ -46,6 +156,10 @@ export const healthRecords = pgTable(
     }).notNull(),
     provenance: jsonb("provenance").$type<Provenance>().notNull(),
     payload: jsonb("payload").$type<Data>().notNull(),
+    attachmentIds: uuid("attachment_ids")
+      .array()
+      .notNull()
+      .default(sql`'{}'::uuid[]`),
     timeContext: jsonb("time_context")
       .$type<HealthRecord["time_context"]>()
       .notNull()
@@ -98,6 +212,28 @@ export const revisions = pgTable(
     check("revision_positive", sql`${t.version} > 0`),
   ],
 );
+export const recordAttachments = pgTable(
+  "record_attachments",
+  {
+    recordId: uuid("record_id").notNull(),
+    recordVersion: integer("record_version").notNull(),
+    attachmentId: uuid("attachment_id")
+      .notNull()
+      .references(() => attachments.id),
+  },
+  (t) => [
+    primaryKey({ columns: [t.recordId, t.recordVersion, t.attachmentId] }),
+    foreignKey({
+      columns: [t.recordId, t.recordVersion],
+      foreignColumns: [revisions.recordId, revisions.version],
+    }).onDelete("cascade"),
+    index("attachment_record_references").on(
+      t.attachmentId,
+      t.recordId,
+      t.recordVersion,
+    ),
+  ],
+);
 export type MutationMetadata = {
   ids: string[];
   versions: number[];
@@ -126,20 +262,31 @@ export const apiKeys = pgTable(
     id: uuid("id").primaryKey(),
     tokenDigest: text("token_digest").notNull(),
     tokenHint: text("token_hint").notNull(),
+    name: text("name"),
+    access: text("access", { enum: ["read", "edit"] }),
+    includeAdmin: boolean("include_admin"),
+    creationRequestId: uuid("creation_request_id"),
+    creationDigest: text("creation_digest"),
+    oauthClientId: text("oauth_client_id"),
+    oauthClientName: text("oauth_client_name"),
+    oauthScopes: text("oauth_scopes").array(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .default(sql`statement_timestamp()`),
-    expiresAt: timestamp("expires_at", { withTimezone: true })
-      .notNull()
-      .default(sql`statement_timestamp() + interval '720 hours'`),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
     revokedAt: timestamp("revoked_at", { withTimezone: true }),
   },
   (t) => [
     uniqueIndex("api_key_digest").on(t.tokenDigest),
+    uniqueIndex("api_key_creation_request").on(t.creationRequestId),
     index("api_key_creation_order").on(t.createdAt, t.id),
     check(
       "api_key_lifetime",
-      sql`${t.expiresAt} = ${t.createdAt} + interval '720 hours'`,
+      sql`(left(${t.tokenHint}, 4) = 'vlk_' and (${t.expiresAt} is null or ${t.expiresAt} > ${t.createdAt})) or (left(${t.tokenHint}, 4) in ('vls_', 'vlm_', 'vlo_') and ${t.expiresAt} is not null and ${t.expiresAt} = ${t.createdAt} + case when left(${t.tokenHint}, 4) = 'vlm_' then interval '30 minutes' else interval '720 hours' end)`,
+    ),
+    check(
+      "api_key_manual_policy",
+      sql`(left(${t.tokenHint}, 4) = 'vlk_' and ${t.name} is not null and length(btrim(${t.name})) between 1 and 120 and ${t.access} is not null and ${t.access} in ('read', 'edit') and ${t.includeAdmin} is not null and (not ${t.includeAdmin} or ${t.access} = 'edit')) or (left(${t.tokenHint}, 4) <> 'vlk_' and ${t.name} is null and ${t.access} is null and ${t.includeAdmin} is null)`,
     ),
     check("api_key_sha256", sql`${t.tokenDigest} ~ '^[0-9a-f]{64}$'`),
   ],
@@ -151,6 +298,7 @@ export const oauthCodes = pgTable(
     apiKeyId: uuid("api_key_id").references(() => apiKeys.id, {
       onDelete: "cascade",
     }),
+    clientName: text("client_name"),
     clientId: text("client_id").notNull(),
     redirectUri: text("redirect_uri").notNull(),
     resource: text("resource").notNull(),
@@ -202,7 +350,7 @@ export const oauthTokens = pgTable(
     ),
     check(
       "oauth_token_scopes",
-      sql`cardinality(${t.scopes}) > 0 and ${t.scopes} <@ array['health:read', 'health:write']::text[]`,
+      sql`cardinality(${t.scopes}) > 0 and (${t.scopes} <@ array['health:read', 'health:write']::text[] or (${t.resource} = 'urn:vitalog:key-management' and ${t.scopes} = array['keys:manage']::text[]))`,
     ),
   ],
 );
@@ -240,6 +388,12 @@ export const oauthClientAssertions = pgTable(
   ],
 );
 export const schema = {
+  attachments,
+  attachmentIdempotency,
+  recordAttachments,
+  goals,
+  goalRevisions,
+  goalIdempotency,
   healthRecords,
   revisions,
   idempotencyRequests,
@@ -249,3 +403,36 @@ export const schema = {
   oauthClients,
   oauthClientAssertions,
 };
+
+export const accountSettings = pgTable(
+  "account_settings",
+  {
+    id: integer("id").primaryKey(),
+    name: text("name").notNull(),
+    dateFormat: text("date_format").notNull().default("day-short-month-year"),
+    timeFormat: text("time_format").notNull().default("24-hour"),
+    timeZone: text("time_zone").notNull().default("UTC"),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    check("account_settings_singleton", sql`${table.id} = 1`),
+    check(
+      "account_name_length",
+      sql`length(btrim(${table.name})) between 1 and 120`,
+    ),
+    check(
+      "account_date_format",
+      sql`${table.dateFormat} in ('day-short-month-year', 'short-month-day-year', 'year-month-day', 'day-month-year', 'month-day-year')`,
+    ),
+    check(
+      "account_time_format",
+      sql`${table.timeFormat} in ('24-hour', '12-hour', '24-hour-seconds', '12-hour-seconds')`,
+    ),
+    check(
+      "account_time_zone_length",
+      sql`length(${table.timeZone}) between 1 and 100`,
+    ),
+  ],
+);

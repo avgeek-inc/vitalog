@@ -1,0 +1,28 @@
+$kind: http-request
+id: 3e27f1d1-d860-5aae-8f08-15714fdd0992
+description: Stateless MCP with the same private Bearer header. Initialize
+  before discovery and calls.
+method: POST
+url: "{{baseUrl}}/mcp"
+headers:
+  Accept: application/json, text/event-stream
+  Content-Type: application/json
+  MCP-Protocol-Version: 2025-11-25
+body:
+  type: json
+  content: |-
+    {
+      "jsonrpc": "2.0",
+      "id": 25,
+      "method": "tools/call",
+      "params": {
+        "name": "health_create_attachment_upload",
+        "arguments": {
+          "idempotency_key": "{{idempotencyKey}}",
+          "filename": "meal.jpg",
+          "content_type": "image/jpeg",
+          "byte_length": {{attachmentByteLength}},
+          "sha256": "{{attachmentSha256}}"
+        }
+      }
+    }

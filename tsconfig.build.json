@@ -1,10 +1,13 @@
 {
   "extends": "./tsconfig.json",
+  "compilerOptions": { "noResolve": true },
   "include": [
     "src/**/*.ts",
+    "src/**/*.json",
     "scripts/migrate.ts",
     "scripts/export.ts",
-    "scripts/erase.ts"
+    "scripts/erase.ts",
+    "scripts/attachments-prune.ts"
   ],
   "exclude": ["tests", "dist"]
 }

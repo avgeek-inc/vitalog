@@ -1,223 +1,136 @@
 "use client";
 
 import {
-  Button,
-  Card,
-  FieldError,
-  Form,
-  Input,
-  Label,
-  TextArea,
-  TextField,
-  toast,
-} from "@heroui/react";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+  CreateApiKeyDialog,
+  apiKeyPermissionOptions,
+  apiKeyExpiryOptions,
+  type CreateApiKeyValues,
+} from "@avgeek-oss/design-system/patterns/account-settings/create-api-key-dialog";
+import { Field } from "@avgeek-oss/design-system/forms/field";
+import { Input } from "@avgeek-oss/design-system/forms/input";
+import { Label } from "@avgeek-oss/design-system/forms/label";
+import { AuthScreen } from "@avgeek-oss/design-system/patterns/auth/auth-screen";
+import { useEffect, useId, useRef, useState } from "react";
 import { Brand } from "./brand";
-
-type GeneratedKey = { api_key: string; expires_at: string };
-
-function generationError(status: number) {
-  if (status === 401) return "Invalid credentials";
-  if (status === 429) return "Too many attempts. Wait a minute and try again.";
-  if (status === 503)
-    return "Key generation is unavailable. Check the root configuration.";
-  return "The key could not be generated. Try again.";
-}
+import { Button } from "./ui/button";
 
 export function ApiKeyPage({ apiBaseUrl }: { apiBaseUrl: string }) {
+  const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [invalidCredentials, setInvalidCredentials] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [result, setResult] = useState<GeneratedKey>();
-  const [copyStatus, setCopyStatus] = useState("");
-  const passwordInput = useRef<HTMLInputElement>(null);
-  const keyInput = useRef<HTMLTextAreaElement>(null);
-  const resultPanel = useRef<HTMLDivElement>(null);
-
+  const emailId = useId();
+  const passwordId = useId();
+  const creationAttempt = useRef<
+    { fingerprint: string; requestId: string; body: string } | undefined
+  >(undefined);
   useEffect(() => {
-    if (result) resultPanel.current?.focus();
-  }, [result]);
-
-  useEffect(() => {
-    const clearSecrets = () => {
-      if (passwordInput.current) passwordInput.current.value = "";
-      if (keyInput.current) keyInput.current.value = "";
+    const clear = () => {
       setPassword("");
-      setResult(undefined);
-      setCopyStatus("");
+      setOpen(false);
     };
-    window.addEventListener("pagehide", clearSecrets);
-    return () => window.removeEventListener("pagehide", clearSecrets);
+    window.addEventListener("pagehide", clear);
+    return () => window.removeEventListener("pagehide", clear);
   }, []);
-
-  async function generate(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (isSubmitting) return;
-    setInvalidCredentials(false);
-    setIsSubmitting(true);
+  async function generate(values: CreateApiKeyValues) {
+    const fingerprint = JSON.stringify(values);
+    if (creationAttempt.current?.fingerprint !== fingerprint)
+      creationAttempt.current = {
+        fingerprint,
+        requestId: crypto.randomUUID(),
+        body: JSON.stringify({
+          name: values.name,
+          access: values.permission === "read" ? "read" : "edit",
+          includeAdmin: values.permission === "admin",
+          expiresAt:
+            values.expiry === "never"
+              ? null
+              : new Date(
+                  Date.now() + Number(values.expiry) * 86400000,
+                ).toISOString(),
+        }),
+      };
+    const attempt = creationAttempt.current;
     try {
       const response = await fetch(apiBaseUrl + "/auth/api-keys", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email,
-          password,
-        }),
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": attempt.requestId,
+        },
+        body: JSON.stringify({ ...JSON.parse(attempt.body), email, password }),
         credentials: "omit",
         cache: "no-store",
         redirect: "error",
       });
-      if (!response.ok) {
-        setInvalidCredentials(response.status === 401);
-        toast.danger(generationError(response.status));
-        return;
-      }
-      const data: GeneratedKey = await response.json();
-      setResult({ api_key: data.api_key, expires_at: data.expires_at });
-    } catch {
-      toast.danger("Unable to connect. Check your connection and try again.");
+      if (!response.ok)
+        throw new Error(
+          response.status === 401
+            ? "Invalid credentials"
+            : response.status === 429
+              ? "Too many attempts. Wait a minute and try again."
+              : "The key could not be generated. Try again.",
+        );
+      const result: { api_key: string | null } = await response.json();
+      return { token: result.api_key };
     } finally {
       setPassword("");
-      setIsSubmitting(false);
     }
   }
-
-  async function copy() {
-    if (!result) return;
-    try {
-      await navigator.clipboard.writeText(result.api_key);
-      setCopyStatus("API key copied.");
-    } catch {
-      keyInput.current?.focus();
-      keyInput.current?.select();
-      setCopyStatus("Select and copy the API key above.");
-    }
-  }
-
-  function generateAnother() {
-    setResult(undefined);
-    setCopyStatus("");
-    requestAnimationFrame(() => passwordInput.current?.focus());
-  }
-
   return (
-    <main className="key-page">
-      <div className="key-page-content">
-        <Brand />
-        <Card className="key-card" aria-label="API key generation">
-          <Card.Header className="key-card-header gap-2">
-            <h1 className="page-title">
-              {result ? "Your API key is ready" : "Generate an API key"}
-            </h1>
-            {result ? (
-              <Card.Description className="text-base leading-6">
-                Copy this key now. It will only be shown once.
-              </Card.Description>
-            ) : null}
-          </Card.Header>
-          <Card.Content>
-            {result ? (
-              <div
-                ref={resultPanel}
-                tabIndex={-1}
-                aria-label="Your new API key"
-                className="grid gap-5 outline-none"
-              >
-                <TextField name="api-key" isReadOnly value={result.api_key}>
-                  <Label>API key</Label>
-                  <TextArea
-                    ref={keyInput}
-                    className="key-value"
-                    variant="secondary"
-                    autoComplete="off"
-                    spellCheck={false}
-                    rows={3}
-                  />
-                </TextField>
-                <p className="text-sm leading-6 text-muted">
-                  Expires{" "}
-                  <time dateTime={result.expires_at}>
-                    {new Date(result.expires_at).toLocaleString(undefined, {
-                      dateStyle: "medium",
-                      timeStyle: "short",
-                    })}
-                  </time>
-                </p>
-                <div className="key-actions">
-                  <Button type="button" onPress={copy}>
-                    Copy API key
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onPress={generateAnother}
-                  >
-                    Generate another key
-                  </Button>
-                </div>
-                <p
-                  className="text-sm text-muted"
-                  role="status"
-                  aria-live="polite"
-                >
-                  {copyStatus}
-                </p>
-              </div>
-            ) : (
-              <Form
-                className="grid gap-5"
-                action={apiBaseUrl + "/auth/api-keys"}
-                method="post"
-                onSubmit={generate}
-                aria-busy={isSubmitting}
-              >
-                <TextField
-                  name="email"
-                  type="email"
-                  autoComplete="username"
-                  isRequired
-                  isInvalid={invalidCredentials || undefined}
-                  isDisabled={isSubmitting}
-                  value={email}
-                  onChange={(value) => {
-                    setEmail(value);
-                    setInvalidCredentials(false);
-                  }}
-                >
-                  <Label>Root email</Label>
-                  <Input variant="secondary" maxLength={254} />
-                  {!isSubmitting ? <FieldError /> : null}
-                </TextField>
-                <TextField
-                  name="password"
-                  type="password"
-                  autoComplete="current-password"
-                  isRequired
-                  isInvalid={invalidCredentials || undefined}
-                  isDisabled={isSubmitting}
-                  value={password}
-                  onChange={(value) => {
-                    setPassword(value);
-                    setInvalidCredentials(false);
-                  }}
-                >
-                  <Label>Root password</Label>
-                  <Input
-                    ref={passwordInput}
-                    variant="secondary"
-                    maxLength={256}
-                  />
-                  {!isSubmitting ? <FieldError /> : null}
-                </TextField>
-                <Button type="submit" fullWidth isPending={isSubmitting}>
-                  {isSubmitting ? "Generating key…" : "Generate API key"}
-                </Button>
-              </Form>
-            )}
-          </Card.Content>
-        </Card>
-      </div>
+    <main className="vitalog-auth">
+      <AuthScreen
+        brand={<Brand />}
+        title="Generate an API key"
+        description="Choose a name, permissions and expiry, then verify your identity."
+      >
+        <Button onPress={() => setOpen(true)}>Create API key</Button>
+        <CreateApiKeyDialog
+          isOpen={open}
+          onOpenChange={(value) => {
+            setOpen(value);
+            if (!value) creationAttempt.current = undefined;
+            if (!value) setPassword("");
+          }}
+          permissionOptions={apiKeyPermissionOptions}
+          expiryOptions={apiKeyExpiryOptions}
+          onCreate={generate}
+        >
+          <div className="grid gap-4">
+            <Field>
+              <Label htmlFor={emailId} isRequired>
+                Email
+              </Label>
+              <Input
+                id={emailId}
+                name="email"
+                type="email"
+                required
+                maxLength={254}
+                autoComplete="username"
+                value={email}
+                onChange={(event) => setEmail(event.currentTarget.value)}
+                variant="secondary"
+              />
+            </Field>
+            <Field>
+              <Label htmlFor={passwordId} isRequired>
+                Password
+              </Label>
+              <Input
+                id={passwordId}
+                name="password"
+                type="password"
+                required
+                maxLength={256}
+                autoComplete="current-password"
+                value={password}
+                onChange={(event) => setPassword(event.currentTarget.value)}
+                variant="secondary"
+              />
+            </Field>
+          </div>
+        </CreateApiKeyDialog>
+      </AuthScreen>
     </main>
   );
 }

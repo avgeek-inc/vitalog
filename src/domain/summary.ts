@@ -3,6 +3,7 @@ import {
   CATALOG_VERSION,
   nonAdditiveGroups,
   nutrientKeys,
+  moodValues,
   recordTypes,
 } from "../registry/definitions.js";
 import { localDate } from "./validation.js";
@@ -586,7 +587,13 @@ export function activitySummary(records: HealthRecord[]): Data {
     (record) => record.data.entry_kind === "daily_total" && usable(record),
   );
   const daily = object(total?.data.daily_totals);
-  const fields = ["elapsed_seconds", "distance_m", "steps", "energy_kcal"];
+  const fields = [
+    "elapsed_seconds",
+    "exercise_seconds",
+    "distance_m",
+    "steps",
+    "energy_kcal",
+  ];
   const subtotals = Object.fromEntries(
     fields.map((field) => {
       const values = workouts.filter(
@@ -597,7 +604,9 @@ export function activitySummary(records: HealthRecord[]): Data {
         const byBasis = Object.fromEntries(
           ["active", "gross", "unknown"].map((basis) => {
             const matching = values.filter(
-              (record) => record.data.energy_basis === basis,
+              (record) =>
+                record.data.energy_basis === basis &&
+                usable(record, "/energy_basis"),
             );
             return [
               basis,
@@ -807,11 +816,33 @@ export function dailySummary(
           reported_at: object(record.data.diary_completeness).reported_at,
         };
   }
-  if (selected.includes("checkin"))
+  if (selected.includes("checkin")) {
+    const latestMood = checkins
+      .filter(
+        (record) =>
+          usable(record, "/mood") &&
+          moodValues.some((value) => value === record.data.mood),
+      )
+      .sort(
+        (a, b) =>
+          Date.parse(b.occurred_at ?? b.recorded_at) -
+            Date.parse(a.occurred_at ?? a.recorded_at) ||
+          Date.parse(b.recorded_at) - Date.parse(a.recorded_at) ||
+          b.id.localeCompare(a.id),
+      )[0];
     payload.checkin = {
       observations: checkins,
       rating_aggregation: "individual_supplied_observations",
+      latest_mood: latestMood
+        ? {
+            value: latestMood.data.mood,
+            source_id: latestMood.id,
+            occurred_at: latestMood.occurred_at,
+            recorded_at: latestMood.recorded_at,
+          }
+        : null,
     };
+  }
   if (selected.includes("intake"))
     payload.intake = {
       events: byType("intake"),

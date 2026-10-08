@@ -85,9 +85,6 @@ await new Promise<void>((resolve, reject) => {
 const address = reservation.address();
 assert(address && typeof address === "object");
 const publishedPort = address.port;
-await new Promise<void>((resolve, reject) =>
-  reservation.close((error) => (error ? reject(error) : resolve())),
-);
 const uiReservation = createServer();
 await new Promise<void>((resolve) =>
   uiReservation.listen(0, "127.0.0.1", resolve),
@@ -95,6 +92,9 @@ await new Promise<void>((resolve) =>
 const uiAddress = uiReservation.address();
 assert(uiAddress && typeof uiAddress === "object");
 const uiPort = uiAddress.port;
+await new Promise<void>((resolve, reject) =>
+  reservation.close((error) => (error ? reject(error) : resolve())),
+);
 await new Promise<void>((resolve, reject) =>
   uiReservation.close((error) => (error ? reject(error) : resolve())),
 );
@@ -248,12 +248,26 @@ try {
   });
   assert.equal(preflight.status, 204);
   assert.equal(preflight.headers.get("access-control-allow-origin"), uiUrl);
+  const missingSettings = await fetch(url + "/auth/api-keys", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Origin: uiUrl },
+    body: JSON.stringify({
+      email: env.ROOT_EMAIL,
+      password: env.ROOT_PASSWORD,
+    }),
+  });
+  assert.equal(missingSettings.status, 422);
+  await missingSettings.text();
   const issued = await fetch(url + "/auth/api-keys", {
     method: "POST",
     headers: { "Content-Type": "application/json", Origin: uiUrl },
     body: JSON.stringify({
       email: env.ROOT_EMAIL,
       password: env.ROOT_PASSWORD,
+      name: "Container verification",
+      access: "edit",
+      includeAdmin: false,
+      expiresAt: null,
     }),
   });
   assert.equal(issued.status, 201);
@@ -280,6 +294,49 @@ try {
   });
   assert.equal(denied.status, 401);
   await denied.text();
+  const login = await fetch(uiUrl + "/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Origin: uiUrl },
+    body: JSON.stringify({
+      email: env.ROOT_EMAIL,
+      password: env.ROOT_PASSWORD,
+    }),
+  });
+  assert.equal(login.status, 200);
+  assert.deepEqual(await login.json(), { signed_in: true });
+  const cookie = login.headers.get("set-cookie")!;
+  assert.match(cookie, /HttpOnly/i);
+  const sessionCookie = cookie.split(";")[0]!;
+  for (const [path, heading] of [
+    ["/daily", "Daily nutrition"],
+    ["/weight", "Current weight"],
+  ] as const) {
+    const page = await fetch(uiUrl + path, {
+      headers: { Cookie: sessionCookie },
+    });
+    assert.equal(page.status, 200);
+    const html = await page.text();
+    assert(
+      html.includes(heading),
+      "The dashboard must read its API inside Docker",
+    );
+    assert(!html.includes(sessionCookie.split("=")[1]!));
+    assert(!html.includes("api:3000"));
+  }
+  const logout = await fetch(uiUrl + "/auth/logout", {
+    method: "POST",
+    headers: { Cookie: sessionCookie, Origin: uiUrl },
+  });
+  assert.equal(logout.status, 200);
+  assert.deepEqual(await logout.json(), { signed_out: true, revoked: true });
+  assert.equal(
+    (
+      await fetch(url + "/v1/goals", {
+        headers: { Authorization: `Bearer ${sessionCookie.split("=")[1]!}` },
+      })
+    ).status,
+    401,
+  );
   const count = () =>
     compose([
       "exec",
@@ -453,6 +510,7 @@ try {
       "separate Next.js authentication routes, nonce CSP and trusted browser origin",
       "UI container non-root, read-only and contains no API credentials",
       "UI compiled assets and logo with no configured secrets",
+      "dashboard sign-in, server reads through the private API and server revocation",
       "empty database",
       "non-root UID 1000",
       "read-only root filesystem",

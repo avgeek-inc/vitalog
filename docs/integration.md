@@ -23,7 +23,7 @@ Configure `Authorization: Bearer <AUTH_KEY or active generated API key>` private
 | `health_correct_record`    | `POST /v1/records/{id}/corrections` |
 | `health_void_record`       | `POST /v1/records/{id}/voids`       |
 
-All sixteen tools have input/output schemas and structured responses with a JSON text fallback. Reads have `readOnlyHint=true`. Corrections and voids carry a destructive hint. Annotations do not change authorization. The service publishes no UI resources or vendor-specific client routes.
+All 27 tools have input/output schemas and structured responses with a JSON text fallback. Reads have `readOnlyHint=true`. Corrections, voids and goal mutations carry a destructive hint. Annotations do not change authorization. The service publishes no UI resources or vendor-specific client routes. The five attachment operations and reusable `attachment_ids` are documented in the [attachments guide](attachments.md). The six additional goal operations are documented in the [goals guide](goals.md); goals remain separate from recorded observations.
 
 Vitalog uses the official TypeScript SDK's stateless Streamable HTTP transport with JSON responses. Every request creates a fresh server/transport. Initialization negotiates the selected SDK's supported protocol; the captured run uses `2025-11-25`. Set both JSON and SSE in Accept for MCP POST requests. The SDK handles JSON-RPC, initialization, negotiation and transport errors. There is no resumable event store or persistent MCP session. Unknown methods, unsupported media types and protocol revisions follow the SDK's error contract.
 
@@ -52,6 +52,26 @@ Catalog cursors bind category, filters, ordering, page size and catalog version.
 REST booleans accept only `true` or `false`. Integer query values use nonnegative decimal digits. Arrays use one comma-separated parameter, such as `metrics=measurement:weight,lab:hemoglobin`. Repeated parameters, empty values, unknown query names and SQL-like filters fail validation. MCP receives the corresponding boolean, integer and array values directly.
 
 ## Log a supplied observation
+
+### Mood check-ins
+
+Log a mood through `POST /v1/checkins` or `health_log_checkin` using `data.mood`. The allowed enum values are `very_low`, `low`, `neutral`, `good` and `great`. Mood is optional so existing symptom, rating and completeness check-ins remain valid. Numeric `ratings.mood` values retain their supplied scale; the service does not convert them to a category.
+
+For REST, send an `Idempotency-Key` header and this body. For MCP, add the same key as `idempotency_key` to the arguments:
+
+```json
+{
+  "occurred_on": "2026-10-05",
+  "occurred_at": "2026-10-05T09:00:00+05:30",
+  "timezone": "Asia/Kolkata",
+  "provenance": { "source_type": "manual", "value_kind": "reported" },
+  "data": { "mood": "good", "notes": "After a morning walk" }
+}
+```
+
+Discover the enum with `health_get_catalog` using `category: "record_schemas"`, `key: "checkin"`, `field_path: "/mood"`. Retrieve check-ins with the record tools or `GET /v1/records?record_types=checkin`. `GET /v1/days/{date}` and `health_get_daily_summary` include `checkin.latest_mood`, containing the enum value, source record ID, observation time and recording time. It selects the latest valid, active mood for that day by observation instant, falling back to recording time for date-only observations; ties use recording time and record ID. Missing mood returns `null`. All usable check-ins remain in `checkin.observations`; categories are never averaged. Existing correction, history, void, export and erasure operations apply to mood check-ins.
+
+### Nutrition
 
 A REST nutrition write uses `Idempotency-Key` in the header and this body:
 

@@ -1,0 +1,10 @@
+$kind: http-request
+id: 17f6fd7d-9cc5-58e6-807d-b20202cc9d2b
+description: Discover supported goal metrics, canonical units and fixed
+  comparison rules. Goals are explicit user targets, separate from observed
+  records.
+method: GET
+url: "{{baseUrl}}/v1/goals/catalog"
+headers:
+  Accept: application/json
+order: 17000

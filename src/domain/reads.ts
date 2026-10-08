@@ -155,7 +155,7 @@ export class Reads {
       conditions.push(eq(healthRecords.validity, input.validity));
     if (input.metric_key)
       conditions.push(
-        sql`${healthRecords.payload}->>'metric_key' = ${input.metric_key} or ${healthRecords.payload}->>'study_type' = ${input.metric_key}`,
+        sql`(${healthRecords.payload}->>'metric_key' = ${input.metric_key} or ${healthRecords.payload}->>'study_type' = ${input.metric_key})`,
       );
     if (input.analyte_key)
       conditions.push(
@@ -173,7 +173,7 @@ export class Reads {
         );
       else
         conditions.push(
-          sql`${healthRecords.occurredOn} is null or (${healthRecords.occurredOn}, ${healthRecords.recordedAt}, ${healthRecords.id}) > (${String(position.date)}::date, ${String(position.recorded_at)}::timestamptz, ${String(position.id)}::uuid)`,
+          sql`(${healthRecords.occurredOn} is null or (${healthRecords.occurredOn}, ${healthRecords.recordedAt}, ${healthRecords.id}) > (${String(position.date)}::date, ${String(position.recorded_at)}::timestamptz, ${String(position.id)}::uuid))`,
         );
     }
     const rows = await this.store.db

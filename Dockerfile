@@ -2,6 +2,7 @@ FROM node:24.16.0-bookworm-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY apps/web/package.json ./apps/web/package.json
+COPY vendor ./vendor
 RUN npm ci --workspaces=false
 COPY tsconfig.json tsconfig.build.json ./
 COPY src ./src

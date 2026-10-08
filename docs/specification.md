@@ -2,7 +2,7 @@
 
 Revision 5 • Consolidated single-file edition • 2 October 2026
 
-> Authentication extension, 3 October 2026: [API-key setup and contracts](api-keys.md) supersedes this revision's static-key-only and key-generation/management exclusions. The environment `AUTH_KEY` retains full access; optional environment root credentials generate revocable 30-day ledger keys, with primary-key-only administration. The [ChatGPT plugin](chatgpt-plugin.md) adds OAuth access linked to generated keys. The health domain remains single-owner with sixteen MCP tools. The original specification below is retained as the health-domain baseline.
+> Authentication extension, 3 October 2026: [API-key setup and contracts](api-keys.md) supersedes this revision's static-key-only and key-generation/management exclusions. The environment `AUTH_KEY` retains full access; optional environment root credentials generate revocable personal ledger keys with explicit name, permission and expiry settings, with primary-key-only administration. The [ChatGPT plugin](chatgpt-plugin.md) adds OAuth access linked to generated keys. The health domain remains single-owner with sixteen MCP tools. The original specification below is retained as the health-domain baseline.
 
 Implement a single-user structured health datastore with equivalent REST API and MCP capabilities. This specification is independent of any particular client or harness. The names below are proposed application contracts.
 

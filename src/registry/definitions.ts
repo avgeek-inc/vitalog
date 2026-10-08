@@ -15,7 +15,7 @@ import {
 } from "./primitives.js";
 
 export { inventory };
-export const CATALOG_VERSION = "1.0.1";
+export const CATALOG_VERSION = "1.0.4";
 export const fieldConditionSemantics = {
   missing: "True when the field at field_path is not supplied.",
   not_equals:
@@ -35,6 +35,13 @@ export const recordTypes = [
   "lab_result",
 ] as const;
 export type RecordType = (typeof recordTypes)[number];
+export const moodValues = [
+  "very_low",
+  "low",
+  "neutral",
+  "good",
+  "great",
+] as const;
 export const nutrientKeys = inventory.nutrient_entries.map(
   (entry) => entry.key,
 );

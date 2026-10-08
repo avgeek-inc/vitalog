@@ -11,7 +11,19 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   agentRules: false,
   allowedDevOrigins: ["localhost", "127.0.0.1"],
-  experimental: { cpus: 1, webpackMemoryOptimizations: true },
+  // build:web generates route types and runs tsc before starting webpack.
+  typescript: { ignoreBuildErrors: true },
+  experimental: {
+    cpus: 1,
+    webpackBuildWorker: true,
+    webpackMemoryOptimizations: true,
+    optimizePackageImports: [
+      "@heroui/react",
+      "@heroui/styles",
+      "react-aria-components",
+      "@hugeicons/core-free-icons",
+    ],
+  },
   async headers() {
     return [
       {

@@ -24,10 +24,12 @@ import { database } from "../src/db/client.js";
 import { Service } from "../src/service.js";
 import { migrateDatabase } from "./migrate.js";
 import {
+  CATALOG_VERSION,
   inventory,
   nutrientKeys,
   analyteKeys,
   measurementKeys,
+  moodValues,
 } from "../src/registry/definitions.js";
 import { operations } from "../src/registry/operations.js";
 import { object, type Data, type HealthRecord } from "../src/domain/types.js";
@@ -135,6 +137,8 @@ async function rest(
       ...headers,
     },
     body: data ? JSON.stringify(data) : undefined,
+  }).catch((error: unknown) => {
+    throw new Error(`REST transport failed for ${path}`, { cause: error });
   });
   return {
     status: response.status,
@@ -143,7 +147,11 @@ async function rest(
   };
 }
 async function call(name: string, args: Data): Promise<Data> {
-  const response = await client!.callTool({ name, arguments: args });
+  const response = await client!
+    .callTool({ name, arguments: args })
+    .catch((error: unknown) => {
+      throw new Error(`MCP transport failed for ${name}`, { cause: error });
+    });
   if (response.isError)
     throw new Error(
       `MCP ${name}: ${JSON.stringify(response.content).slice(0, 600)}`,
@@ -153,14 +161,20 @@ async function call(name: string, args: Data): Promise<Data> {
   return output;
 }
 async function mcpFailure(name: string, args: Data): Promise<Data> {
-  const response = await client!.callTool({ name, arguments: args });
+  const response = await client!
+    .callTool({ name, arguments: args })
+    .catch((error: unknown) => {
+      throw new Error(`MCP failure transport failed for ${name}`, {
+        cause: error,
+      });
+    });
   assert(response.isError);
   const content = response.content as { type: string; text: string }[];
   return object(JSON.parse(content[0]!.text));
 }
 async function reset() {
   await connection!.pool.query(
-    "TRUNCATE record_revisions, idempotency_requests, health_records",
+    "TRUNCATE record_attachments, record_revisions, idempotency_requests, health_records",
   );
 }
 async function counts() {
@@ -250,10 +264,10 @@ try {
     },
   );
   await check(
-    "Authenticated MCP initialization, exact 16 tools, schemas, annotations and no UI resources",
+    "Authenticated MCP initialization, all registered tools, schemas, annotations and no UI resources",
     async () => {
       const result = await client!.listTools();
-      assert.equal(result.tools.length, 16);
+      assert.equal(result.tools.length, operations.length);
       assert.deepEqual(
         result.tools.map((tool) => tool.name).sort(),
         operations.map((op) => op.name).sort(),
@@ -268,7 +282,7 @@ try {
         );
       }
       assert(!JSON.stringify(result).includes(key));
-      return 16;
+      return operations.length;
     },
   );
   await check(
@@ -1018,6 +1032,7 @@ try {
           },
         },
         checkin: {
+          mood: "good",
           ratings: {
             pain: {
               value: 3,
@@ -1476,6 +1491,39 @@ try {
       } while (cursor);
       assert.equal(pageIds.length, 3);
       assert.equal(new Set(pageIds).size, 3);
+      for (const transport of ["REST", "MCP"]) {
+        const filteredIds: string[] = [];
+        let filteredCursor: unknown;
+        do {
+          const filters = {
+            start_date: fixtureDate,
+            end_date: fixtureDate,
+            limit: 1,
+            ...(filteredCursor ? { cursor: filteredCursor } : {}),
+          };
+          const page =
+            transport === "MCP"
+              ? await call("health_list_records", filters)
+              : (
+                  await rest(
+                    "/v1/records?" +
+                      new URLSearchParams(
+                        Object.entries(filters).map(([key, value]) => [
+                          key,
+                          String(value),
+                        ]),
+                      ),
+                  )
+                ).body;
+          for (const record of page.records as Data[]) {
+            assert.equal(record.occurred_on, fixtureDate);
+            filteredIds.push(String(record.id));
+          }
+          filteredCursor = page.next_cursor;
+        } while (filteredCursor);
+        assert.deepEqual(new Set(filteredIds), new Set([a.id, c.id]));
+        assert.equal(filteredIds.length, 2);
+      }
       const bad = {
         idempotency_key: "bad-key",
         ...base,
@@ -1560,7 +1608,17 @@ try {
       const exported = execFileSync(
         process.execPath,
         ["--import", "tsx", "scripts/export.ts"],
-        { encoding: "utf8", env: { ...process.env, DATABASE_URL: dbUrl } },
+        {
+          encoding: "utf8",
+          env: {
+            ...process.env,
+            S3_BUCKET: "",
+            S3_ENDPOINT: "",
+            S3_ACCESS_KEY_ID: "",
+            S3_SECRET_ACCESS_KEY: "",
+            DATABASE_URL: dbUrl,
+          },
+        },
       );
       const rows = exported
         .trim()
@@ -1676,7 +1734,17 @@ try {
           "scripts/erase.ts",
           "--confirm-permanent-erasure=ERASE_VITALOG",
         ],
-        { env: { ...process.env, DATABASE_URL: dbUrl }, stdio: "pipe" },
+        {
+          env: {
+            ...process.env,
+            S3_BUCKET: "",
+            S3_ENDPOINT: "",
+            S3_ACCESS_KEY_ID: "",
+            S3_SECRET_ACCESS_KEY: "",
+            DATABASE_URL: dbUrl,
+          },
+          stdio: "pipe",
+        },
       );
       assert.deepEqual(await counts(), {
         records: 0,
@@ -1698,6 +1766,7 @@ try {
         },
       });
       assert.equal(oversize.status, 413);
+      assert.equal(oversize.response.headers.get("Connection"), "close");
       const credentialArgument = await rest(
         "/mcp",
         {
@@ -1714,6 +1783,10 @@ try {
       );
       assert.equal(credentialArgument.status, 422);
       assert.equal(credentialArgument.body.code, "VALIDATION_ERROR");
+      assert.equal(
+        (await call("health_get_catalog", {})).catalog_version,
+        CATALOG_VERSION,
+      );
       assert(!JSON.stringify(credentialArgument.body).includes(key));
       assert(!JSON.stringify(logs).includes(key));
       assert(!JSON.stringify(logs).includes("Lunch"));
@@ -1759,6 +1832,145 @@ try {
       assert.equal(next.status, 429);
       assert.equal(next.headers.get("Retry-After"), "60");
       assert.equal(object(await next.json()).code, "RATE_LIMITED");
+    },
+  );
+  await check(
+    "Mood enums round-trip across REST/MCP with discovery, retries, latest selection, correction, void and restart persistence",
+    async () => {
+      await reset();
+      const catalog = await call("health_get_catalog", {
+        category: "record_schemas",
+        key: "checkin",
+        field_path: "/mood",
+      });
+      assert(JSON.stringify(catalog).includes(JSON.stringify(moodValues)));
+      const tools = await client!.listTools();
+      assert(
+        JSON.stringify(
+          tools.tools.find((tool) => tool.name === "health_log_checkin")!
+            .inputSchema,
+        ).includes(JSON.stringify(moodValues)),
+      );
+      let latest: HealthRecord | undefined;
+      for (const [index, mood] of moodValues.entries()) {
+        const restKey = randomUUID();
+        const restArgs = {
+          occurred_on: fixtureDate,
+          timezone: base.timezone,
+          provenance: base.provenance,
+          occurred_at: `${fixtureDate}T${String(8 + index).padStart(2, "0")}:00:00+05:30`,
+          data: { mood, notes: "Synthetic mood check-in" },
+        };
+        const created = await rest("/v1/checkins", restArgs, restKey);
+        assert.equal(created.status, 200, JSON.stringify(created.body));
+        const fromRest = created.body.record as HealthRecord;
+        assert.equal(fromRest.data.mood, mood);
+        const replay = await call("health_log_checkin", {
+          ...restArgs,
+          idempotency_key: restKey,
+        });
+        assert.equal(replay.idempotent_replay, true);
+        assert.equal((replay.record as HealthRecord).id, fromRest.id);
+        const mcpKey = randomUUID();
+        const mcpArgs = {
+          ...restArgs,
+          occurred_at: `${fixtureDate}T${14 + index}:00:00+05:30`,
+        };
+        const fromMcp = await call("health_log_checkin", {
+          ...mcpArgs,
+          idempotency_key: mcpKey,
+        });
+        latest = fromMcp.record as HealthRecord;
+        assert.equal(latest.data.mood, mood);
+        const replayRest = await rest("/v1/checkins", mcpArgs, mcpKey);
+        assert.equal(replayRest.status, 200);
+        assert.equal(replayRest.body.idempotent_replay, true);
+        assert.equal((replayRest.body.record as HealthRecord).id, latest.id);
+      }
+      const beforeInvalid = await counts();
+      for (const mood of ["happy", "GOOD", 3, null]) {
+        const invalid = await rest("/v1/checkins", { ...base, data: { mood } });
+        assert.equal(invalid.status, 422);
+        assert.equal(invalid.body.code, "VALIDATION_ERROR");
+        const invalidMcp = await mcpFailure("health_log_checkin", {
+          ...base,
+          data: { mood },
+          idempotency_key: randomUUID(),
+        });
+        assert.equal(invalidMcp.code, "VALIDATION_ERROR");
+      }
+      assert.deepEqual(await counts(), beforeInvalid);
+      const restDay = await rest(`/v1/days/${fixtureDate}?sections=checkin`);
+      const mcpDay = await call("health_get_daily_summary", {
+        date: fixtureDate,
+        sections: ["checkin"],
+      });
+      assert.equal(restDay.status, 200);
+      assert.deepEqual(restDay.body, mcpDay);
+      assert.equal(object(object(mcpDay.checkin).latest_mood).value, "great");
+      assert.equal(
+        object(object(mcpDay.checkin).latest_mood).source_id,
+        latest!.id,
+      );
+      assert.equal(
+        (object(mcpDay.checkin).observations as HealthRecord[]).length,
+        moodValues.length * 2,
+      );
+      const listed = await call("health_list_records", {
+        record_types: ["checkin"],
+        start_date: fixtureDate,
+        end_date: fixtureDate,
+      });
+      assert.equal(
+        (listed.records as HealthRecord[]).length,
+        moodValues.length * 2,
+      );
+      const corrected = await call("health_correct_record", {
+        id: latest!.id,
+        idempotency_key: randomUUID(),
+        expected_version: 1,
+        reason: "Correct synthetic mood",
+        replacement: {
+          record_type: "checkin",
+          occurred_on: fixtureDate,
+          occurred_at: latest!.occurred_at,
+          timezone: base.timezone,
+          provenance: base.provenance,
+          data: { mood: "low" },
+        },
+      });
+      assert.equal((corrected.record as HealthRecord).version, 2);
+      assert.equal(
+        object(
+          object(
+            (await rest(`/v1/days/${fixtureDate}?sections=checkin`)).body
+              .checkin,
+          ).latest_mood,
+        ).value,
+        "low",
+      );
+      const voided = await rest(`/v1/records/${latest!.id}/voids`, {
+        expected_version: 2,
+        reason: "Void synthetic check-in",
+      });
+      assert.equal(voided.status, 200);
+      const afterVoid = await call("health_get_daily_summary", {
+        date: fixtureDate,
+        sections: ["checkin"],
+      });
+      assert.equal(object(object(afterVoid.checkin).latest_mood).value, "good");
+      await stopApi();
+      await startApi();
+      const afterRestart = await rest(
+        `/v1/days/${fixtureDate}?sections=checkin`,
+      );
+      assert.deepEqual(afterRestart.body, afterVoid);
+      const history = await call("health_get_record", {
+        id: latest!.id,
+        include_history: true,
+      });
+      assert.equal((history.record as HealthRecord).status, "voided");
+      return 63;
     },
   );
   const report = {

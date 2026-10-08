@@ -1,0 +1,14 @@
+$kind: http-request
+id: d5be0b77-14ad-5e33-8a15-f92c727af6fa
+description: Validate a key-management session and read its effective expiry.
+  Requires a vlm_ Bearer token.
+method: GET
+url: "{{baseUrl}}/auth/key-management/session"
+headers:
+  Accept: application/json
+auth:
+  - id: fa444620-858a-535e-82f4-3b92c2608547
+    type: bearer
+    name: Key management session
+    credentials:
+      token: "{{keyManagementToken}}"

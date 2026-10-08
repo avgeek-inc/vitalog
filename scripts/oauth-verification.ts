@@ -23,6 +23,7 @@ import { OAuthStore, pkceChallenge } from "../src/auth/oauth-store.js";
 import { object, type Data } from "../src/domain/types.js";
 import { examples } from "../tests/fixtures.js";
 import { migrateDatabase } from "./migrate.js";
+import { operations } from "../src/registry/operations.js";
 
 const container = `vitalog-oauth-${process.pid}`;
 const databasePassword = randomBytes(32).toString("hex");
@@ -318,8 +319,13 @@ try {
   }
   await migrateDatabase(url);
   keys = new ApiKeys(connection.db);
-  const key = await keys.create();
-  tokens.push(key.api_key);
+  const key = await keys.create({
+    name: "Verification",
+    access: "edit",
+    includeAdmin: false,
+    expiresAt: new Date(Date.now() + 30 * 86400000).toISOString(),
+  });
+  tokens.push(key.api_key!);
   await check(
     "Discovery advertises S256, CIMD, issuer identification and the exact MCP audience",
     async () => {
@@ -349,7 +355,7 @@ try {
         headers: { Cookie: flow.cookie },
       });
       assert.deepEqual(request.body.scopes, ["health:read", "health:write"]);
-      for (const supplied of [primary, key.api_key])
+      for (const supplied of [primary, key.api_key!])
         assert.equal(
           (
             await approve(flow, undefined, "allow", {
@@ -602,7 +608,7 @@ try {
       );
       for (const secret of [
         primary,
-        key.api_key,
+        key.api_key!,
         login.password,
         String(issued.body.access_token),
         grant.code,
@@ -682,7 +688,7 @@ try {
       const instance = await client(String(issued.access_token));
       try {
         const tools = await instance.listTools();
-        assert.equal(tools.tools.length, 16);
+        assert.equal(tools.tools.length, operations.length);
         assert(
           tools.tools.every((tool) =>
             Array.isArray(tool._meta?.securitySchemes),
@@ -857,7 +863,12 @@ try {
   await check(
     "Expired authorization codes and expired or revoked parent keys cannot issue or use tokens",
     async () => {
-      const parent = await keys.create();
+      const parent = await keys.create({
+        name: "Verification",
+        access: "edit",
+        includeAdmin: false,
+        expiresAt: new Date(Date.now() + 30 * 86400000).toISOString(),
+      });
       const grant = await code();
       await connection!.pool.query(
         "update oauth_authorization_codes set created_at=statement_timestamp()-interval '300 seconds', expires_at=statement_timestamp() where code_digest=$1",
@@ -881,7 +892,12 @@ try {
         ).status,
         401,
       );
-      const revoked = await keys.create();
+      const revoked = await keys.create({
+        name: "Verification",
+        access: "edit",
+        includeAdmin: false,
+        expiresAt: new Date(Date.now() + 30 * 86400000).toISOString(),
+      });
       const revokedGrant = await legacyCode(revoked.id);
       await keys.revoke(revoked.id);
       assert.equal((await exchange(revokedGrant)).body.error, "invalid_grant");
@@ -890,12 +906,22 @@ try {
   await check(
     "Expired and revoked OAuth grants are pruned in bounded shared batches without deleting active grants, keys or ledger records",
     async () => {
-      const parent = await keys.create();
+      const parent = await keys.create({
+        name: "Verification",
+        access: "edit",
+        includeAdmin: false,
+        expiresAt: new Date(Date.now() + 30 * 86400000).toISOString(),
+      });
       const active = await exchange(await legacyCode(parent.id));
       assert.equal(active.response.status, 200);
       tokens.push(String(active.body.access_token));
       const pending = await code();
-      const revoked = await keys.create();
+      const revoked = await keys.create({
+        name: "Verification",
+        access: "edit",
+        includeAdmin: false,
+        expiresAt: new Date(Date.now() + 30 * 86400000).toISOString(),
+      });
       const revokedAccess = await exchange(await legacyCode(revoked.id));
       assert.equal(revokedAccess.response.status, 200);
       tokens.push(String(revokedAccess.body.access_token));
@@ -1115,7 +1141,14 @@ try {
           await request("/auth/api-keys", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ...login, password: "incorrect-password" }),
+            body: JSON.stringify({
+              ...login,
+              password: "incorrect-password",
+              name: "Verification",
+              access: "edit",
+              includeAdmin: false,
+              expiresAt: null,
+            }),
           })
         ).status,
         401,
@@ -1387,7 +1420,10 @@ try {
       await begin("health:read", nativeExtras);
       const sdkClient = await client(String(nativeToken.body.access_token));
       try {
-        assert.equal((await sdkClient.listTools()).tools.length, 16);
+        assert.equal(
+          (await sdkClient.listTools()).tools.length,
+          operations.filter((operation) => !operation.mutation).length,
+        );
       } finally {
         await sdkClient.close();
       }
@@ -1682,7 +1718,10 @@ try {
           }),
         );
         try {
-          assert.equal((await instance.listTools()).tools.length, 16);
+          assert.equal(
+            (await instance.listTools()).tools.length,
+            operations.length,
+          );
           await instance.callTool({
             name: "health_get_catalog",
             arguments: {},
@@ -1841,7 +1880,10 @@ try {
       );
       const sdkClient = await client(String(issued.body.access_token));
       try {
-        assert.equal((await sdkClient.listTools()).tools.length, 16);
+        assert.equal(
+          (await sdkClient.listTools()).tools.length,
+          operations.filter((operation) => !operation.mutation).length,
+        );
       } finally {
         await sdkClient.close();
       }
@@ -2055,6 +2097,72 @@ try {
         await connection!.pool.query(
           "delete from oauth_clients where client_id like 'vcl_capacity%'",
         );
+      }
+    },
+  );
+  await check(
+    "Never-expiring manual parents keep OAuth expiry finite and enforce the key ceiling on every request",
+    async () => {
+      const parent = await keys.create({
+        name: "OAuth parent ceiling",
+        access: "read",
+        includeAdmin: false,
+        expiresAt: null,
+      });
+      const verifier = randomBytes(32).toString("base64url");
+      const grant = {
+        client_id: chatGptClientId,
+        redirect_uri: chatGptRedirectUri,
+        resource: origin + "/mcp",
+        scopes: ["health:read", "health:write"],
+        code_challenge: pkceChallenge(verifier),
+      };
+      const store = new OAuthStore(connection!.db, origin + "/mcp");
+      const writeCode = await store.issueCode(parent.id, grant);
+      assert.equal(
+        await store.exchange({
+          ...grant,
+          code: writeCode,
+          code_verifier: verifier,
+        }),
+        undefined,
+      );
+      const readCode = await store.issueCode(parent.id, {
+        ...grant,
+        scopes: ["health:read"],
+      });
+      const issued = await store.exchange({
+        ...grant,
+        code: readCode,
+        code_verifier: verifier,
+      });
+      assert(issued);
+      assert(issued.expires_in > 0 && issued.expires_in <= 30 * 86400);
+      const instance = await client(issued.access_token);
+      try {
+        assert.deepEqual(
+          (await instance.listTools()).tools.map((tool) => tool.name).sort(),
+          operations
+            .filter((operation) => !operation.mutation)
+            .map((operation) => operation.name)
+            .sort(),
+        );
+        await assert.rejects(
+          instance.callTool({
+            name: "health_log_hydration",
+            arguments: examples.hydration,
+          }),
+        );
+        assert.equal(
+          (
+            await store.authenticate("Bearer " + issued.access_token)
+          )?.scopes.includes("health:write"),
+          false,
+        );
+        await keys.revoke(parent.id);
+        await assert.rejects(instance.listTools());
+      } finally {
+        await instance.close();
       }
     },
   );

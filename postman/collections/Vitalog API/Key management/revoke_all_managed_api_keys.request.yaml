@@ -1,0 +1,16 @@
+$kind: http-request
+id: 84b9515b-9cc1-5b57-8582-e9545ebe8719
+description: Revoke all API keys and MCP connections, including expired records,
+  and cancel pending OAuth authorization codes. An optional kind filter revokes
+  only manual keys or MCP connections. Dashboard and management sessions remain
+  signed in. The environment AUTH_KEY is unaffected.
+method: DELETE
+url: "{{baseUrl}}/auth/key-management/api-keys"
+headers:
+  Accept: application/json
+auth:
+  - id: 5f78c07e-09cf-5637-84c3-04b20daea9c6
+    type: bearer
+    name: Key management session
+    credentials:
+      token: "{{keyManagementToken}}"

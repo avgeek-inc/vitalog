@@ -5,6 +5,7 @@ import { application } from "../src/app.js";
 import { database } from "../src/db/client.js";
 import { Service } from "../src/service.js";
 import { pkceChallenge } from "../src/auth/oauth-store.js";
+import { operations } from "../src/registry/operations.js";
 
 const env = {
   AUTH_KEY: randomBytes(32).toString("base64url"),
@@ -83,7 +84,9 @@ describe("OAuth configuration and discovery", () => {
           },
         );
         expect(discovery.status).toBe(200);
-        expect((await discovery.json()).result.tools).toHaveLength(16);
+        expect((await discovery.json()).result.tools).toHaveLength(
+          operations.length,
+        );
       }
       expect(
         configuration({

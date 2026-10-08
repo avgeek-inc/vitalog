@@ -1,10 +1,14 @@
 # Acceptance traceability
 
+The [5 October goals extension](goals.md) adds explicit user goals and six REST/MCP operations, overriding the original goal-storage exclusion and initial 16-tool limit. It preserves observed health records as a separate ledger. [Goal unit tests](../tests/goals.test.ts) and `npm run test:goals` cover progress semantics, PostgreSQL persistence, historical goal revisions, transport parity, concurrency, retries, export, backup/restore and erasure. The viewing UI remains in design review.
+
+The 5 October mood extension adds five enum values to the existing check-in schema, preserves numeric ratings and returns the latest valid mood in daily summaries. [Mood tests](../tests/mood.test.ts) cover discovery, validation, ordering and exclusions; integration group I24 covers PostgreSQL-backed REST/MCP logging, retries, correction, void and persistence.
+
 The [3 October API-key extension](api-keys.md) overrides the original static-only authentication and key-management exclusions. `tests/api-key-contract.test.ts` covers configuration and contracts; `npm run test:auth` verifies the PostgreSQL-backed lifecycle, REST/MCP access, primary-only administration, exact expiry, revocation, restarts, rate/origin protections and log privacy. Container and Towbar smoke checks also exercise the generation page, issuance, privilege boundary and revocation in the production image. The remaining health-domain requirements below retain their original scope.
 
 This maps the 76 acceptance requirements in the supplied revision-5 [specification](specification.md) to implementation and executable evidence. The [coverage inventory](coverage.json) enumerates every nutrient, analyte and measurement key. The [interoperability report](verification-report.json) records the executed PostgreSQL/REST/MCP run; the [container report](container-report.json) records the packaged deployment run. The [security report](security-report.json) and [summary report](summary-report.json) record focused PostgreSQL checks added after independent review. Test data is synthetic.
 
-`I01`–`I23` below refer to the integration groups in their recorded order, implemented in [scripts/integration.ts](../scripts/integration.ts). `U` refers to [registry/schema tests](../tests/registry.test.ts) and `S` to [summary tests](../tests/summary.test.ts). `C` refers to [the Compose smoke test](../scripts/container-smoke.ts). These references identify software behavior and preserved data semantics; they do not represent medical testing.
+`I01`–`I24` below refer to the integration groups in their recorded order, implemented in [scripts/integration.ts](../scripts/integration.ts). `U` refers to [registry/schema tests](../tests/registry.test.ts) and `S` to [summary tests](../tests/summary.test.ts). `C` refers to [the Compose smoke test](../scripts/container-smoke.ts). These references identify software behavior and preserved data semantics; they do not represent medical testing.
 
 The [Towbar deployment guide](towbar-deployment.md) and [runtime profile report](towbar-report.json) cover the production manifests, private database connectivity, bounded resources and authenticated database readiness on Praveen Apps. Local profile checks use disposable Docker containers; infrastructure sync, TLS issuance and production deployment are separate operations.
 
@@ -20,31 +24,32 @@ Additional regression evidence covers the contracts that independent review foun
 | Security | [Security unit tests](../tests/security-contract.test.ts) and [real PostgreSQL verification](../scripts/security-verification.ts): credentials in admitted text, JSON escapes, property/query names and retry headers are rejected without persistence or reflection       |
 | Windows  | [Real PostgreSQL summary verification](../scripts/summary-verification.ts): overlap and metric filtering precede read bounds, prolonged intake intervals and paired latest blood pressure retain their semantics, and all 105 large revisions remain pageable              |
 
-| Evidence | Executed contract                                                                           |
-| -------- | ------------------------------------------------------------------------------------------- |
-| I01      | Fresh database, repeatable migrations, empty state and readiness                            |
-| I02      | Official MCP initialization, sixteen tools, schemas and annotations                         |
-| I03      | Missing, malformed, invalid and duplicate authorization                                     |
-| I04      | Host/origin protection and SDK transport methods                                            |
-| I05      | Catalog parity, empty-state purity, groups, filters and versions                            |
-| I06      | All 182 nutrients through REST, MCP and correction                                          |
-| I07      | All 110 measurements through both interfaces and correction                                 |
-| I08      | All 424 analytes through both interfaces and correction                                     |
-| I09      | Atomic rollback and shared laboratory metadata                                              |
-| I10      | Concurrent durable cross-interface idempotency                                              |
-| I11      | Optimistic correction, history, void and original replay                                    |
-| I12      | Restart, key rotation and a fresh authorized client                                         |
-| I13      | Daily precedence, estimates, field validity and domain separation                           |
-| I14      | Sparse trends, assay/unit partitions, undated labs and source status                        |
-| I15      | Detailed studies, sleep/PAP, strength, check-in, intake and assay context                   |
-| I16      | Nutrient definition partitions and latest usable historical context                         |
-| I17      | Precise observation ordering, all context partitions and read limits                        |
-| I18      | Lossless legacy payload, revision and committed-retry retrieval                             |
-| I19      | Forward migration with populated prior schema                                               |
-| I20      | Related records, cycles, daily date conflicts, cursors and errors                           |
-| I21      | Complete export/restored values, immutable history, committed retries and permanent erasure |
-| I22      | Oversized requests, secret arguments and operational log privacy                            |
-| I23      | Rate limiting and untrusted forwarded-address rejection                                     |
+| Evidence | Executed contract                                                                             |
+| -------- | --------------------------------------------------------------------------------------------- |
+| I01      | Fresh database, repeatable migrations, empty state and readiness                              |
+| I02      | Official MCP initialization, all registered tools, schemas and annotations                    |
+| I03      | Missing, malformed, invalid and duplicate authorization                                       |
+| I04      | Host/origin protection and SDK transport methods                                              |
+| I05      | Catalog parity, empty-state purity, groups, filters and versions                              |
+| I06      | All 182 nutrients through REST, MCP and correction                                            |
+| I07      | All 110 measurements through both interfaces and correction                                   |
+| I08      | All 424 analytes through both interfaces and correction                                       |
+| I09      | Atomic rollback and shared laboratory metadata                                                |
+| I10      | Concurrent durable cross-interface idempotency                                                |
+| I11      | Optimistic correction, history, void and original replay                                      |
+| I12      | Restart, key rotation and a fresh authorized client                                           |
+| I13      | Daily precedence, estimates, field validity and domain separation                             |
+| I14      | Sparse trends, assay/unit partitions, undated labs and source status                          |
+| I15      | Detailed studies, sleep/PAP, strength, check-in, intake and assay context                     |
+| I16      | Nutrient definition partitions and latest usable historical context                           |
+| I17      | Precise observation ordering, all context partitions and read limits                          |
+| I18      | Lossless legacy payload, revision and committed-retry retrieval                               |
+| I19      | Forward migration with populated prior schema                                                 |
+| I20      | Related records, cycles, daily date conflicts, cursors and errors                             |
+| I21      | Complete export/restored values, immutable history, committed retries and permanent erasure   |
+| I22      | Oversized requests, secret arguments and operational log privacy                              |
+| I23      | Rate limiting and untrusted forwarded-address rejection                                       |
+| I24      | Mood enum discovery, REST/MCP parity, retries, daily selection, corrections, void and restart |
 
 | Requirement                                                | Implementation and evidence                                                                                                                              |
 | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -126,3 +131,7 @@ Additional regression evidence covers the contracts that independent review foun
 | 76. Honest sources and code mappings                       | Supplied source register retained in specification; no unverified external-code crosswalk or universal clinical vocabulary claim; README, inventory      |
 
 The version-one evidence uses synthetic legacy payloads and a populated prior database schema. It demonstrates the lossless migration/read/retry mechanism; it is not a claim that an external historical production database was imported. Deployment operators still supply real secrets, ingress host/origin values, TLS, encrypted backup storage and retention choices. The repository includes the runnable application and procedures for those choices, without creating external infrastructure accounts.
+
+## Reusable image and PDF attachments
+
+The user-authorized attachment extension adds independent asset identities in PostgreSQL and private S3-compatible file storage. `tests/attachments.test.ts` covers schemas/configuration and `npm run test:attachments` executes eight real PostgreSQL/MinIO groups: migration of existing records; private uploads/downloads and cross-transport retries; shared IDs across all eight log types and lab batches; correction/void revision links and pagination; signed size/type restrictions and immutable completion; an actual 20 MB PDF and invalid files; API-key/browser/OAuth scope boundaries; and export/restore, cleanup and scoped erasure. `.test-artifacts/attachments.json` captures synthetic executed evidence. No production bucket is provisioned by these tests.

@@ -5,17 +5,26 @@
   "type": "module",
   "scripts": {
     "dev": "node --env-file-if-exists=../../.env ../../node_modules/next/dist/bin/next dev --hostname 127.0.0.1 --port 3001",
-    "build": "next build --webpack",
+    "build": "node --run typecheck && node --max-old-space-size=512 ../../node_modules/next/dist/bin/next build --webpack",
     "start": "next start --hostname 0.0.0.0 --port 3001",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "node ../../node_modules/next/dist/bin/next typegen && node --max-old-space-size=448 ../../node_modules/typescript/bin/tsc --noEmit"
   },
   "dependencies": {
+    "@avgeek-oss/design-system": "file:../../vendor/avgeek-oss-design-system-1.2.8.tgz",
+    "@fontsource-variable/geist-mono": "5.3.0",
     "@fontsource-variable/inter": "5.3.0",
+    "@gravity-ui/icons": "2.22.0",
     "@heroui/react": "3.2.6",
     "@heroui/styles": "3.2.6",
+    "@hugeicons/core-free-icons": "4.3.5",
+    "@hugeicons/react": "1.1.10",
+    "@internationalized/date": "3.12.4",
+    "clsx": "2.1.1",
+    "lucide-react": "1.52.0",
     "next": "16.3.8",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "tailwind-merge": "3.7.0"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.2.4",
