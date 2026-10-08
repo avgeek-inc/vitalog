@@ -125,7 +125,6 @@ const env = {
     .filter(Boolean)
     .join(","),
   ALLOWED_ORIGINS: "",
-  TRUST_PROXY: "false",
   VITALOG_IMAGE: release?.images.api ?? `${project}:local`,
 };
 const docker = (args: string[]) =>

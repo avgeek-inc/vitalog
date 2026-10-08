@@ -125,17 +125,7 @@ export function application(
       );
       c.header("Vary", "Origin");
     }
-    const remote = c.env?.incoming?.socket.remoteAddress ?? "local-test";
-    let address = remote;
-    if (config.trustedProxyIps.includes(remote)) {
-      const forwarded = c.req.header("x-forwarded-for");
-      if (
-        forwarded &&
-        !forwarded.includes(",") &&
-        /^[a-fA-F0-9.:]+$/.test(forwarded)
-      )
-        address = forwarded;
-    }
+    const address = c.env?.incoming?.socket.remoteAddress ?? "local-test";
     const now = Date.now();
     for (const [key, value] of limits)
       if (value.reset <= now) limits.delete(key);

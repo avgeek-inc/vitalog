@@ -27,7 +27,6 @@ export type Config = {
   publicBaseUrl?: string;
   uiBaseUrl?: string;
   allowedOrigins: string[];
-  trustedProxyIps: string[];
   rateLimit: number;
   attachmentStorage?: AttachmentStorageConfig;
 };
@@ -151,15 +150,6 @@ export function configuration(env: NodeJS.ProcessEnv = process.env): Config {
     })
   )
     throw new Error("ALLOWED_ORIGINS requires exact origins");
-  if (env.TRUST_PROXY && !["true", "false"].includes(env.TRUST_PROXY))
-    throw new Error("TRUST_PROXY must be true or false");
-  const trustedProxyIps =
-    env.TRUST_PROXY === "true" ? split(env.TRUSTED_PROXY_IPS) : [];
-  if (
-    env.TRUST_PROXY === "true" &&
-    (!trustedProxyIps.length || trustedProxyIps.some((ip) => !isIP(ip)))
-  )
-    throw new Error("TRUSTED_PROXY_IPS is required when TRUST_PROXY=true");
   const rateLimit = Number(env.RATE_LIMIT_PER_MINUTE ?? 600);
   if (!Number.isInteger(rateLimit) || rateLimit < 1 || rateLimit > 100000)
     throw new Error(
@@ -192,7 +182,6 @@ export function configuration(env: NodeJS.ProcessEnv = process.env): Config {
     publicBaseUrl,
     uiBaseUrl,
     allowedOrigins,
-    trustedProxyIps,
     rateLimit,
     attachmentStorage,
   };

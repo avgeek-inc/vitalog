@@ -886,7 +886,7 @@ try {
   );
   await start();
   await check(
-    "Login attempts are bounded even when untrusted forwarded IP headers change",
+    "Login attempts are bounded even when forwarded IP headers change",
     async () => {
       for (let attempt = 0; attempt < 5; attempt++) {
         const response = await request(
@@ -894,7 +894,12 @@ try {
           "POST",
           { ...generation(), password: "incorrect-password" },
           undefined,
-          { "X-Forwarded-For": `192.0.2.${attempt + 1}` },
+          {
+            "X-Forwarded-For": `192.0.2.${attempt + 1}`,
+            Forwarded: `for=192.0.2.${attempt + 1}`,
+            "CF-Connecting-IP": `192.0.2.${attempt + 1}`,
+            "X-Real-IP": `192.0.2.${attempt + 1}`,
+          },
         );
         assert.equal(response.response.status, 401);
       }

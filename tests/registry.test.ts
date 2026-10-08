@@ -283,13 +283,6 @@ describe("Authentication and input semantics", () => {
       expect(() =>
         configuration({ AUTH_KEY: key, DATABASE_URL: "postgresql://unused" }),
       ).toThrow();
-    expect(() =>
-      configuration({
-        AUTH_KEY: key,
-        DATABASE_URL: "postgresql://unused",
-        TRUST_PROXY: "true",
-      }),
-    ).toThrow();
   });
   test("Date-only values stay date-only and precise local boundaries are checked", () => {
     const dateOnly = normalizeInput(
