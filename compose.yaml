@@ -2,7 +2,7 @@ name: vitalog
 services:
   api:
     build: .
-    image: ${VITALOG_IMAGE:-vitalog:local}
+    image: ${VITALOG_IMAGE:-vitalog-api:local}
     init: true
     restart: unless-stopped
     environment:

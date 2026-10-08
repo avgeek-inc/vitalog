@@ -28,7 +28,7 @@ The default installation ignores forwarded client addresses. To trust one ingres
 
 ## Run with Towbar
 
-For deployment with Towbar and a managed PostgreSQL datastore, follow [the Towbar deployment guide](docs/towbar-deployment.md). The version-2 manifests deploy the API and web app from versioned, digest-pinned ARM64 images, alongside a managed PostgreSQL datastore. They declare two HTTPS domains and the private database network; runtime credentials are supplied in Towbar.
+For deployment with Towbar and a managed PostgreSQL datastore, follow [the Towbar deployment guide](docs/towbar-deployment.md). The version-2 manifests define the API, web app and managed PostgreSQL datastore. Published API and web images can be promoted to these manifests using the version and digests from a release. They declare two HTTPS domains and the private database network; runtime credentials are supplied in Towbar.
 
 ## Run from source
 
@@ -101,7 +101,7 @@ npm audit --omit=dev --audit-level=moderate
 
 [The acceptance traceability](docs/acceptance.md) maps all 76 requirements to implementation and verification. [The coverage report](docs/coverage.json) lists every implemented key and its tests. [The verification report](docs/verification-report.json) records the executed interoperability run, exact SDK/protocol/client versions, and database backup/restore result. [The container report](docs/container-report.json), [security report](docs/security-report.json) and [summary report](docs/summary-report.json) record the additional deployment checks. Current runs write their reports to ignored `.test-artifacts/`; they do not rewrite checked-in evidence automatically.
 
-The GitHub verification workflow runs these checks on pushes and pull requests. A separate tag workflow verifies the repository and publishes `ghcr.io/avgeek-oss/vitalog:<tag>` and `ghcr.io/avgeek-oss/vitalog-web:<tag>` for a pushed `v*` tag. Publishing an image does not deploy a server. There are no production credentials checked into this repository.
+The GitHub verification workflow runs these checks on pushes and pull requests. The manually dispatched `Publish release images` workflow validates a stable tag against the current main commit and package versions, reuses the CI gates, and publishes `ghcr.io/avgeek-oss/vitalog-api:<tag>` and `ghcr.io/avgeek-oss/vitalog-web:<tag>` for AMD64 and ARM64. It assembles digest-pinned references in `vitalog-images.json`, verifies anonymous access and OCI source/version metadata, tests the actual published images on both architectures, and then publishes the GitHub release. Published versions cannot be republished. Publishing an image does not deploy a server. There are no production credentials checked into this repository.
 
 ## Export, backups and erasure
 

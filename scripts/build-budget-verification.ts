@@ -3,15 +3,7 @@ import { execFileSync } from "node:child_process";
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { parse } from "yaml";
 
-type Profile = {
-  deployment: {
-    resources: { memory: string; cpus: number };
-    dockerfile: string;
-    architecture: "arm64" | "amd64";
-  };
-};
 const docker = (args: string[]) =>
   execFileSync("docker", args, {
     encoding: "utf8",
@@ -23,17 +15,14 @@ const checks = [];
 const peakMemory = `node -e 'const fs = require("node:fs"); const path = "/sys/fs/cgroup/memory.peak"; const events = "/sys/fs/cgroup/memory.events"; const kills = fs.existsSync(events) ? /^oom_kill\\s+(\\d+)$/m.exec(fs.readFileSync(events, "utf8")) : null; console.log(JSON.stringify({peak_memory_bytes: fs.existsSync(path) ? Number(fs.readFileSync(path, "utf8")) : null, oom_kills: kills ? Number(kills[1]) : null}))'`;
 
 for (const name of ["api", "web"] as const) {
-  const manifest = parse(
-    await readFile(
-      `.towbar/services/vitalog${name === "web" ? "-web" : ""}.service.yml`,
-      "utf8",
-    ),
-  ) as Profile;
-  const { memory, cpus } = manifest.deployment.resources;
-  const { architecture } = manifest.deployment;
-  assert(["arm64", "amd64"].includes(architecture));
-  const platform = `linux/${architecture}`;
-  const dockerfile = await readFile(manifest.deployment.dockerfile, "utf8");
+  const memory = name === "api" ? "512m" : "1g";
+  const cpus = 1;
+  assert(["arm64", "x64"].includes(process.arch));
+  const dockerPlatform = `linux/${process.arch === "x64" ? "amd64" : "arm64"}`;
+  const dockerfile = await readFile(
+    name === "api" ? "Dockerfile" : "apps/web/Dockerfile",
+    "utf8",
+  );
   const image = /^FROM (\S+) AS build$/m.exec(dockerfile)?.[1];
   assert(image, "The budget check needs the production builder image");
   const context = await mkdtemp(join(tmpdir(), "vitalog-build-budget-"));
@@ -65,7 +54,7 @@ for (const name of ["api", "web"] as const) {
       "create",
       "--name",
       container,
-      `--platform=${platform}`,
+      `--platform=${dockerPlatform}`,
       `--memory=${memory}`,
       `--memory-swap=${memory}`,
       `--cpus=${cpus}`,
@@ -112,7 +101,7 @@ for (const name of ["api", "web"] as const) {
       name,
       memory,
       cpus,
-      platform,
+      platform: dockerPlatform,
       swap: false,
       image,
       status: "passed",
@@ -120,7 +109,7 @@ for (const name of ["api", "web"] as const) {
       oom_kills: peak[2] === "null" ? null : Number(peak[2]),
     });
     process.stdout.write(
-      `PASS ${name} ${platform} production build within ${memory} and ${cpus} CPU without swap\n`,
+      `PASS ${name} ${dockerPlatform} CI build within ${memory} and ${cpus} CPU without swap\n`,
     );
   } finally {
     if (created) docker(["rm", "--force", container]);
