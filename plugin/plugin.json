@@ -1,9 +1,11 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "vitalog",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Log and retrieve your personal health observations through Vitalog.",
-  "author": { "name": "Avgeek, Inc." },
+  "author": {
+    "name": "Avgeek, Inc."
+  },
   "homepage": "https://vitalog.praveent.com/api-keys",
   "repository": "https://github.com/avgeek-oss/vitalog",
   "keywords": ["health", "ledger", "observations"],
