@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Publish the Vitalog homepage and public usage, API, MCP and self-hosting guides at vitalog.dev, with synthetic dashboard screenshots and shared documentation styling.
+- Adopt design system 1.2.10 and shared docs kit 0.1.3.
+
 ## 1.0.1 (release candidate)
 
 - Show the shared backend-unavailable screen and reconnect automatically when the API is unavailable. Preserve the existing error page for application errors when the backend is reachable.

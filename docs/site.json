@@ -11,7 +11,7 @@
   "favicon": "/assets/vitalog-favicon.png",
   "colors": {
     "primary": "#be243c",
-    "light": "#be243c",
+    "light": "#ff6575",
     "dark": "#e33646"
   },
   "appearance": {

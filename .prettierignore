@@ -1,7 +1,7 @@
 package-lock.json
 src/registry/inventory.json
 docs/specification.md
-docs/openapi.json
+contracts/openapi.json
 docs/record-schemas.json
 docs/examples.json
 docs/coverage.json
@@ -15,4 +15,4 @@ node_modules/
 apps/web/next-env.d.ts
 schemas/towbar/*.json
 
-docs/mintlify/openapi.json
+docs/openapi.json

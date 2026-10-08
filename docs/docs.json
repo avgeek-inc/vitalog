@@ -17,6 +17,14 @@
   "contextual": {
     "options": ["copy", "view", "chatgpt", "claude"]
   },
+  "seo": {
+    "indexing": "all",
+    "metatags": {
+      "og:type": "website",
+      "twitter:card": "summary_large_image",
+      "canonical": "https://www.vitalog.dev"
+    }
+  },
   "name": "Vitalog",
   "description": "An open-source, self-hosted health ledger with a dashboard, REST API and MCP.",
   "logo": {
@@ -27,7 +35,7 @@
   "favicon": "/assets/vitalog-favicon.png",
   "colors": {
     "primary": "#be243c",
-    "light": "#be243c",
+    "light": "#ff6575",
     "dark": "#e33646"
   },
   "api": {
@@ -142,10 +150,5 @@
         ]
       }
     ]
-  },
-  "seo": {
-    "metatags": {
-      "canonical": "https://www.vitalog.dev"
-    }
   }
 }

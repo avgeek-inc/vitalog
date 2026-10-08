@@ -4,7 +4,7 @@ Use the dashboard to review your ledger. Create records and change goals through
 
 import { Screenshot } from "/snippets/oss/screenshot.jsx";
 
-<Screenshot light="/assets/dashboard-light.png" dark="/assets/dashboard-dark.png" alt="Daily View showing sample nutrition, water, mood and exercise next to the day's logs" width={1280} height={824} caption="Daily View with synthetic observations and example goals. The dashboard shows records supplied through MCP or REST." />
+<Screenshot light="/assets/dashboard-light.png" dark="/assets/dashboard-dark.png" alt="Daily View showing sample nutrition, water, mood and exercise next to the day's logs" width={2560} height={1648} caption="Daily View with synthetic observations and example goals. The dashboard shows records supplied through MCP or REST." />
 
 ## Sign in
 

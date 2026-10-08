@@ -109,7 +109,7 @@ const requestArgs = (operation: (typeof operations)[number]): Data => {
   return {};
 };
 const source = openapi();
-await save("docs/openapi.json", json(source));
+await save("contracts/openapi.json", json(source));
 await save("docs/examples.json", json(examples));
 await save(
   "docs/record-schemas.json",

@@ -81,7 +81,7 @@ for (const [file, route, title, description] of pages) {
     },
   );
   await save(
-    `docs/mintlify/${route}.mdx`,
+    `docs/${route}.mdx`,
     await format(
       `---\ntitle: ${JSON.stringify(title)}\ndescription: ${JSON.stringify(description)}\n---\n\n${body}`,
       { parser: "mdx" },
@@ -90,7 +90,7 @@ for (const [file, route, title, description] of pages) {
 }
 for (const asset of ["vitalog-mark.png", "vitalog-favicon.png"]) {
   await save(
-    `docs/mintlify/assets/${asset}`,
+    `docs/assets/${asset}`,
     await readFile(`apps/web/public/brand/${asset}`),
   );
 }
@@ -202,7 +202,7 @@ components.schemas = {
   ...definitions,
 };
 await save(
-  "docs/mintlify/openapi.json",
+  "docs/openapi.json",
   JSON.stringify(mintlifyDocument, null, 2) + "\n",
 );
 const toolTable = operations
@@ -212,7 +212,7 @@ const toolTable = operations
   )
   .join("\n");
 await save(
-  "docs/mintlify/mcp-tools.mdx",
+  "docs/mcp-tools.mdx",
   await format(
     `---\ntitle: "MCP tools"\ndescription: "Tools generated from the same registry as the REST API."\n---\n\nVitalog exposes ${operations.length} tools through Streamable HTTP at the API's \`/mcp\` endpoint. [Connect a client](/mcp-guide) before calling them. Read tools require \`health:read\`; record and goal writes require \`health:write\`. API-key administration is REST-only.\n\n| Tool | Purpose |\n| --- | --- |\n${toolTable}\n\nMutations require an \`idempotency_key\`. Reuse the same key and arguments when retrying. Corrections, voids and goal changes also require the current \`expected_version\`. See [record contracts](/records) and [goals](/goals).\n`,
     { parser: "mdx" },
