@@ -2,7 +2,7 @@
 
 Vitalog's HTTP MCP resource implements the [MCP authorization specification](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization) and its [client-registration mechanisms](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/client-registration). The implementation targets these authorization requirements independently of any client brand. Streamable HTTP transport and protocol negotiation use the pinned official TypeScript SDK 1.31.0, whose latest supported wire revision is `2025-11-25`; adding current OAuth mechanisms does not advertise a newer transport revision.
 
-Connect clients to `https://vitalog-api.praveent.com/mcp`. The UI at `https://vitalog.praveent.com/oauth/authorize` is a consent screen reached through authorization, not the MCP endpoint. It displays the validated client's name, its metadata hostname when available, its callback destination and requested permissions. The page signs in with root email/password directly and never requires a previously generated API key.
+Connect clients to `https://vitalog-api.example.com/mcp`. The UI at `https://vitalog.example.com/oauth/authorize` is a consent screen reached through authorization, not the MCP endpoint. It displays the validated client's name, its metadata hostname when available, its callback destination and requested permissions. The page signs in with root email/password directly and never requires a previously generated API key.
 
 ## Discovery and client identity
 

@@ -19,8 +19,8 @@
     "format:check": "prettier --check .",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node --env-file-if-exists=.env --import tsx scripts/migrate.ts",
-    "docs:generate": "tsx scripts/generate.ts && tsx scripts/mintlify.ts",
-    "docs:check": "tsx scripts/generate.ts --check && tsx scripts/mintlify.ts --check",
+    "docs:generate": "tsx scripts/generate.ts && tsx scripts/mintlify.ts && oss-docs sync --config docs/site.json --dir docs",
+    "docs:check": "tsx scripts/generate.ts --check && tsx scripts/mintlify.ts --check && oss-docs check --config docs/site.json --dir docs",
     "test": "vitest run",
     "test:integration": "tsx scripts/integration.ts",
     "test:security": "tsx scripts/security-verification.ts",
@@ -40,10 +40,11 @@
     "build:api": "tsc --noCheck -p tsconfig.build.json",
     "start:web": "npm run start --workspace @vitalog/web",
     "test:build-budget": "tsx scripts/build-budget-verification.ts",
-    "docs:site:check": "npm run docs:check && cd docs/mintlify && npx --yes mint@4.2.986 validate && npx --yes mint@4.2.986 broken-links",
-    "docs:dev": "npm run docs:generate && cd docs/mintlify && npx --yes mint@4.2.986 dev --port 4175",
+    "docs:site:check": "npm run docs:check && cd docs && npx --yes mint@4.2.986 validate && npx --yes mint@4.2.986 broken-links",
+    "docs:dev": "npm run docs:generate && cd docs && npx --yes mint@4.2.986 dev --port 4175",
     "test:attachments": "tsx scripts/attachments-verification.ts",
-    "operator:attachments:prune": "node --env-file-if-exists=.env --import tsx scripts/attachments-prune.ts"
+    "operator:attachments:prune": "node --env-file-if-exists=.env --import tsx scripts/attachments-prune.ts",
+    "docs:screenshots": "tsx scripts/capture-docs-screenshots.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1146.0",
@@ -62,7 +63,8 @@
     "esbuild": "0.28.2"
   },
   "devDependencies": {
-    "@avgeek-oss/design-system": "file:vendor/avgeek-oss-design-system-1.2.9.tgz",
+    "@avgeek-oss/design-system": "file:vendor/avgeek-oss-design-system-1.2.10.tgz",
+    "@avgeek-oss/docs": "github:avgeek-oss/oss-docs#704cfbb6b952257e0b9d6a2ec0ec4bd66527475d",
     "@types/node": "24.10.13",
     "@types/pg": "8.16.0",
     "ajv": "8.20.0",

@@ -1,0 +1,151 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "Vitalog",
+  "description": "An open-source, self-hosted health ledger with a dashboard, REST API and MCP.",
+  "logo": {
+    "light": "/assets/vitalog-mark.png",
+    "dark": "/assets/vitalog-mark.png",
+    "href": "/"
+  },
+  "favicon": "/assets/vitalog-favicon.png",
+  "colors": {
+    "primary": "#be243c",
+    "light": "#ff6575",
+    "dark": "#e33646"
+  },
+  "appearance": {
+    "default": "system"
+  },
+  "icons": {
+    "library": "lucide"
+  },
+  "styling": {
+    "eyebrows": "breadcrumbs",
+    "codeblocks": "system"
+  },
+  "interaction": {
+    "drilldown": false
+  },
+  "api": {
+    "playground": {
+      "display": "simple"
+    }
+  },
+  "navigation": {
+    "dropdowns": [
+      {
+        "dropdown": "Introduction",
+        "icon": "book-open",
+        "groups": [
+          {
+            "group": "Get started",
+            "pages": ["quickstart", "concepts"]
+          }
+        ]
+      },
+      {
+        "dropdown": "Using Vitalog",
+        "icon": "heart",
+        "groups": [
+          {
+            "group": "Your health ledger",
+            "pages": ["dashboard", "logging", "goals", "records", "attachments"]
+          }
+        ]
+      },
+      {
+        "dropdown": "API and MCP",
+        "icon": "plug",
+        "groups": [
+          {
+            "group": "Connect a client",
+            "pages": ["mcp-guide", "api-keys", "oauth", "mcp-tools"]
+          }
+        ]
+      },
+      {
+        "dropdown": "API reference",
+        "icon": "code",
+        "groups": [
+          {
+            "group": "API reference",
+            "openapi": "openapi.json"
+          }
+        ]
+      },
+      {
+        "dropdown": "Self-hosting",
+        "icon": "server",
+        "groups": [
+          {
+            "group": "Install and configure",
+            "pages": ["installation", "configuration", "towbar"]
+          },
+          {
+            "group": "Operate Vitalog",
+            "pages": ["operations", "troubleshooting", "contributing"]
+          }
+        ]
+      }
+    ]
+  },
+  "navbar": {
+    "links": [
+      {
+        "type": "github",
+        "href": "https://github.com/avgeek-oss/vitalog"
+      }
+    ],
+    "primary": {
+      "type": "button",
+      "label": "Docs",
+      "href": "/quickstart"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/avgeek-oss/vitalog"
+    },
+    "links": [
+      {
+        "header": "Documentation",
+        "items": [
+          {
+            "label": "Connect MCP",
+            "href": "/mcp-guide"
+          },
+          {
+            "label": "Install Vitalog",
+            "href": "/installation"
+          },
+          {
+            "label": "Goals",
+            "href": "/goals"
+          }
+        ]
+      },
+      {
+        "header": "Avgeek, Inc.",
+        "items": [
+          {
+            "label": "GitHub",
+            "href": "https://github.com/avgeek-oss/vitalog"
+          },
+          {
+            "label": "Operations and security",
+            "href": "/operations"
+          }
+        ]
+      }
+    ]
+  },
+  "contextual": {
+    "options": ["copy", "view", "chatgpt", "claude"]
+  },
+  "seo": {
+    "metatags": {
+      "canonical": "https://www.vitalog.dev"
+    }
+  }
+}

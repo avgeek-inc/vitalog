@@ -1,10 +1,20 @@
-# Daily view and weight management
+---
+title: "Daily View and Weight Management"
+description: "View daily nutrition, mood, water, exercise and weight history."
+---
 
 Use the dashboard to review your ledger. Create records and change goals through an MCP client or the REST API. The web app has no health-record or goal editing controls.
 
 import { Screenshot } from "/snippets/oss/screenshot.jsx";
 
-<Screenshot light="/assets/dashboard-light.png" dark="/assets/dashboard-dark.png" alt="Daily View showing sample nutrition, water, mood and exercise next to the day's logs" width={2560} height={1648} caption="Daily View with synthetic observations and example goals. The dashboard shows records supplied through MCP or REST." />
+<Screenshot
+  light="/assets/dashboard-light.png"
+  dark="/assets/dashboard-dark.png"
+  alt="Daily View showing sample nutrition, water, mood and exercise next to the day's logs"
+  width={2560}
+  height={1648}
+  caption="Daily View with synthetic observations and example goals. The dashboard shows records supplied through MCP or REST."
+/>
 
 ## Sign in
 
@@ -20,7 +30,7 @@ Daily numeric cards display zero when no usable measurement is available. Mood d
 
 ## Goal progress
 
-Set explicit goals through [MCP or REST](goals.md). Progress bars appear only when a goal applies to the selected date. Nutrition goals are upper limits; water and exercise goals are minimum targets. The small marker shows elapsed-day progress, not a measured health value.
+Set explicit goals through [MCP or REST](/goals). Progress bars appear only when a goal applies to the selected date. Nutrition goals are upper limits; water and exercise goals are minimum targets. The small marker shows elapsed-day progress, not a measured health value.
 
 A target is a value you supply. Vitalog does not choose health targets or infer missing measurements. An empty progress bar can mean there is no usable observation yet; inspect the logs and API summary when that distinction matters.
 
@@ -34,7 +44,7 @@ A weight goal can include an explicit starting baseline and target. Changing a t
 
 Use **Account Settings → Profile** to save a display name, and **Preferences** to choose date/time formatting. Email and password remain operator-managed. The account menu includes the public [documentation](https://www.vitalog.dev).
 
-**API Keys**, **MCP Connections** and **MCP Guide** manage client access. Creating or revoking credentials requires a separate root verification; the resulting management session lasts 30 minutes and cannot access health data. See [API keys](api-keys.md) and [OAuth](oauth.md).
+**API Keys**, **MCP Connections** and **MCP Guide** manage client access. Creating or revoking credentials requires a separate root verification; the resulting management session lasts 30 minutes and cannot access health data. See [API keys](/api-keys) and [OAuth](/oauth).
 
 The sidebar can collapse on desktop or open as a drawer on mobile. Theme settings support light, dark and system appearance. Account and theme preferences persist independently of health observations.
 

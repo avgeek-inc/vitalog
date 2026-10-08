@@ -1,0 +1,36 @@
+---
+title: "Contribute to Vitalog"
+description: "Develop locally and keep API, MCP, examples and documentation in sync."
+---
+
+Clone the [repository](https://github.com/avgeek-oss/vitalog), install Node.js 24.16 and npm 11.13, and follow [Installation](/installation) for PostgreSQL and local API/web development. Use synthetic data in development and screenshots.
+
+## Check a change
+
+```sh
+npm ci
+npm run verify
+```
+
+This checks types, the web build, unit tests, generated contracts, Towbar manifests, plugin packaging and formatting. Database-backed verification commands use disposable PostgreSQL containers; Docker is required. Run the focused integration, goals, attachments or authentication command for the behavior you change. CI also verifies production containers and resource-limited builds.
+
+## Update a contract
+
+REST and MCP operations share the same registry, validators and services. Update both transports, examples and permission enforcement together. Add tests for meaningful behavior such as retries, conflicts, scope boundaries and persistence.
+
+```sh
+npm run docs:generate
+npm run docs:site:check
+```
+
+Commit authored guides and generated API/MCP artifacts together. Examples must match the schemas and use placeholder domains and synthetic observations.
+
+## Work on this site
+
+```sh
+npm run docs:dev
+```
+
+The Mintlify preview runs at `http://localhost:4175`. Product branding/navigation live in `docs/site.json`. The pinned shared documentation kit generates the local homepage snippets, CSS, header script and `docs.json`; do not hand-edit those outputs. See the [site maintenance guide](https://github.com/avgeek-oss/vitalog/blob/main/docs/README.md) for source ownership and screenshot capture.
+
+Open a pull request with the problem, resulting behavior and relevant verification. Keep private observations, credentials and deployment-specific troubleshooting logs out of public issues and documentation.

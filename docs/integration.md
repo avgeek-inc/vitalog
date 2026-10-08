@@ -1,6 +1,6 @@
 # Integration guide
 
-Configure `Authorization: Bearer <AUTH_KEY or active generated API key>` privately in the REST or MCP client's HTTP headers. The key is required for all protected requests, including discovery. No catalog handshake is required before a valid write. Generated keys expire after 30 days and cannot administer keys; see [API-key setup and contracts](api-keys.md).
+Configure `Authorization: Bearer <AUTH_KEY or active generated API key>` privately in the REST or MCP client's HTTP headers. The key is required for all protected requests, including discovery. No catalog handshake is required before a valid write. Generated keys enforce their selected read-only, edit or administrative permission ceiling and expiry; see [API-key setup and contracts](api-keys.md).
 
 ## Operations
 

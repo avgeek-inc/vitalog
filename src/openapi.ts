@@ -433,7 +433,7 @@ export function openapi(): Data {
     },
     servers: [
       {
-        url: "https://vitalog-api.praveent.com",
+        url: "https://vitalog-api.example.com",
         description: "Production REST and MCP API",
       },
       {
@@ -473,7 +473,7 @@ export function openapi(): Data {
           type: "http",
           scheme: "bearer",
           description:
-            "Generated opaque vlk_ key, valid for exactly 30 days unless revoked. Full ledger access; cannot list or revoke API keys. Not OAuth or JWT.",
+            "Generated opaque vlk_ key with a required name, explicit read/edit permissions, optional administrative inspection and chosen expiry (including Never). Enforces the same ceiling on REST and MCP; cannot administer credentials or account settings. Not OAuth or JWT.",
         },
       },
       schemas: {

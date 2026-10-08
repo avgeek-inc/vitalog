@@ -1,0 +1,38 @@
+---
+title: "How Vitalog works"
+description: "Understand observations, revisions, summaries, goals and client access."
+---
+
+Vitalog stores supplied health observations for one person in PostgreSQL. A Hono API exposes REST and Streamable HTTP MCP; a separate Next.js app provides the viewing dashboard and account settings. Both interfaces use the same schemas and domain services.
+
+## Observations and sources
+
+Record types cover nutrition, hydration, activity, measurements, check-ins, medications/supplements, laboratory results and studies. Use the catalog to discover exact supported fields, units and result variants. Each observation carries a supplied local date or timestamp, timezone context and provenance. Vitalog does not invent missing measurements or interpret an uploaded report automatically.
+
+A precise event timestamp and a date-only observation are different. Dates are interpreted in the configured timezone; do not convert a date-only record into an invented midnight event.
+
+## Revisions and retries
+
+Corrections create immutable revisions. Voiding retains history but removes the record from effective calculations. A correction or void requires the current `expected_version`; a stale version returns a conflict rather than overwriting newer changes.
+
+Mutations require an idempotency key. Retry with the same key and arguments after an interrupted response. A committed retry returns the existing result; changed arguments conflict. See [record contracts](/records).
+
+## Summaries and goals
+
+Daily summaries use reported daily totals before compatible individual entries. Incompatible definitions and unresolved overlaps can leave a total unknown. Missing days remain gaps in trends.
+
+Daily dashboard numeric cards can display zero for missing readings, and mood displays **Not recorded**. These display defaults do not create records or change API null values.
+
+Goals are separate, explicit settings. Nutrition goals are upper limits, while water and exercise goals are minimum targets. Weight goals can include a starting baseline. Vitalog reports observed progress; it does not prescribe targets or diagnose conditions.
+
+## One ledger, several clients
+
+API keys and OAuth connections grant access to the same ledger. They do not create users, teams or separate databases. Read-only keys can query records; edit keys can also log and correct them. Administrative permissions add operational inspection, while root/primary authority protects credential management.
+
+The browser dashboard session can view health data. Its separately verified credential-management session can create/revoke client credentials but cannot read or write health records. See [API keys](/api-keys) and [OAuth](/oauth).
+
+## Files and ownership
+
+Optional private S3-compatible storage holds reusable images and PDFs. PostgreSQL retains attachment metadata and links to record revisions. Back up both the database and object storage: a database dump does not include file bytes.
+
+Self-hosting gives you operational control over your data. It also makes you responsible for access, HTTPS, backups, updates and retention. Follow [operations](/operations) before relying on an installation.
