@@ -64,7 +64,7 @@
   },
   "devDependencies": {
     "@avgeek-oss/design-system": "file:vendor/avgeek-oss-design-system-1.2.10.tgz",
-    "@avgeek-oss/docs": "github:avgeek-oss/oss-docs#704cfbb6b952257e0b9d6a2ec0ec4bd66527475d",
+    "@avgeek-oss/docs": "github:avgeek-oss/oss-docs#2e3bad998f9fb685a8d13e492772b2ecd431c162",
     "@types/node": "24.10.13",
     "@types/pg": "8.16.0",
     "ajv": "8.20.0",

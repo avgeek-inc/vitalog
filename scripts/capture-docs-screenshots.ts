@@ -25,7 +25,7 @@ const browser = await chromium.launch({
 try {
   const context = await browser.newContext({
     viewport: { width: 1280, height: 824 },
-    deviceScaleFactor: 2,
+    deviceScaleFactor: 4,
     colorScheme: "light",
   });
   const page = await context.newPage();
@@ -56,14 +56,14 @@ try {
       theme,
     );
     await page.screenshot({
-      path: `docs/assets/dashboard-${theme}.png`,
+      path: `docs/assets/dashboard-${theme}-4x.png`,
       type: "png",
       scale: "device",
       animations: "disabled",
     });
   }
   console.log(
-    "Captured lossless 2560 × 1648 PNGs from the synthetic dashboard.",
+    "Captured lossless 5120 × 3296 PNGs from the synthetic dashboard.",
   );
 } finally {
   await browser.close();
