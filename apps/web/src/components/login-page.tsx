@@ -7,6 +7,7 @@ import {
 import { toast } from "@avgeek-oss/design-system/overlays/toast";
 import { useEffect } from "react";
 import { Brand } from "./brand";
+import { apiFetch } from "../lib/browser-api";
 
 export function LoginPage({
   localSignOut = false,
@@ -22,7 +23,7 @@ export function LoginPage({
   const signIn: SignInProps["onSubmit"] = async ({ identifier, password }) => {
     let response: Response;
     try {
-      response = await fetch("/auth/login", {
+      response = await apiFetch("/auth/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: identifier, password }),

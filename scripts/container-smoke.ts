@@ -24,7 +24,7 @@ assert(
 type RuntimeManifest = {
   image?: string;
   container: {
-    networkAlias: string;
+    networkAlias?: string;
     command?: string[];
     resources: { cpus: number; memory: string };
   };
@@ -43,6 +43,7 @@ if (towbar) {
   datastore = parse(
     await readFile(".towbar/datastores/vitalog-postgres.datastore.yml", "utf8"),
   ) as RuntimeManifest;
+  assert(datastore.container.networkAlias);
   web = parse(
     await readFile(".towbar/services/vitalog-web.service.yml", "utf8"),
   ) as RuntimeManifest;
@@ -60,7 +61,6 @@ if (towbar) {
           build: { context: resolve(".") },
           mem_limit: service.container.resources.memory,
           cpus: service.container.resources.cpus,
-          networks: { default: { aliases: [service.container.networkAlias] } },
           environment: {
             DATABASE_URL: `postgresql://vitalog:\${POSTGRES_PASSWORD}@${datastore.container.networkAlias}:5432/vitalog`,
           },
@@ -338,7 +338,7 @@ try {
   });
   assert.equal(denied.status, 401);
   await denied.text();
-  const login = await fetch(uiUrl + "/auth/login", {
+  const login = await fetch(url + "/auth/session", {
     method: "POST",
     headers: { "Content-Type": "application/json", Origin: uiUrl },
     body: JSON.stringify({
@@ -346,28 +346,20 @@ try {
       password: env.ROOT_PASSWORD,
     }),
   });
-  assert.equal(login.status, 200);
+  assert.equal(login.status, 201);
   assert.deepEqual(await login.json(), { signed_in: true });
   const cookie = login.headers.get("set-cookie")!;
   assert.match(cookie, /HttpOnly/i);
   const sessionCookie = cookie.split(";")[0]!;
-  for (const [path, heading] of [
-    ["/daily", "Daily nutrition"],
-    ["/weight", "Current weight"],
-  ] as const) {
-    const page = await fetch(uiUrl + path, {
-      headers: { Cookie: sessionCookie },
-    });
+  for (const path of ["/daily", "/weight"] as const) {
+    const page = await fetch(uiUrl + path);
     assert.equal(page.status, 200);
     const html = await page.text();
-    assert(
-      html.includes(heading),
-      "The dashboard must read its API inside Docker",
-    );
+    assert(html.includes(url), "The UI must advertise the public API origin");
     assert(!html.includes(sessionCookie.split("=")[1]!));
     assert(!html.includes("api:3000"));
   }
-  const logout = await fetch(uiUrl + "/auth/logout", {
+  const logout = await fetch(url + "/auth/logout", {
     method: "POST",
     headers: { Cookie: sessionCookie, Origin: uiUrl },
   });
@@ -561,10 +553,10 @@ try {
     postgres_image: datastore?.image ?? "postgres:17.11-bookworm",
     checks: [
       "fresh Compose API/UI/database startup and automatic migrations",
-      "separate Next.js authentication routes, nonce CSP and trusted browser origin",
+      "independent Next.js pages, nonce CSP and trusted browser origin",
       "UI container non-root, read-only and contains no API credentials",
       "UI compiled assets and logo with no configured secrets",
-      "dashboard sign-in, server reads through the private API and server revocation",
+      "dashboard sign-in, public API reads and API-owned revocation",
       "empty database",
       "non-root UID 1000",
       "read-only root filesystem",

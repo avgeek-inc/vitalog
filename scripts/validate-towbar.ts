@@ -9,6 +9,7 @@ import { parseDocument } from "yaml";
 
 type Config = {
   server?: string;
+  autoDeploy?: boolean;
   container?: {
     port?: number;
     network?: string;
@@ -170,22 +171,42 @@ for (const environment of Object.keys(root.environments)) {
   );
   assert.deepEqual(web.secrets?.runtime, ["API_BASE_URL", "UI_BASE_URL"]);
   const versions: string[] = [];
+  let pendingDigest = false;
+  const sourceVersion = JSON.parse(
+    await readFile("package.json", "utf8"),
+  ).version;
   for (const [config, repository] of [
     [service, "vitalog-api"],
     [ui, "vitalog-web"],
   ] as const) {
     const deployment = config.deployment;
-    assert(deployment, "A released image deployment is required");
+    assert(deployment, "An image deployment is required");
     assert.equal(deployment.type, "image");
     assert.equal(deployment.platform, "linux/arm64");
     const image = deployment.image;
-    assert(image, "A released image is required");
+    assert(image, "An image reference is required");
     const match = image.match(
       new RegExp(
-        `^ghcr\\.io/avgeek-oss/${repository}:(v[0-9]+\\.[0-9]+\\.[0-9]+)@sha256:[0-9a-f]{64}$`,
+        `^ghcr\\.io/avgeek-oss/${repository}:(v[0-9]+\\.[0-9]+\\.[0-9]+)(@sha256:[0-9a-f]{64})?$`,
       ),
     );
-    assert(match, "Images need a release version and immutable digest");
+    assert(
+      match,
+      "Images need a release version and optional immutable digest",
+    );
+    assert.equal(
+      match[1],
+      `v${sourceVersion}`,
+      "Image tag must match source version",
+    );
+    if (!match[2]) {
+      assert.equal(
+        config.autoDeploy,
+        false,
+        "Unpinned image candidates must not auto-deploy",
+      );
+      pendingDigest = true;
+    }
     versions.push(match[1]!);
   }
   assert.equal(
@@ -194,6 +215,6 @@ for (const environment of Object.keys(root.environments)) {
     "API and web must use the same release",
   );
   process.stdout.write(
-    `PASS Towbar ${environment}: ${app.id} + ${web.id} + ${database.id} on ${service.server}\n`,
+    `PASS Towbar ${environment}: ${app.id} + ${web.id} + ${database.id} on ${service.server}${pendingDigest ? " (candidate images; pin published digests before rollout)" : ""}\n`,
   );
 }

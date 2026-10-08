@@ -30,17 +30,3 @@ export function mcpDocumentationUrl(env: NodeJS.ProcessEnv = process.env) {
     ? publicOrigin(env.DOCS_BASE_URL, "DOCS_BASE_URL") + "/mcp-guide"
     : "https://www.vitalog.dev/mcp-guide";
 }
-
-export function serverApiBaseUrl(env: NodeJS.ProcessEnv = process.env) {
-  if (!env.API_INTERNAL_BASE_URL)
-    return publicOrigin(env.API_BASE_URL, "API_BASE_URL");
-  const url = new URL(env.API_INTERNAL_BASE_URL);
-  if (
-    url.origin !== env.API_INTERNAL_BASE_URL ||
-    !["http:", "https:"].includes(url.protocol)
-  )
-    throw new Error(
-      "API_INTERNAL_BASE_URL must be an exact HTTP or HTTPS origin",
-    );
-  return url.origin;
-}

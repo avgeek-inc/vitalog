@@ -1,6 +1,6 @@
 {
   "name": "vitalog",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": true,
   "type": "module",
   "engines": {
@@ -30,6 +30,7 @@
     "test:summaries": "tsx scripts/summary-verification.ts",
     "test:goals": "tsx scripts/goals-verification.ts",
     "test:web": "tsx scripts/web-verification.ts",
+    "test:public-api": "tsx scripts/public-api-verification.ts",
     "preview:web": "npm run build:web && tsx scripts/web-verification.ts --preview",
     "test:container": "tsx scripts/container-smoke.ts",
     "test:towbar": "tsx scripts/container-smoke.ts --towbar",

@@ -31,6 +31,9 @@ import {
 import { migrateDatabase } from "./migrate.js";
 
 const preview = process.argv.includes("--preview");
+const selectedCheck = process.argv
+  .find((argument) => argument.startsWith("--check="))
+  ?.slice("--check=".length);
 const container = `vitalog-web-${process.pid}`;
 const databasePassword = randomBytes(32).toString("hex");
 const primary = randomBytes(32).toString("base64url");
@@ -53,7 +56,8 @@ let webLog = "";
 let healthReadGate: Promise<void> | undefined;
 let apiUrl = "",
   uiUrl = "";
-const today = localDate(new Date(), "Asia/Kolkata");
+const fixtureTime = new Date();
+const today = localDate(fixtureTime, "Asia/Kolkata");
 const yesterday = dateOffset(today, -1);
 const logTime = (date: string, time: string) => {
   const supplied = new Date(`${date}T${time}:00+05:30`).getTime();
@@ -164,6 +168,7 @@ async function chooseKeySettings(
   await page.getByRole("option", { name: expiry, exact: true }).click();
 }
 async function check(name: string, run: () => Promise<void>) {
+  if (selectedCheck && name !== selectedCheck) return;
   try {
     await run();
   } catch (error) {
@@ -334,7 +339,7 @@ try {
       await new Promise((resolve) => setTimeout(resolve, 250));
     }
   }
-  if (!preview) {
+  if (!preview && !selectedCheck) {
     await check(
       "Display preference default migration preserves existing saved values",
       async () => {
@@ -409,7 +414,6 @@ try {
           undefined,
           "POST",
           credentials,
-          { Origin: uiUrl },
         );
         assert.equal(created.status, 201);
         const session = sessionCreated.parse(created.data);
@@ -913,6 +917,30 @@ try {
     });
     const page = await context.newPage();
     page.setDefaultTimeout(10000);
+    await page.clock.setFixedTime(fixtureTime);
+    await page.route(apiUrl + "/auth/session", async (route) => {
+      if (route.request().method() !== "GET") {
+        await route.continue();
+        return;
+      }
+      const before = localDate(new Date(), "Asia/Kolkata");
+      const response = await route.fetch().catch(() => null);
+      if (!response) {
+        await route.continue();
+        return;
+      }
+      if (!response.ok()) {
+        await route.fulfill({ response });
+        return;
+      }
+      const session = await response.json();
+      const after = localDate(new Date(), "Asia/Kolkata");
+      assert(
+        [before, after].includes(session.today),
+        `Server day ${session.today} is outside ${before}–${after}`,
+      );
+      await route.fulfill({ response, json: { ...session, today } });
+    });
     const failures: string[] = [];
     page.on("pageerror", (error) =>
       failures.push(`${page.url()}: ${error.message}`),
@@ -1167,12 +1195,22 @@ try {
                 requestSeen = resolve;
               });
               let requests = 0;
-              await signInPage.route(uiUrl + "/auth/login", async (route) => {
-                requests++;
-                requestSeen();
-                await responseGate;
-                await route.fulfill({ status: 401, json: {} });
-              });
+              await signInPage.route(
+                apiUrl + "/auth/session",
+                async (route) => {
+                  requests++;
+                  requestSeen();
+                  await responseGate;
+                  await route.fulfill({
+                    status: 401,
+                    json: {},
+                    headers: {
+                      "Access-Control-Allow-Origin": uiUrl,
+                      "Access-Control-Allow-Credentials": "true",
+                    },
+                  });
+                },
+              );
               await signInPage.goto(uiUrl + "/login");
               await signInPage
                 .getByRole("heading", { name: "Sign in", exact: true })
@@ -1257,7 +1295,7 @@ try {
               );
               await password.fill("retry-password");
               const retry = signInPage.waitForResponse(
-                (response) => response.url() === uiUrl + "/auth/login",
+                (response) => response.url() === apiUrl + "/auth/session",
               );
               await signInPage
                 .getByRole("button", { name: "Sign in", exact: true })
@@ -1368,7 +1406,7 @@ try {
           .fill(credentials.password);
         const signedIn = page.waitForResponse(
           (response) =>
-            response.url() === uiUrl + "/auth/login" &&
+            response.url() === apiUrl + "/auth/session" &&
             response.request().method() === "POST",
         );
         await page
@@ -1376,7 +1414,7 @@ try {
           .click();
         assert.equal(
           (await signedIn).status(),
-          200,
+          201,
           "Successful root sign-in should create the browser cookie",
         );
         await page.waitForURL("**/daily");
@@ -1397,14 +1435,14 @@ try {
           })),
           { local: 0, session: 0 },
         );
-        const login = await context.request.post(uiUrl + "/auth/login", {
+        const login = await context.request.post(apiUrl + "/auth/session", {
           data: credentials,
           headers: { Origin: "https://foreign.example" },
         });
         assert.equal(login.status(), 403);
         assert.equal(
           (
-            await context.request.post(uiUrl + "/auth/logout", {
+            await context.request.post(apiUrl + "/auth/logout", {
               headers: { Origin: "https://foreign.example" },
             })
           ).status(),
@@ -1413,12 +1451,83 @@ try {
       },
     );
     await check(
+      "Dashboard refreshes its session when returning to Daily after midnight",
+      async () => {
+        const navigationContext = await browser!.newContext();
+        try {
+          const login = await navigationContext.request.post(
+            apiUrl + "/auth/session",
+            { data: credentials, headers: { Origin: uiUrl } },
+          );
+          assert.equal(login.status(), 201);
+          const navigationPage = await navigationContext.newPage();
+          let advanced = false;
+          let sessionReads = 0;
+          const dailyRequests: string[] = [];
+          navigationPage.on("request", (request) => {
+            const path = new URL(request.url()).pathname;
+            if (/^\/v1\/days\/\d{4}-\d{2}-\d{2}$/.test(path))
+              dailyRequests.push(path);
+          });
+          await navigationPage.route(
+            apiUrl + "/auth/session",
+            async (route) => {
+              if (route.request().method() !== "GET") {
+                await route.continue();
+                return;
+              }
+              const response = await route.fetch();
+              assert.equal(response.status(), 200);
+              const session = await response.json();
+              sessionReads++;
+              await route.fulfill({
+                response,
+                json: { ...session, today: advanced ? today : yesterday },
+              });
+            },
+          );
+          await navigationPage.goto(uiUrl + "/daily");
+          await navigationPage
+            .getByRole("heading", { name: "Daily nutrition" })
+            .waitFor();
+          assert(dailyRequests.includes(`/v1/days/${yesterday}`));
+          await navigationPage
+            .getByRole("link", { name: "Weight Management", exact: true })
+            .click();
+          await navigationPage
+            .getByRole("heading", { name: "Weight Management", exact: true })
+            .waitFor();
+          advanced = true;
+          const readsBeforeReturn = sessionReads;
+          const requestsBeforeReturn = dailyRequests.length;
+          await navigationPage
+            .getByRole("link", { name: "Daily View", exact: true })
+            .click();
+          await navigationPage
+            .getByRole("heading", { name: "Daily nutrition" })
+            .waitFor();
+          assert.equal(sessionReads, readsBeforeReturn + 1);
+          assert.deepEqual(dailyRequests.slice(requestsBeforeReturn), [
+            `/v1/days/${today}`,
+          ]);
+        } finally {
+          await navigationContext.close();
+        }
+      },
+    );
+    await check(
       "Account profile and date/time preferences persist without health write privileges",
       async () => {
         const token = (await context.cookies()).find(
           (cookie) => cookie.name === "vitalog-session",
         )!.value;
+        const beforeDay = localDate(new Date(), "Asia/Kolkata");
         const before = (await api("/auth/session", token)).data;
+        assert(
+          [beforeDay, localDate(new Date(), "Asia/Kolkata")].includes(
+            sessionInfo.parse(before).today,
+          ),
+        );
         const original = object(object(before.account).preferences);
         assert.deepEqual(original, defaultDateTimePreferences);
         for (const date of dateFormatOptions) {
@@ -1462,7 +1571,7 @@ try {
           );
           assert.equal(
             (
-              await context.request.fetch(uiUrl + path, {
+              await context.request.fetch(apiUrl + path, {
                 method,
                 data: body,
                 headers: { Origin: "https://foreign.example" },
@@ -1539,7 +1648,15 @@ try {
           .getByRole("searchbox", { name: "Search time zones" })
           .fill("America/New_York");
         await page.getByRole("option", { name: /America\/New_York/ }).click();
+        const preferenceSave = page.waitForResponse(
+          (response) =>
+            response.url() === apiUrl + "/auth/preferences" &&
+            response.request().method() === "PUT",
+          { timeout: 5000 },
+        );
         await page.getByRole("button", { name: "Save", exact: true }).click();
+        const savedPreference = await preferenceSave;
+        assert.equal(savedPreference.status(), 200);
         await page.getByText("Preferences updated", { exact: true }).waitFor();
         await page.reload();
         await startApi(false);
@@ -1554,9 +1671,14 @@ try {
         );
         assert.equal((await api("/v1/goals", token)).status, 200);
         await startApi();
+        const afterDay = localDate(new Date(), "Asia/Kolkata");
         const after = (await api("/auth/session", token)).data;
+        assert(
+          [afterDay, localDate(new Date(), "Asia/Kolkata")].includes(
+            sessionInfo.parse(after).today,
+          ),
+        );
         assert.deepEqual(object(after.account).preferences, preference);
-        assert.equal(after.today, before.today);
         assert.equal(after.timezone, before.timezone);
         const stored = await connection!.pool.query(
           "select name,date_format,time_format,time_zone from account_settings where id=1",
@@ -1602,10 +1724,10 @@ try {
         const profilePage = await profileContext.newPage();
         const signIn = async () => {
           const response = await profileContext.request.post(
-            uiUrl + "/auth/login",
+            apiUrl + "/auth/session",
             { data: credentials, headers: { Origin: uiUrl } },
           );
-          assert.equal(response.status(), 200);
+          assert.equal(response.status(), 201);
         };
         try {
           await signIn();
@@ -1614,7 +1736,7 @@ try {
           await name.fill("Retry Reader");
           assert.equal(
             (
-              await profileContext.request.post(uiUrl + "/auth/logout", {
+              await profileContext.request.post(apiUrl + "/auth/logout", {
                 headers: { Origin: uiUrl },
               })
             ).status(),
@@ -1660,7 +1782,7 @@ try {
             const requested = new Promise<void>((resolve) => {
               captured = resolve;
             });
-            const endpoint = uiUrl + "/auth/profile";
+            const endpoint = apiUrl + "/auth/profile";
             await profilePage.route(endpoint, async (route) => {
               captured();
               await held;
@@ -1668,6 +1790,10 @@ try {
                 status,
                 contentType: "application/json",
                 body: JSON.stringify({ name: "Delayed Reader" }),
+                headers: {
+                  "Access-Control-Allow-Origin": uiUrl,
+                  "Access-Control-Allow-Credentials": "true",
+                },
               });
             });
             try {
@@ -1781,7 +1907,11 @@ try {
               };
             }),
           );
-        const elapsed = dayProgressPercent(today, "Asia/Kolkata", Date.now())!;
+        const elapsed = dayProgressPercent(
+          today,
+          "Asia/Kolkata",
+          fixtureTime.getTime(),
+        )!;
         for (const marker of markers) {
           assert(Math.abs(marker.percentage - elapsed) < 0.2);
           assert(marker.description?.includes("% of the day elapsed"));
@@ -2072,13 +2202,14 @@ try {
           .getByLabel("Password", { exact: true })
           .fill(credentials.password);
         const unlock = page.waitForResponse(
-          (response) => response.url() === uiUrl + "/auth/key-management/login",
+          (response) =>
+            response.url() === apiUrl + "/auth/key-management/session",
         );
         await verification
           .getByRole("button", { name: "Continue", exact: true })
           .click();
         const unlocked = await unlock;
-        assert.equal(unlocked.status(), 200);
+        assert.equal(unlocked.status(), 201);
         assert.deepEqual(await unlocked.json(), { signed_in: true });
         await verification.waitFor({ state: "hidden" });
         await page.getByText("No API keys yet", { exact: true }).waitFor();
@@ -2095,7 +2226,7 @@ try {
         for (const method of ["POST", "DELETE"]) {
           assert.equal(
             (
-              await context.request.fetch(uiUrl + endpointForKeys, {
+              await context.request.fetch(apiUrl + endpointForKeys, {
                 method,
                 headers: { Origin: "https://foreign.example" },
               })
@@ -2105,7 +2236,7 @@ try {
         }
         assert.equal(
           (
-            await context.request.post(uiUrl + endpointForKeys, {
+            await context.request.post(apiUrl + endpointForKeys, {
               data: "unexpected body",
               headers: { Origin: uiUrl },
             })
@@ -2128,12 +2259,16 @@ try {
           );
           await chooseKeySettings(page, `Settings verification ${index}`);
           if (index === 0) {
-            await page.route(uiUrl + endpointForKeys, async (route) => {
+            await page.route(apiUrl + endpointForKeys, async (route) => {
               if (route.request().method() === "POST")
                 await route.fulfill({
                   status: 503,
                   contentType: "application/json",
                   body: "{}",
+                  headers: {
+                    "Access-Control-Allow-Origin": uiUrl,
+                    "Access-Control-Allow-Credentials": "true",
+                  },
                 });
               else await route.continue();
             });
@@ -2149,7 +2284,7 @@ try {
               await dialog.isVisible(),
               "A failed create must leave the shared confirmation open for retry",
             );
-            await page.unroute(uiUrl + endpointForKeys);
+            await page.unroute(apiUrl + endpointForKeys);
           }
           await dialog
             .getByRole("button", { name: "Create key", exact: true })
@@ -2199,10 +2334,18 @@ try {
         await page
           .getByRole("button", { name: "Revoke all API keys", exact: true })
           .click();
+        const revokeAll = page.waitForResponse(
+          (response) =>
+            response.url() === apiUrl + endpointForKeys + "?kind=api-key" &&
+            response.request().method() === "DELETE",
+          { timeout: 10000 },
+        );
         await page
           .getByRole("dialog", { name: "Revoke all API keys?", exact: true })
           .getByRole("button", { name: "Revoke all API keys", exact: true })
           .click();
+        const revokeAllResponse = await revokeAll;
+        assert.equal(revokeAllResponse.status(), 200);
         await page.getByText("No API keys yet", { exact: true }).waitFor();
         assert.equal((await api("/v1/goals", generated[1])).status, 401);
         const browserSession = (await context.cookies()).find(
@@ -2647,6 +2790,7 @@ try {
       },
     );
     assert.deepEqual(failures, []);
+    if (selectedCheck) assert.deepEqual(checks, [selectedCheck]);
     const logs = JSON.stringify(requestLogs) + webLog;
     assert(!logs.includes(credentials.password));
     assert(!logs.includes(primary));

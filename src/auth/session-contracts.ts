@@ -5,6 +5,10 @@ export const sessionCreated = z.strictObject({
   session_token: z.string().regex(/^vls_[A-Za-z0-9_-]{43}$/),
   expires_at: z.iso.datetime(),
 });
+const browserSessionCreated = z.union([
+  sessionCreated,
+  z.strictObject({ signed_in: z.literal(true) }),
+]);
 export const sessionInfo = z.strictObject({
   expires_at: z.iso.datetime(),
   timezone: z.string(),
@@ -18,9 +22,9 @@ export const sessionOperations = [
     path: "/auth/session",
     status: "201",
     input: credentialsSchema,
-    output: sessionCreated,
+    output: browserSessionCreated,
     description:
-      "Create a revocable 30-day, read-only browser session using root credentials. The Next.js UI keeps this opaque token in a host-only HttpOnly cookie. It cannot write records or goals, manage keys, or access MCP.",
+      "Create a revocable 30-day read-only session using root credentials. Requests from UI_BASE_URL receive a host-only HttpOnly API cookie and signed_in response; non-browser clients receive an opaque Bearer token. It cannot write records or goals, manage keys, or access MCP.",
   },
   {
     name: "get_browser_session",
@@ -29,7 +33,7 @@ export const sessionOperations = [
     status: "200",
     output: sessionInfo,
     description:
-      "Validate a browser session and read its expiry, server timezone and today's local date. Requires a vls_ Bearer token.",
+      "Validate a browser session and read its expiry, server timezone and today's local date. Accepts a vls_ Bearer token or the API cookie from UI_BASE_URL.",
   },
   {
     name: "revoke_browser_session",

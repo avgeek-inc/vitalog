@@ -2,7 +2,7 @@
   "openapi": "3.1.1",
   "info": {
     "title": "Vitalog",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "description": "Single-user structured observations with equivalent REST and MCP domain services. Environment AUTH_KEY or revocable personal Bearer keys with required name, permissions and explicit expiry (including Never); Primary key management requires AUTH_KEY; the UI uses separate, root-verified 30-minute management sessions. MCP clients use OAuth authorization code with S256 PKCE, issued after root sign-in. Clients are resolved through HTTPS metadata, pre-registration or dynamic registration. OAuth tokens grant MCP access only."
   },
   "servers": [
@@ -68213,28 +68213,45 @@
         },
         "responses": {
           "201": {
-            "description": "Create a revocable 30-day, read-only browser session using root credentials. The Next.js UI keeps this opaque token in a host-only HttpOnly cookie. It cannot write records or goals, manage keys, or access MCP.",
+            "description": "Create a revocable 30-day read-only session using root credentials. Requests from UI_BASE_URL receive a host-only HttpOnly API cookie and signed_in response; non-browser clients receive an opaque Bearer token. It cannot write records or goals, manage keys, or access MCP.",
             "content": {
               "application/json": {
                 "schema": {
                   "$schema": "https://json-schema.org/draft/2020-12/schema",
-                  "type": "object",
-                  "properties": {
-                    "session_token": {
-                      "type": "string",
-                      "pattern": "^vls_[A-Za-z0-9_-]{43}$"
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "session_token": {
+                          "type": "string",
+                          "pattern": "^vls_[A-Za-z0-9_-]{43}$"
+                        },
+                        "expires_at": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        }
+                      },
+                      "required": [
+                        "session_token",
+                        "expires_at"
+                      ],
+                      "additionalProperties": false
                     },
-                    "expires_at": {
-                      "type": "string",
-                      "format": "date-time",
-                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    {
+                      "type": "object",
+                      "properties": {
+                        "signed_in": {
+                          "type": "boolean",
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "signed_in"
+                      ],
+                      "additionalProperties": false
                     }
-                  },
-                  "required": [
-                    "session_token",
-                    "expires_at"
-                  ],
-                  "additionalProperties": false
+                  ]
                 }
               }
             }
@@ -68310,7 +68327,7 @@
             }
           }
         },
-        "description": "Create a revocable 30-day, read-only browser session using root credentials. The Next.js UI keeps this opaque token in a host-only HttpOnly cookie. It cannot write records or goals, manage keys, or access MCP."
+        "description": "Create a revocable 30-day read-only session using root credentials. Requests from UI_BASE_URL receive a host-only HttpOnly API cookie and signed_in response; non-browser clients receive an opaque Bearer token. It cannot write records or goals, manage keys, or access MCP."
       },
       "get": {
         "operationId": "get_browser_session",
@@ -68325,7 +68342,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Validate a browser session and read its expiry, server timezone and today's local date. Requires a vls_ Bearer token.",
+            "description": "Validate a browser session and read its expiry, server timezone and today's local date. Accepts a vls_ Bearer token or the API cookie from UI_BASE_URL.",
             "content": {
               "application/json": {
                 "schema": {
@@ -68470,7 +68487,7 @@
             }
           }
         },
-        "description": "Validate a browser session and read its expiry, server timezone and today's local date. Requires a vls_ Bearer token."
+        "description": "Validate a browser session and read its expiry, server timezone and today's local date. Accepts a vls_ Bearer token or the API cookie from UI_BASE_URL."
       },
       "delete": {
         "operationId": "revoke_browser_session",
@@ -68618,28 +68635,45 @@
         },
         "responses": {
           "201": {
-            "description": "Verify root credentials and issue a revocable, 30-minute session for API-key management only. This token cannot read or write health data, access MCP, or use the primary AUTH_KEY administration routes.",
+            "description": "Verify root credentials and issue a revocable, 30-minute session for API-key management only. Requests from UI_BASE_URL receive a host-only HttpOnly API cookie; non-browser clients receive a Bearer token. This credential cannot read or write health data, access MCP, or use the primary AUTH_KEY administration routes.",
             "content": {
               "application/json": {
                 "schema": {
                   "$schema": "https://json-schema.org/draft/2020-12/schema",
-                  "type": "object",
-                  "properties": {
-                    "session_token": {
-                      "type": "string",
-                      "pattern": "^vlm_[A-Za-z0-9_-]{43}$"
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "session_token": {
+                          "type": "string",
+                          "pattern": "^vlm_[A-Za-z0-9_-]{43}$"
+                        },
+                        "expires_at": {
+                          "type": "string",
+                          "format": "date-time",
+                          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                        }
+                      },
+                      "required": [
+                        "session_token",
+                        "expires_at"
+                      ],
+                      "additionalProperties": false
                     },
-                    "expires_at": {
-                      "type": "string",
-                      "format": "date-time",
-                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    {
+                      "type": "object",
+                      "properties": {
+                        "signed_in": {
+                          "type": "boolean",
+                          "const": true
+                        }
+                      },
+                      "required": [
+                        "signed_in"
+                      ],
+                      "additionalProperties": false
                     }
-                  },
-                  "required": [
-                    "session_token",
-                    "expires_at"
-                  ],
-                  "additionalProperties": false
+                  ]
                 }
               }
             }
@@ -68725,7 +68759,7 @@
             }
           }
         },
-        "description": "Verify root credentials and issue a revocable, 30-minute session for API-key management only. This token cannot read or write health data, access MCP, or use the primary AUTH_KEY administration routes."
+        "description": "Verify root credentials and issue a revocable, 30-minute session for API-key management only. Requests from UI_BASE_URL receive a host-only HttpOnly API cookie; non-browser clients receive a Bearer token. This credential cannot read or write health data, access MCP, or use the primary AUTH_KEY administration routes."
       },
       "get": {
         "operationId": "get_key_management_session",

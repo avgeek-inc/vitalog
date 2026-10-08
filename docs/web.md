@@ -8,7 +8,7 @@ import { Screenshot } from "/snippets/oss/screenshot.jsx";
 
 ## Sign in
 
-Open your installation's UI and sign in with its configured root email and password. The dashboard session is read-only for health data and expires after 30 days. Sign out from the account menu when using a shared device.
+Open your installation's UI and sign in with its configured root email and password. The browser calls the public API directly; the API keeps the read-only 30-day dashboard session in a host-only HttpOnly cookie on its own origin. Sign out from the account menu when using a shared device.
 
 ## Daily view
 

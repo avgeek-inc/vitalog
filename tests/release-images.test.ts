@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { releaseImages } from "../scripts/release-images.js";
 
 const manifest = {
-  version: "v1.0.2",
+  version: "v1.0.3",
   commit: "a".repeat(40),
   platforms: ["linux/amd64", "linux/arm64"],
   images: {
@@ -17,14 +17,14 @@ describe("release image promotion contract", () => {
   });
   test.each([
     { ...manifest, version: "latest" },
-    { ...manifest, version: "v01.0.2" },
+    { ...manifest, version: "v01.0.3" },
     { ...manifest, commit: "main" },
     { ...manifest, platforms: ["linux/arm64"] },
     {
       ...manifest,
       images: {
         ...manifest.images,
-        api: "ghcr.io/avgeek-oss/vitalog-api:v1.0.2",
+        api: "ghcr.io/avgeek-oss/vitalog-api:v1.0.3",
       },
     },
     { ...manifest, images: { ...manifest.images, api: manifest.images.web } },

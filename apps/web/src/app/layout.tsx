@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { themeBootstrapScript } from "@avgeek-oss/design-system/lib/theme";
 import { Providers } from "../components/providers";
+import { webConfiguration } from "../lib/config";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -25,6 +26,10 @@ export default async function Layout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <meta
+          name="vitalog-api-origin"
+          content={webConfiguration().apiBaseUrl}
+        />
         <script
           nonce={nonce}
           dangerouslySetInnerHTML={{

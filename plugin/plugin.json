@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "vitalog",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "description": "Log and retrieve your personal health observations through Vitalog.",
   "author": {
     "name": "Avgeek, Inc."
