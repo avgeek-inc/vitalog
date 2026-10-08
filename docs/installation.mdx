@@ -22,7 +22,6 @@ Edit `.env` with your own values:
 - `AUTH_KEY`: a high-entropy primary Bearer key with at least 32 random bytes.
 - `POSTGRES_PASSWORD`: the database password used by Compose.
 - `ROOT_EMAIL` and `ROOT_PASSWORD`: the root credentials for dashboard sign-in, key generation and OAuth consent. Use at least 15 non-padding password characters. The password must differ from `AUTH_KEY`.
-- `DEFAULT_TIMEZONE`: the IANA timezone used for dates and daily summaries.
 
 For a loopback preview, retain `PUBLIC_BASE_URL=http://127.0.0.1:3000`, `API_BASE_URL=http://127.0.0.1:3000` and `UI_BASE_URL=http://127.0.0.1:3001`. Never commit `.env`.
 
@@ -41,7 +40,6 @@ Use separate UI and API origins behind your TLS ingress. The checked-in producti
 UI_BASE_URL=https://vitalog.praveent.com
 API_BASE_URL=https://vitalog-api.praveent.com
 PUBLIC_BASE_URL=https://vitalog-api.praveent.com
-ALLOWED_HOSTS=vitalog-api.praveent.com
 ```
 
 The API must know its exact public origin for OAuth resource and issuer validation. Use [Configuration](/configuration) to configure allowed browser-client origins for your ingress.

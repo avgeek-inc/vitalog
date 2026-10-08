@@ -118,11 +118,7 @@ async function verify() {
   await migrateDatabase(url);
   connection = database(url);
   const config = configuration({ AUTH_KEY: key, DATABASE_URL: url });
-  const service = new Service(
-    connection.db,
-    config.timezone,
-    config.authDigest.toString("hex"),
-  );
+  const service = new Service(connection.db, config.authDigest.toString("hex"));
   const app = application(service, config, (entry) => logs.push(entry));
   const apiPort = await new Promise<number>((resolve) => {
     server = serve(

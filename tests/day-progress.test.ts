@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { dayProgressPercent } from "../apps/web/src/lib/day-progress.js";
 
 describe("daily progress marker", () => {
-  it("uses the ledger's local midnight rather than UTC or display preferences", () => {
+  it("uses the account timezone's local midnight", () => {
     expect(
       dayProgressPercent(
         "2026-10-07",

@@ -21,10 +21,9 @@ const credential = randomBytes(48).toString("base64url");
 const config = configuration({
   AUTH_KEY: credential,
   DATABASE_URL: "postgresql://unused.invalid/mcp-discovery-test",
-  ALLOWED_HOSTS: "localhost:3000",
 });
 const connection = database(config.databaseUrl);
-const service = new Service(connection.db, config.timezone, "discovery-test");
+const service = new Service(connection.db, "discovery-test");
 const logs: unknown[] = [];
 const app = application(service, config, (entry) => logs.push(entry));
 afterAll(() => connection.pool.end());

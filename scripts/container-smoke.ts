@@ -121,9 +121,7 @@ const env = {
   API_BASE_URL: `http://127.0.0.1:${publishedPort}`,
   PUBLIC_BASE_URL: `http://127.0.0.1:${publishedPort}`,
   VITALOG_WEB_IMAGE: release?.images.web ?? `${project}-web:local`,
-  ALLOWED_HOSTS: [service?.domains?.primary, `127.0.0.1:${publishedPort}`]
-    .filter(Boolean)
-    .join(","),
+
   ALLOWED_ORIGINS: "",
   VITALOG_IMAGE: release?.images.api ?? `${project}:local`,
 };

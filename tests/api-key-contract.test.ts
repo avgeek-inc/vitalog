@@ -103,11 +103,7 @@ describe("Key generation contracts", () => {
     vi.useFakeTimers();
     const config = configuration(env);
     const connection = database(config.databaseUrl);
-    const service = new Service(
-      connection.db,
-      config.timezone,
-      "deadline-test",
-    );
+    const service = new Service(connection.db, "deadline-test");
     let finish: (value: undefined) => void;
     const lookup = new Promise<undefined>((resolve) => {
       finish = resolve;

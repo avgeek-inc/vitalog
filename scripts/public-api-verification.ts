@@ -9,6 +9,9 @@ import { application } from "../src/app.js";
 import { configuration } from "../src/config.js";
 import { database } from "../src/db/client.js";
 import { Service } from "../src/service.js";
+import { Goals } from "../src/domain/goals.js";
+import { operations, operationByName } from "../src/registry/operations.js";
+import { base } from "../tests/fixtures.js";
 import { migrateDatabase } from "./migrate.js";
 
 const container = `vitalog-public-api-${process.pid}`;
@@ -74,18 +77,14 @@ try {
     ROOT_EMAIL: credentials.email,
     ROOT_PASSWORD: credentials.password,
     DATABASE_URL: dbUrl,
-    ALLOWED_HOSTS: new URL(apiUrl).host,
+
     PUBLIC_BASE_URL: apiUrl,
     UI_BASE_URL: uiUrl,
     RATE_LIMIT_PER_MINUTE: "100000",
   });
   server = serve({
     fetch: application(
-      new Service(
-        connection.db,
-        config.timezone,
-        config.authDigest.toString("hex"),
-      ),
+      new Service(connection.db, config.authDigest.toString("hex")),
       config,
       () => {},
     ).fetch,
@@ -162,6 +161,158 @@ try {
     browserCookie,
   );
   assert.equal(preferences.status, 200);
+
+  const ledger = new Service(connection.db, "timezone-verification");
+  const instant = await ledger.execute("health_log_hydration", {
+    ...base,
+    occurred_on: "2026-09-09",
+    occurred_at: "2026-09-09T23:30:00Z",
+    timezone: "UTC",
+    idempotency_key: "timezone-instant",
+    data: { entry_kind: "intake", volume_ml: 250, drink_type: "water" },
+  });
+  await ledger.execute("health_log_hydration", {
+    ...base,
+    occurred_on: "2026-09-10",
+    timezone: "UTC",
+    idempotency_key: "timezone-date-only",
+    data: { entry_kind: "intake", volume_ml: 500, drink_type: "water" },
+  });
+  await new Goals(
+    connection.db,
+    "UTC",
+    () => new Date("2026-09-09T00:00:00Z"),
+  ).execute(operationByName.get("health_set_goal")!, {
+    metric: "hydration:water_ml",
+    target: 1000,
+    expected_version: 0,
+    idempotency_key: "timezone-goal",
+  });
+  const beforeTimezoneChange = (
+    await connection.pool.query(
+      "select occurred_at, ended_at, occurred_on, timezone, version, time_context from health_records order by id",
+    )
+  ).rows;
+  const utcPage = await request(
+    "/v1/records?start_date=2026-09-10&end_date=2026-09-10",
+    "GET",
+    undefined,
+    browserCookie,
+  );
+  assert.equal(utcPage.status, 200);
+  assert.equal((await utcPage.json()).returned_count, 1);
+  const cursorPage = await request(
+    "/v1/records?limit=1",
+    "GET",
+    undefined,
+    browserCookie,
+  );
+  const previousCursor = (await cursorPage.json()).next_cursor;
+  assert(previousCursor);
+  const zoneChanged = await request(
+    "/auth/preferences",
+    "PUT",
+    {
+      dateFormat: "year-month-day",
+      timeFormat: "24-hour",
+      timeZone: "Asia/Kolkata",
+    },
+    browserCookie,
+  );
+  assert.equal(zoneChanged.status, 200);
+  const refreshed = await (
+    await request("/auth/session", "GET", undefined, browserCookie)
+  ).json();
+  assert.equal(refreshed.timezone, "Asia/Kolkata");
+  assert.equal(refreshed.account.preferences.timeZone, refreshed.timezone);
+  const indiaPage = await (
+    await request(
+      "/v1/records?start_date=2026-09-10&end_date=2026-09-10",
+      "GET",
+      undefined,
+      browserCookie,
+    )
+  ).json();
+  assert.equal(indiaPage.returned_count, 2);
+  assert(
+    indiaPage.records.some(
+      (record: { id: string }) =>
+        record.id === (instant.record as { id: string }).id,
+    ),
+  );
+  const daily = await (
+    await request("/v1/days/2026-09-10", "GET", undefined, browserCookie)
+  ).json();
+  assert.equal(daily.timezone, "Asia/Kolkata");
+  assert.equal(daily.hydration.water_ml.exact_value, 750);
+  const progress = await (
+    await request(
+      "/v1/days/2026-09-10/goal-progress",
+      "GET",
+      undefined,
+      browserCookie,
+    )
+  ).json();
+  assert.equal(progress.progress[0].actual, 750);
+  const mcp = await fetch(apiUrl + "/mcp", {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer " + primary,
+      "Content-Type": "application/json",
+      Accept: "application/json, text/event-stream",
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/call",
+      params: {
+        name: "health_get_daily_summary",
+        arguments: { date: "2026-09-10" },
+      },
+    }),
+  });
+  assert.equal(mcp.status, 200);
+  const mcpSummary = JSON.parse((await mcp.json()).result.content[0].text);
+  assert.equal(mcpSummary.timezone, daily.timezone);
+  assert.equal(mcpSummary.hydration.water_ml.exact_value, 750);
+  const oldCursor = await request(
+    "/v1/records?limit=1&cursor=" + encodeURIComponent(previousCursor),
+    "GET",
+    undefined,
+    browserCookie,
+  );
+  assert.equal(oldCursor.status, 422);
+  const afterTimezoneChange = (
+    await connection.pool.query(
+      "select occurred_at, ended_at, occurred_on, timezone, version, time_context from health_records order by id",
+    )
+  ).rows;
+  assert.deepEqual(afterTimezoneChange, beforeTimezoneChange);
+  const preferencesRestored = await request(
+    "/auth/preferences",
+    "PUT",
+    { dateFormat: "year-month-day", timeFormat: "24-hour", timeZone: "UTC" },
+    browserCookie,
+  );
+  assert.equal(preferencesRestored.status, 200);
+  const utcDaily = await (
+    await request("/v1/days/2026-09-10", "GET", undefined, browserCookie)
+  ).json();
+  assert.equal(utcDaily.hydration.water_ml.exact_value, 500);
+  for (const operation of operations.filter(
+    (operation) => operation.name === "health_get_trends",
+  )) {
+    const trend = await ledger.execute(operation.name, {
+      start_date: "2026-09-09",
+      end_date: "2026-09-10",
+      metrics: ["hydration:water_ml"],
+    });
+    operation.output.parse(trend);
+  }
+  process.stdout.write(
+    "PASS account timezone applies to REST, MCP, goal progress and pagination without modifying stored records\n",
+  );
+
   const verified = await request(
     "/auth/key-management/session",
     "POST",
@@ -249,16 +400,12 @@ try {
     ROOT_EMAIL: credentials.email,
     ROOT_PASSWORD: credentials.password,
     DATABASE_URL: dbUrl,
-    ALLOWED_HOSTS: new URL(hostedApi).host,
+
     PUBLIC_BASE_URL: hostedApi,
     UI_BASE_URL: hostedUi,
   });
   const hosted = application(
-    new Service(
-      connection.db,
-      hostedConfig.timezone,
-      hostedConfig.authDigest.toString("hex"),
-    ),
+    new Service(connection.db, hostedConfig.authDigest.toString("hex")),
     hostedConfig,
     () => {},
   );

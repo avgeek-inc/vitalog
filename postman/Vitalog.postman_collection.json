@@ -480,7 +480,7 @@
               }
             ],
             "url": "{{baseUrl}}/v1/goals",
-            "description": "Set or reactivate a user-supplied goal from today in the server timezone. Use expected_version=0 for a new metric, otherwise its current version. Weight requires an explicit baseline on creation; it is retained on edits unless supplied. No automatic recommendations.",
+            "description": "Set or reactivate a user-supplied goal from today in the account timezone. Use expected_version=0 for a new metric, otherwise its current version. Weight requires an explicit baseline on creation; it is retained on edits unless supplied. No automatic recommendations.",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"metric\": \"hydration:water_ml\",\n  \"target\": 2500,\n  \"expected_version\": 0\n}",
@@ -1959,7 +1959,7 @@
           "request": {
             "method": "GET",
             "url": "{{baseUrl}}/auth/session",
-            "description": "Validate a browser session and read its expiry, server timezone and today's local date. Accepts a vls_ Bearer token or the API cookie from UI_BASE_URL.",
+            "description": "Validate a browser session and read its expiry, account timezone and today's local date. Accepts a vls_ Bearer token or the API cookie from UI_BASE_URL.",
             "auth": {
               "type": "bearer",
               "bearer": [

@@ -8,6 +8,14 @@ import {
   type Account,
 } from "./account-contracts.js";
 
+export async function accountTimezone(db: Database): Promise<string> {
+  const [stored] = await db
+    .select({ timeZone: accountSettings.timeZone })
+    .from(accountSettings)
+    .where(eq(accountSettings.id, 1));
+  return stored?.timeZone ?? defaultDateTimePreferences.timeZone;
+}
+
 export class RootAccount {
   constructor(
     private db: Database,

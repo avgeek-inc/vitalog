@@ -16,11 +16,7 @@ const config = configuration({
   DATABASE_URL: "postgresql://unused.invalid/security-unit-test",
 });
 const connection = database(config.databaseUrl);
-const service = new Service(
-  connection.db,
-  config.timezone,
-  config.authDigest.toString("hex"),
-);
+const service = new Service(connection.db, config.authDigest.toString("hex"));
 const original = service.execute.bind(service);
 const execute = vi
   .spyOn(service, "execute")

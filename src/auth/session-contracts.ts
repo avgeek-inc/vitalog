@@ -33,7 +33,7 @@ export const sessionOperations = [
     status: "200",
     output: sessionInfo,
     description:
-      "Validate a browser session and read its expiry, server timezone and today's local date. Accepts a vls_ Bearer token or the API cookie from UI_BASE_URL.",
+      "Validate a browser session and read its expiry, account timezone and today's local date. Accepts a vls_ Bearer token or the API cookie from UI_BASE_URL.",
   },
   {
     name: "revoke_browser_session",

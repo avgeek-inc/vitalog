@@ -39,7 +39,7 @@ Weight needs an explicit baseline on creation. The baseline represents the start
 - `health_get_goal` / `GET /v1/goals/{id}`: current goal; optional `include_history=true`, `history_limit` (1–100) and `history_before_version` for immutable revisions.
 - `health_archive_goal` / `POST /v1/goals/{id}/archive`: `expected_version` and a retry key; preserves all history.
 
-Changes take effect on the server's current local date in `DEFAULT_TIMEZONE`. The latest revision on that date applies to the whole day; edits do not alter earlier days. Archival removes the goal starting that day. Future scheduling and backdating are not exposed in this version. Goal revisions and health observations are read in one repeatable-read transaction for progress.
+Changes take effect on the account's current local date in its saved timezone preference. The latest revision on that date applies to the whole day; edits do not alter earlier days. Archival removes the goal starting that day. Future scheduling and backdating are not exposed in this version. Goal revisions and health observations are read in one repeatable-read transaction for progress.
 
 All routes require Bearer authentication. MCP goal reads require `health:read`; goal writes require `health:write`. The viewing UI uses a separate read-only browser session; it has no goal or record mutation screens.
 

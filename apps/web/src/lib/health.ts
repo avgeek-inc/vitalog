@@ -7,6 +7,8 @@ export type HealthRecord = {
   ended_at: string | null;
   recorded_at: string;
   timezone: string;
+  time_precision: string;
+  date_basis: string;
   status: string;
   validity: string;
   provenance: { field_overrides?: Record<string, { validity?: string }> };

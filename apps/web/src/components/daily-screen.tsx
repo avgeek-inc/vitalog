@@ -36,7 +36,7 @@ export function DailyScreen({
     return () => {
       active = false;
     };
-  }, [date, attempt]);
+  }, [date, session.timezone, attempt]);
   return (
     <ApplicationPage
       title="Daily View"

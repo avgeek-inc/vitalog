@@ -287,14 +287,13 @@ try {
   const config = configuration({
     ...operatorEnv,
     AUTH_KEY: key,
-    ALLOWED_HOSTS: `127.0.0.1:${address.port}`,
+
     PUBLIC_BASE_URL: baseUrl,
     RATE_LIMIT_PER_MINUTE: "100000",
   });
   const storage = new S3AttachmentStorage(config.attachmentStorage!);
   const service = new Service(
     connection.db,
-    config.timezone,
     "attachment-verification",
     storage,
   );
@@ -822,11 +821,7 @@ try {
       assert(!JSON.stringify(logs).includes(key));
       assert(!JSON.stringify(logs).includes(storageSecret));
       assert(!JSON.stringify(logs).includes("X-Amz-Signature"));
-      const disabled = new Service(
-        connection!.db,
-        config.timezone,
-        "disabled-storage",
-      );
+      const disabled = new Service(connection!.db, "disabled-storage");
       assert.equal(
         (await disabled.execute("health_get_attachment", { id: imageId }))
           .attachment !== undefined,
@@ -908,7 +903,6 @@ try {
       try {
         const restoredService = new Service(
           restored.db,
-          config.timezone,
           "attachment-verification",
           storage,
         );

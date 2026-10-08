@@ -1,3 +1,4 @@
+import { recordInTimezone } from "./record-date.js";
 import { Decimal } from "decimal.js";
 import {
   CATALOG_VERSION,
@@ -691,13 +692,16 @@ export function studyPeriod(record: HealthRecord): Data {
       object(record.data.study_metadata).effective_period,
   );
 }
-export function isStudy(record: HealthRecord): boolean {
+export function isStudy(
+  record: HealthRecord,
+  timezone = record.timezone,
+): boolean {
   if (record.record_type === "intake") {
     if (record.data.effective_period) return true;
     if (record.data.start_at && record.data.end_at)
       return (
-        localDate(String(record.data.start_at), record.timezone) !==
-        localDate(String(record.data.end_at), record.timezone)
+        localDate(String(record.data.start_at), timezone) !==
+        localDate(String(record.data.end_at), timezone)
       );
     return Number(record.data.duration_seconds ?? 0) >= 86_400;
   }
@@ -710,10 +714,11 @@ export function isStudy(record: HealthRecord): boolean {
 export function periodOverlapsDate(
   record: HealthRecord,
   date: string,
+  timezone?: string,
 ): boolean {
   const period = studyPeriod(record);
   if (!period.start || !period.end) return record.occurred_on === date;
-  const zone = String(period.timezone ?? record.timezone);
+  const zone = timezone ?? String(period.timezone ?? record.timezone);
   const asDate = (value: unknown) =>
     String(value).includes("T")
       ? localDate(String(value), zone)
@@ -726,12 +731,14 @@ export function dailySummary(
   timezone: string,
   sections?: string[],
 ): Data {
-  const records = all.filter(
-    (record) =>
-      record.occurred_on === date &&
-      record.status === "active" &&
-      !isStudy(record),
-  );
+  const records = all
+    .map((record) => recordInTimezone(record, timezone))
+    .filter(
+      (record) =>
+        record.occurred_on === date &&
+        record.status === "active" &&
+        !isStudy(record, timezone),
+    );
   const selected = sections ?? [...recordTypes];
   const byType = (type: string) =>
     records.filter((record) => record.record_type === type);
@@ -784,8 +791,8 @@ export function dailySummary(
   const overlappingStudies = all.filter(
     (record) =>
       record.status === "active" &&
-      isStudy(record) &&
-      periodOverlapsDate(record, date),
+      isStudy(record, timezone) &&
+      periodOverlapsDate(record, date, timezone),
   );
   const completeness: Data = Object.fromEntries(
     recordTypes.map((type) => [type, { value: "unknown", source_id: null }]),

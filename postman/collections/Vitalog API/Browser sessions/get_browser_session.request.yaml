@@ -2,8 +2,8 @@ $kind: http-request
 id: bc920f71-6b42-57e8-8f99-347a0426b0af
 method: GET
 url: "{{baseUrl}}/auth/session"
-description: Validate a browser session and read its expiry, server timezone and
-  today's local date. Accepts a vls_ Bearer token or the API cookie from
+description: Validate a browser session and read its expiry, account timezone
+  and today's local date. Accepts a vls_ Bearer token or the API cookie from
   UI_BASE_URL.
 headers:
   Accept: application/json

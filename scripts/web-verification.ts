@@ -94,14 +94,13 @@ async function startApi(rootEnabled = true) {
     ...(rootEnabled
       ? { ROOT_EMAIL: credentials.email, ROOT_PASSWORD: credentials.password }
       : {}),
-    ALLOWED_HOSTS: new URL(apiUrl).host,
+
     PUBLIC_BASE_URL: apiUrl,
     UI_BASE_URL: uiUrl,
     RATE_LIMIT_PER_MINUTE: "100000",
   });
   const service = new Service(
     connection!.db,
-    config.timezone,
     config.authDigest.toString("hex"),
   );
   const app = application(service, config, (entry) => requestLogs.push(entry));
@@ -401,6 +400,9 @@ try {
       },
     );
   } else await migrateDatabase(connection.pool.options.connectionString!);
+  await connection.pool.query(
+    "insert into account_settings (id, name, time_zone) values (1, 'Fixture', 'Asia/Kolkata') on conflict (id) do update set time_zone = excluded.time_zone",
+  );
   apiUrl = `http://127.0.0.1:${await port()}`;
   uiUrl = `http://127.0.0.1:${await port()}`;
   const service = await startApi();
@@ -915,6 +917,23 @@ try {
       viewport: { width: 1280, height: 1000 },
       colorScheme: "light",
     });
+    if (
+      selectedCheck ===
+      "Account profile and date/time preferences persist without health write privileges"
+    ) {
+      const signedIn = sessionCreated.parse(
+        (await api("/auth/session", undefined, "POST", credentials)).data,
+      );
+      await context.addCookies([
+        {
+          name: "vitalog-session",
+          value: signedIn.session_token,
+          url: apiUrl,
+          httpOnly: true,
+          sameSite: "Lax",
+        },
+      ]);
+    }
     const page = await context.newPage();
     page.setDefaultTimeout(10000);
     await page.clock.setFixedTime(fixtureTime);
@@ -923,7 +942,7 @@ try {
         await route.continue();
         return;
       }
-      const before = localDate(new Date(), "Asia/Kolkata");
+      const started = new Date();
       const response = await route.fetch().catch(() => null);
       if (!response) {
         await route.continue();
@@ -934,12 +953,16 @@ try {
         return;
       }
       const session = await response.json();
-      const after = localDate(new Date(), "Asia/Kolkata");
+      const before = localDate(started, session.timezone);
+      const after = localDate(new Date(), session.timezone);
       assert(
         [before, after].includes(session.today),
-        `Server day ${session.today} is outside ${before}–${after}`,
+        `Account day ${session.today} is outside ${before}–${after}`,
       );
-      await route.fulfill({ response, json: { ...session, today } });
+      await route.fulfill({
+        response,
+        json: { ...session, today: localDate(fixtureTime, session.timezone) },
+      });
     });
     const failures: string[] = [];
     page.on("pageerror", (error) =>
@@ -1529,7 +1552,10 @@ try {
           ),
         );
         const original = object(object(before.account).preferences);
-        assert.deepEqual(original, defaultDateTimePreferences);
+        assert.deepEqual(original, {
+          ...defaultDateTimePreferences,
+          timeZone: "Asia/Kolkata",
+        });
         for (const date of dateFormatOptions) {
           for (const time of timeFormatOptions) {
             const preference = {
@@ -1671,15 +1697,15 @@ try {
         );
         assert.equal((await api("/v1/goals", token)).status, 200);
         await startApi();
-        const afterDay = localDate(new Date(), "Asia/Kolkata");
+        const afterDay = localDate(new Date(), preference.timeZone);
         const after = (await api("/auth/session", token)).data;
         assert(
-          [afterDay, localDate(new Date(), "Asia/Kolkata")].includes(
+          [afterDay, localDate(new Date(), preference.timeZone)].includes(
             sessionInfo.parse(after).today,
           ),
         );
         assert.deepEqual(object(after.account).preferences, preference);
-        assert.equal(after.timezone, before.timezone);
+        assert.equal(after.timezone, preference.timeZone);
         const stored = await connection!.pool.query(
           "select name,date_format,time_format,time_zone from account_settings where id=1",
         );
@@ -2419,11 +2445,10 @@ try {
         });
         await page.keyboard.press("Escape");
         await drawer.waitFor({ state: "hidden" });
-        assert.equal(
-          await page
-            .locator(".navigation-toggle")
-            .evaluate((element) => element === document.activeElement),
-          true,
+        await page.waitForFunction(
+          () =>
+            document.querySelector(".navigation-toggle") ===
+            document.activeElement,
         );
         await page
           .getByRole("button", { name: "Toggle navigation", exact: true })

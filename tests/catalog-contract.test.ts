@@ -37,11 +37,7 @@ const config = configuration({
   DATABASE_URL: "postgresql://unused.invalid/catalog-contract-unit-test",
 });
 const connection = database(config.databaseUrl);
-const service = new Service(
-  connection.db,
-  config.timezone,
-  config.authDigest.toString("hex"),
-);
+const service = new Service(connection.db, config.authDigest.toString("hex"));
 const app = application(service, config, () => undefined);
 const headers = {
   Authorization: `Bearer ${credential}`,

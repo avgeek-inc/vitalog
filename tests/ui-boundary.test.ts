@@ -16,12 +16,12 @@ const connection = database("postgresql://unused.invalid/ui-boundary-test");
 const config = configuration({
   AUTH_KEY: randomBytes(32).toString("base64url"),
   DATABASE_URL: connection.pool.options.connectionString,
-  ALLOWED_HOSTS: new URL(issuer).host,
+
   PUBLIC_BASE_URL: issuer,
   UI_BASE_URL: ui,
 });
 const app = application(
-  new Service(connection.db, config.timezone, "fixture"),
+  new Service(connection.db, "fixture"),
   config,
   () => {},
 );
@@ -51,7 +51,7 @@ describe("Separate UI and API origins", () => {
   test("An unconfigured consent UI fails closed instead of redirecting to itself", async () => {
     const withoutUi = { ...config, uiBaseUrl: undefined };
     const server = application(
-      new Service(connection.db, config.timezone, "fixture"),
+      new Service(connection.db, "fixture"),
       withoutUi,
       () => {},
     );

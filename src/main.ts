@@ -11,7 +11,6 @@ async function start() {
   const { pool, db } = database(config.databaseUrl);
   const service = new Service(
     db,
-    config.timezone,
     config.authDigest.toString("hex"),
     config.attachmentStorage
       ? new S3AttachmentStorage(config.attachmentStorage)

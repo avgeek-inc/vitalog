@@ -56,7 +56,7 @@ export const preferencesSchema = z
       .refine(isTimeZone, "Choose a valid time zone"),
   })
   .describe(
-    "Display preferences default to day-short-month-year, 24-hour and UTC. Saved choices and recorded dates remain unchanged.",
+    "Preferences default to day-short-month-year, 24-hour and UTC. The timezone controls timestamp display, daily activity grouping and goal dates. Date-only records and stored timestamps remain unchanged.",
   );
 export const profileSchema = z.strictObject({
   name: z.string().trim().min(1).max(120),

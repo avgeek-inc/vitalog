@@ -118,7 +118,6 @@ for (const key of [
   "ROOT_EMAIL",
   "ROOT_PASSWORD",
   "DATABASE_URL",
-  "ALLOWED_HOSTS",
   "PUBLIC_BASE_URL",
   "UI_BASE_URL",
 ])

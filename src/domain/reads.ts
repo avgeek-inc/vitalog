@@ -1,15 +1,4 @@
-import {
-  and,
-  desc,
-  eq,
-  gte,
-  inArray,
-  isNull,
-  lte,
-  or,
-  sql,
-  type SQL,
-} from "drizzle-orm";
+import { and, desc, eq, inArray, or, sql, type SQL } from "drizzle-orm";
 import { healthRecords, revisions } from "../db/schema.js";
 import { DomainError, fail, parse } from "../errors.js";
 import {
@@ -31,6 +20,11 @@ import {
   periodOverlapsDate,
   numericProjection,
 } from "./summary.js";
+import {
+  recordCalendarDate,
+  recordCalendarDateSql,
+  recordInTimezone,
+} from "./time-zone.js";
 import { localDate } from "./validation.js";
 import {
   object,
@@ -61,24 +55,26 @@ const intervalPeriod = sql`coalesce(
     'timezone', ${healthRecords.timezone}
   ) end
 )`;
-function periodDate(endpoint: "start" | "end"): SQL {
+function periodDate(endpoint: "start" | "end", timezone: string): SQL {
   const value = sql`(${intervalPeriod})->>${endpoint}`;
   return sql`case
-    when ${value} like '%T%' then ((${value})::timestamptz at time zone coalesce((${intervalPeriod})->>'timezone', ${healthRecords.timezone}))::date
+    when ${value} like '%T%' then ((${value})::timestamptz at time zone ${timezone})::date
     when ${value} is not null then (${value})::date
     else null
   end`;
 }
-const intervalRecord = sql`(
+function intervalRecordSql(timezone: string): SQL {
+  return sql`(
   ${healthRecords.payload}->>'kind' = 'study_summary'
   or ${healthRecords.payload}->>'entry_kind' = 'study_summary'
   or ${healthRecords.payload} ? 'collection_period'
   or (${healthRecords.recordType} = 'intake' and (
     ${healthRecords.payload} ? 'effective_period'
-    or (${healthRecords.payload}->>'start_at' is not null and ${healthRecords.payload}->>'end_at' is not null and ${periodDate("start")} <> ${periodDate("end")})
+    or (${healthRecords.payload}->>'start_at' is not null and ${healthRecords.payload}->>'end_at' is not null and ${periodDate("start", timezone)} <> ${periodDate("end", timezone)})
     or coalesce((${healthRecords.payload}->>'duration_seconds')::numeric, 0) >= 86400
   ))
 )`;
+}
 function provenanceAt(record: HealthRecord, path: string): Data {
   const provenance: Data = { ...record.provenance };
   const component = path.startsWith("/components/")
@@ -126,7 +122,9 @@ export class Reads {
       ...input,
       limit: input.limit ?? 50,
       status: input.status ?? "active",
+      timezone: this.store.defaultTimezone,
     };
+    const calendarDate = recordCalendarDateSql(this.store.defaultTimezone);
     const conditions: SQL[] = [];
     if (filters.status !== "all")
       conditions.push(eq(healthRecords.status, filters.status));
@@ -134,13 +132,13 @@ export class Reads {
       conditions.push(inArray(healthRecords.recordType, input.record_types));
     const dates: SQL[] = [];
     if (input.start_date)
-      dates.push(gte(healthRecords.occurredOn, input.start_date));
+      dates.push(sql`${calendarDate} >= ${input.start_date}::date`);
     if (input.end_date)
-      dates.push(lte(healthRecords.occurredOn, input.end_date));
+      dates.push(sql`${calendarDate} <= ${input.end_date}::date`);
     if (dates.length)
       conditions.push(
         input.include_undated
-          ? or(and(...dates), isNull(healthRecords.occurredOn))!
+          ? or(and(...dates), sql`${calendarDate} is null`)!
           : and(...dates)!,
       );
     if (input.source_type)
@@ -169,11 +167,11 @@ export class Reads {
       const position = this.cursors.decode(cursor, filters);
       if (position.date === null)
         conditions.push(
-          sql`${healthRecords.occurredOn} is null and (${healthRecords.recordedAt}, ${healthRecords.id}) > (${String(position.recorded_at)}::timestamptz, ${String(position.id)}::uuid)`,
+          sql`${calendarDate} is null and (${healthRecords.recordedAt}, ${healthRecords.id}) > (${String(position.recorded_at)}::timestamptz, ${String(position.id)}::uuid)`,
         );
       else
         conditions.push(
-          sql`(${healthRecords.occurredOn} is null or (${healthRecords.occurredOn}, ${healthRecords.recordedAt}, ${healthRecords.id}) > (${String(position.date)}::date, ${String(position.recorded_at)}::timestamptz, ${String(position.id)}::uuid))`,
+          sql`(${calendarDate} is null or (${calendarDate}, ${healthRecords.recordedAt}, ${healthRecords.id}) > (${String(position.date)}::date, ${String(position.recorded_at)}::timestamptz, ${String(position.id)}::uuid))`,
         );
     }
     const rows = await this.store.db
@@ -181,7 +179,7 @@ export class Reads {
       .from(healthRecords)
       .where(and(...conditions))
       .orderBy(
-        sql`${healthRecords.occurredOn} asc nulls last`,
+        sql`${calendarDate} asc nulls last`,
         healthRecords.recordedAt,
         healthRecords.id,
       )
@@ -196,7 +194,7 @@ export class Reads {
       next_cursor:
         rows.length > filters.limit && last
           ? this.cursors.encode(filters, {
-              date: last.occurred_on,
+              date: recordCalendarDate(last, this.store.defaultTimezone),
               recorded_at: last.recorded_at,
               id: last.id,
             })
@@ -247,12 +245,11 @@ export class Reads {
     end: string,
     options: WindowOptions = {},
   ): Promise<HealthRecord[]> {
-    const startOfPeriod = periodDate("start");
-    const endOfPeriod = periodDate("end");
-    const indexedDate = and(
-      gte(healthRecords.occurredOn, start),
-      lte(healthRecords.occurredOn, end),
-    );
+    const intervalRecord = intervalRecordSql(this.store.defaultTimezone);
+    const startOfPeriod = periodDate("start", this.store.defaultTimezone);
+    const endOfPeriod = periodDate("end", this.store.defaultTimezone);
+    const calendarDate = recordCalendarDateSql(this.store.defaultTimezone);
+    const indexedDate = sql`${calendarDate} between ${start}::date and ${end}::date`;
     const conditions: SQL[] = [
       eq(healthRecords.status, "active"),
       sql`(
@@ -326,18 +323,16 @@ export class Reads {
       .select()
       .from(healthRecords)
       .where(and(...conditions))
-      .orderBy(
-        healthRecords.occurredOn,
-        healthRecords.recordedAt,
-        healthRecords.id,
-      )
+      .orderBy(calendarDate, healthRecords.recordedAt, healthRecords.id)
       .limit(1001);
     if (rows.length > 1000)
       throw new DomainError(
         "LIMIT_EXCEEDED",
         "Summary window exceeds 1000 records; use paginated record history or narrow the dates",
       );
-    return rows.map(fromRow);
+    return rows.map((row) =>
+      recordInTimezone(fromRow(row), this.store.defaultTimezone),
+    );
   }
   async daily(input: Data): Promise<Data> {
     const date = String(input.date);
@@ -374,7 +369,7 @@ export class Reads {
     )})`;
     const latestRows = await this.store.db.execute(sql`
       select distinct on (metric_key, context_identity) id from (
-      select id, coalesce(payload->>'metric_key', case when payload->>'kind'='blood_pressure' then 'blood_pressure' end) as metric_key, ${contextIdentity} as context_identity, occurred_on, occurred_at, recorded_at
+      select id, coalesce(payload->>'metric_key', case when payload->>'kind'='blood_pressure' then 'blood_pressure' end) as metric_key, ${contextIdentity} as context_identity, ${recordCalendarDateSql(this.store.defaultTimezone)} as occurred_on, occurred_at, recorded_at
       from health_records where record_type='measurement' and payload->>'kind' in ('scalar','blood_pressure') and status='active' and validity='valid'
         and coalesce(payload->>'source_status','unknown') not in ('preliminary','cancelled')
         and coalesce(payload->'value'->>'kind','quantity') <> 'absent'
@@ -392,7 +387,9 @@ export class Reads {
             .from(healthRecords)
             .where(inArray(healthRecords.id, ids.slice(0, 200)))
         )
-          .map(fromRow)
+          .map((row) =>
+            recordInTimezone(fromRow(row), this.store.defaultTimezone),
+          )
           .filter((record) =>
             record.data.kind === "blood_pressure"
               ? usable(record, "/systolic") && usable(record, "/diastolic")
@@ -416,8 +413,8 @@ export class Reads {
       .slice(-100);
     const recentDays = dateRange(start, end).filter((day) =>
       records.some((record) =>
-        isStudy(record)
-          ? periodOverlapsDate(record, day)
+        isStudy(record, this.store.defaultTimezone)
+          ? periodOverlapsDate(record, day, this.store.defaultTimezone)
           : record.occurred_on === day,
       ),
     );
@@ -524,7 +521,7 @@ export class Reads {
             (record) =>
               record.record_type === type &&
               record.occurred_on === date &&
-              !isStudy(record),
+              !isStudy(record, this.store.defaultTimezone),
           );
           let result: Data;
           if (category === "nutrient")
@@ -682,13 +679,15 @@ export class Reads {
         for (const record of records) {
           if (
             !record.occurred_on ||
-            (!isStudy(record) &&
+            (!isStudy(record, this.store.defaultTimezone) &&
               (record.occurred_on < start || record.occurred_on > end))
           )
             continue;
           if (
-            isStudy(record) &&
-            !dates.some((date) => periodOverlapsDate(record, date))
+            isStudy(record, this.store.defaultTimezone) &&
+            !dates.some((date) =>
+              periodOverlapsDate(record, date, this.store.defaultTimezone),
+            )
           )
             continue;
           let value: unknown,
@@ -731,7 +730,7 @@ export class Reads {
             usable(record, field, !!input.include_preliminary),
           );
           const numeric =
-            valid && !isStudy(record)
+            valid && !isStudy(record, this.store.defaultTimezone)
               ? point(value, record.data.comparator)
               : null;
           if (!numeric) exclusions++;
@@ -752,7 +751,9 @@ export class Reads {
               "unknown",
             validity: record.validity,
             excluded_from_numeric: !numeric,
-            period: isStudy(record) ? studyPeriod(record) : null,
+            period: isStudy(record, this.store.defaultTimezone)
+              ? studyPeriod(record)
+              : null,
             provenance: provenanceAt(record, valuePath),
             ...(component.provenance
               ? { component_provenance: component.provenance }

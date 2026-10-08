@@ -79,11 +79,7 @@ async function start(root = true) {
     ...(root ? { ROOT_EMAIL: rootEmail, ROOT_PASSWORD: rootPassword } : {}),
     RATE_LIMIT_PER_MINUTE: "100000",
   });
-  service = new Service(
-    connection!.db,
-    config.timezone,
-    config.authDigest.toString("hex"),
-  );
+  service = new Service(connection!.db, config.authDigest.toString("hex"));
   const instance = serve({
     fetch: application(service, config, (entry) => logs.push(entry)).fetch,
     port: 0,
@@ -184,11 +180,7 @@ try {
           join(temporary, entry.tag + ".sql"),
         );
       await migrate(connection!.db, { migrationsFolder: temporary });
-      const previous = new Service(
-        connection!.db,
-        "Asia/Kolkata",
-        "synthetic-cursor",
-      );
+      const previous = new Service(connection!.db, "synthetic-cursor");
       const legacy = record("hydration", examples.hydration.data, {
         time_context: {
           original_occurred_at: null,
