@@ -28,6 +28,6 @@ The web app's Documentation and MCP Guide links default to this public site. `DO
 
 The homepage and dashboard guide reuse one light/dark Daily View pair. Both contain synthetic observations from `scripts/web-verification.ts`, a disposable PostgreSQL database and `root@example.test`. They do not contain production records, tokens or real account details.
 
-To refresh them, run `npm run preview:web` in one terminal and `npm run docs:screenshots` in another. The capture script signs in only to the loopback fixture with `root@example.test`, renders the real dashboard at a 1280 × 824 CSS-pixel viewport with a 2× device scale, and writes lossless 2560 × 1648 PNGs to `assets/`. Run `npm run docs:generate` after a refresh, then stop the preview to remove the disposable database. Keep generated credentials and preview metadata out of Git.
+To refresh them, run `npm run preview:web` in one terminal and `npm run docs:screenshots` in another. The capture script signs in only to the loopback fixture with `root@example.test`, renders the real dashboard at a 1280 × 824 CSS-pixel viewport with a 4× device scale, and writes lossless 5120 × 3296 PNGs to `assets/`. Run `npm run docs:generate` after a refresh, then stop the preview to remove the disposable database. Keep generated credentials and preview metadata out of Git.
 
 The API reference is generated from the same OpenAPI contract as Postman. Its playground uses simple mode with request examples; local validation does not call the production health API.
