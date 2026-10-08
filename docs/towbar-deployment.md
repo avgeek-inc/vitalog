@@ -4,7 +4,7 @@ Run Vitalog as three workloads: PostgreSQL, the Hono API and the Next.js web app
 
 ## Prepare your workspace
 
-Connect your fork or checkout to Towbar and select a server you control. Replace the server references, service domains and any workspace-specific IDs in the manifests. Keep the API and UI on separate HTTPS origins. This installation uses `https://vitalog-api.avgeek.ltd` and `https://vitalog.avgeek.ltd`. Keep PostgreSQL on the private workload network.
+Connect your fork or checkout to Towbar and select a server you control. Replace the server references, service domains and any workspace-specific IDs in the manifests. Keep the API and UI on separate HTTPS origins. This installation uses `https://vitalog-api.praveent.com` and `https://vitalog.praveent.com`. Keep PostgreSQL on the private workload network.
 
 The API and web manifests use `deployment.type: image` with versioned images from `ghcr.io/avgeek-oss/vitalog-api` and `ghcr.io/avgeek-oss/vitalog-web`. Towbar pulls the published images; it does not build the source on your server. The checked-in v1.0.3 references are candidates pending publication. Before syncing or deploying, replace each tag-only reference with the verified immutable SHA-256 digest from the published v1.0.3 release; keep API and web on the same release version. Runtime resources remain bounded independently of PostgreSQL.
 
@@ -29,9 +29,9 @@ For upgrades, change both image references, sync the repository, then deploy the
 Supply `DATABASE_URL`, `AUTH_KEY`, `ROOT_EMAIL` and `ROOT_PASSWORD` through Towbar runtime secrets. Bind the database URL to your private datastore hostname. Use independent, high-entropy credentials.
 
 ```dotenv
-PUBLIC_BASE_URL=https://vitalog-api.avgeek.ltd
-UI_BASE_URL=https://vitalog.avgeek.ltd
-ALLOWED_HOSTS=vitalog-api.avgeek.ltd,127.0.0.1:3000
+PUBLIC_BASE_URL=https://vitalog-api.praveent.com
+UI_BASE_URL=https://vitalog.praveent.com
+ALLOWED_HOSTS=vitalog-api.praveent.com,127.0.0.1:3000
 ```
 
 See [configuration](https://www.vitalog.dev/configuration) for client origins and optional private attachment storage. Declare enabled S3 variables in the API manifest's runtime secret list.
@@ -39,8 +39,8 @@ See [configuration](https://www.vitalog.dev/configuration) for client origins an
 ## Configure the web app
 
 ```dotenv
-API_BASE_URL=https://vitalog-api.avgeek.ltd
-UI_BASE_URL=https://vitalog.avgeek.ltd
+API_BASE_URL=https://vitalog-api.praveent.com
+UI_BASE_URL=https://vitalog.praveent.com
 ```
 
 The public documentation defaults to `https://www.vitalog.dev`. `DOCS_BASE_URL` can override it for your own docs fork. Add that optional name to the web manifest's runtime secrets when setting an override. The browser sends credentialed requests directly to the public API origin.

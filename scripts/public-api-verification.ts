@@ -242,8 +242,8 @@ try {
     401,
   );
   assert.equal((await request("/healthz")).status, 200);
-  const hostedApi = "https://vitalog-api.avgeek.ltd";
-  const hostedUi = "https://vitalog.avgeek.ltd";
+  const hostedApi = "https://vitalog-api.praveent.com";
+  const hostedUi = "https://vitalog.praveent.com";
   const hostedConfig = configuration({
     AUTH_KEY: primary,
     ROOT_EMAIL: credentials.email,

@@ -10,8 +10,8 @@ import {
   webConfiguration,
 } from "../apps/web/src/lib/config.js";
 
-const issuer = "https://vitalog-api.avgeek.ltd";
-const ui = "https://vitalog.avgeek.ltd";
+const issuer = "https://vitalog-api.praveent.com";
+const ui = "https://vitalog.praveent.com";
 const connection = database("postgresql://unused.invalid/ui-boundary-test");
 const config = configuration({
   AUTH_KEY: randomBytes(32).toString("base64url"),

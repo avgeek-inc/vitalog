@@ -162,8 +162,8 @@ for (const environment of Object.keys(root.environments)) {
   if (service.domains) assert(service.tls, "Public routing requires TLS");
   const ui = configuration(web, environment);
   assert.equal(ui.server, service.server);
-  assert.equal(ui.domains?.primary, "vitalog.avgeek.ltd");
-  assert.equal(service.domains?.primary, "vitalog-api.avgeek.ltd");
+  assert.equal(ui.domains?.primary, "vitalog.praveent.com");
+  assert.equal(service.domains?.primary, "vitalog-api.praveent.com");
   assert.equal(ui.health?.publicPath ?? ui.health?.path, "/healthz");
   assert(
     !ui.container?.networkAlias,

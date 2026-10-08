@@ -20,7 +20,7 @@ The Browser sessions folder creates a read-only 30-day session using root creden
 
 Run `npm run docs:generate` to regenerate OpenAPI, schemas, coverage metadata and both Postman formats. `npm run docs:check` fails when a checked-in artifact is stale. The integration suite exercises the same domain schemas through HTTP and the official MCP client; a generated collection alone is not live API test evidence.
 
-The default `baseUrl` is `https://vitalog-api.avgeek.ltd`. `uiUrl` is `https://vitalog.avgeek.ltd` and supplies the Origin header for OAuth approval. For loopback use `http://127.0.0.1:3000` and `http://127.0.0.1:3001`. Authorization first sets the API-host cookie and redirects to the separate UI; do not enable automatic redirect following when inspecting the code flow in Postman.
+The default `baseUrl` is `https://vitalog-api.praveent.com`. `uiUrl` is `https://vitalog.praveent.com` and supplies the Origin header for OAuth approval. For loopback use `http://127.0.0.1:3000` and `http://127.0.0.1:3001`. Authorization first sets the API-host cookie and redirects to the separate UI; do not enable automatic redirect following when inspecting the code flow in Postman.
 
 The Key management folder exchanges root credentials for a separate 30-minute session. Copy its `session_token` into the private local `keyManagementToken` variable, then check or revoke that session and list, create or revoke generated keys and MCP connections. These endpoints exclude browser and management sessions; revoke-all preserves the current browser session. This token cannot access health records, MCP or primary-key administration. The Settings UI keeps it in a separate HttpOnly cookie.
 

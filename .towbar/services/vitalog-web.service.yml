@@ -24,7 +24,7 @@ health:
 ingress:
   type: proxy
 domains:
-  primary: vitalog.avgeek.ltd
+  primary: vitalog.praveent.com
 tls:
   mode: cloudflare-dns
 secrets:

@@ -35,13 +35,13 @@ Open `http://127.0.0.1:3001/login`. The API listens on loopback port 3000 and th
 
 ## Add public HTTPS origins
 
-Use separate UI and API origins behind your TLS ingress. The checked-in production manifests use `vitalog.avgeek.ltd` and `vitalog-api.avgeek.ltd`:
+Use separate UI and API origins behind your TLS ingress. The checked-in production manifests use `vitalog.praveent.com` and `vitalog-api.praveent.com`:
 
 ```dotenv
-UI_BASE_URL=https://vitalog.avgeek.ltd
-API_BASE_URL=https://vitalog-api.avgeek.ltd
-PUBLIC_BASE_URL=https://vitalog-api.avgeek.ltd
-ALLOWED_HOSTS=vitalog-api.avgeek.ltd
+UI_BASE_URL=https://vitalog.praveent.com
+API_BASE_URL=https://vitalog-api.praveent.com
+PUBLIC_BASE_URL=https://vitalog-api.praveent.com
+ALLOWED_HOSTS=vitalog-api.praveent.com
 ```
 
 The API must know its exact public origin for OAuth resource and issuer validation. Use [Configuration](/configuration) to configure allowed browser-client origins for your ingress.

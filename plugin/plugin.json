@@ -6,7 +6,7 @@
   "author": {
     "name": "Avgeek, Inc."
   },
-  "homepage": "https://vitalog.avgeek.ltd/api-keys",
+  "homepage": "https://vitalog.praveent.com/api-keys",
   "repository": "https://github.com/avgeek-oss/vitalog",
   "keywords": ["health", "ledger", "observations"],
   "extensions": {
@@ -18,7 +18,7 @@
         "developerName": "Avgeek, Inc.",
         "category": "Productivity",
         "capabilities": ["Read", "Write"],
-        "websiteURL": "https://vitalog.avgeek.ltd/api-keys",
+        "websiteURL": "https://vitalog.praveent.com/api-keys",
         "defaultPrompt": [
           "Log the health observations I provide in Vitalog.",
           "Show my Vitalog summary for today."
