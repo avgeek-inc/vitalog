@@ -8,6 +8,8 @@ Connect your fork or checkout to Towbar and select a server you control. Replace
 
 The API and web manifests use `deployment.type: image` with versioned images from `ghcr.io/avgeek-oss/vitalog-api` and `ghcr.io/avgeek-oss/vitalog-web`. Towbar pulls the published images; it does not build the source on your server. Both references include an immutable SHA-256 digest and use the same release version. Runtime resources remain bounded independently of PostgreSQL.
 
+Both services use a recreate rollout with a maintenance window. Towbar stops the previous container before starting its replacement, so upgrades do not require an extra CPU reservation for an overlapping candidate. The service is briefly unavailable while its replacement starts and passes readiness checks. On a host with enough spare CPU and memory, the stateless web service can instead use a rolling rollout.
+
 The release workflow builds and tests `linux/amd64` and `linux/arm64` images. Select the platform matching your server; the production manifests use ARM64. The Dockerfiles remain in the repository for CI publication and local development.
 
 ## Publish a release

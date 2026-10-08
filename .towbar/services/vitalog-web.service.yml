@@ -7,6 +7,10 @@ deployment:
   image: ghcr.io/avgeek-oss/vitalog-web:v1.0.2@sha256:884dc43a11f8f63f8a44726a2b291a239762292d67e79cabaddf3f4f124fba67
   platform: linux/arm64
 autoDeploy: false
+rollout:
+  type: recreate
+  maintenanceMode: true
+  reason: Replace the web container without reserving an additional CPU on the two-core host
 container:
   port: 3000
   resources:
