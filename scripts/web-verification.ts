@@ -31,6 +31,9 @@ import {
 import { migrateDatabase } from "./migrate.js";
 
 const preview = process.argv.includes("--preview");
+const selectedCheck = process.argv
+  .find((argument) => argument.startsWith("--check="))
+  ?.slice("--check=".length);
 const container = `vitalog-web-${process.pid}`;
 const databasePassword = randomBytes(32).toString("hex");
 const primary = randomBytes(32).toString("base64url");
@@ -164,6 +167,7 @@ async function chooseKeySettings(
   await page.getByRole("option", { name: expiry, exact: true }).click();
 }
 async function check(name: string, run: () => Promise<void>) {
+  if (selectedCheck && name !== selectedCheck) return;
   try {
     await run();
   } catch (error) {
@@ -334,7 +338,7 @@ try {
       await new Promise((resolve) => setTimeout(resolve, 250));
     }
   }
-  if (!preview) {
+  if (!preview && !selectedCheck) {
     await check(
       "Display preference default migration preserves existing saved values",
       async () => {
@@ -1419,6 +1423,71 @@ try {
           ).status(),
           403,
         );
+      },
+    );
+    await check(
+      "Dashboard refreshes its session when returning to Daily after midnight",
+      async () => {
+        const navigationContext = await browser!.newContext();
+        try {
+          const login = await navigationContext.request.post(
+            apiUrl + "/auth/session",
+            { data: credentials, headers: { Origin: uiUrl } },
+          );
+          assert.equal(login.status(), 201);
+          const navigationPage = await navigationContext.newPage();
+          let advanced = false;
+          let sessionReads = 0;
+          const dailyRequests: string[] = [];
+          navigationPage.on("request", (request) => {
+            const path = new URL(request.url()).pathname;
+            if (/^\/v1\/days\/\d{4}-\d{2}-\d{2}$/.test(path))
+              dailyRequests.push(path);
+          });
+          await navigationPage.route(
+            apiUrl + "/auth/session",
+            async (route) => {
+              if (route.request().method() !== "GET") {
+                await route.continue();
+                return;
+              }
+              const response = await route.fetch();
+              assert.equal(response.status(), 200);
+              const session = await response.json();
+              sessionReads++;
+              await route.fulfill({
+                response,
+                json: { ...session, today: advanced ? today : yesterday },
+              });
+            },
+          );
+          await navigationPage.goto(uiUrl + "/daily");
+          await navigationPage
+            .getByRole("heading", { name: "Daily nutrition" })
+            .waitFor();
+          assert(dailyRequests.includes(`/v1/days/${yesterday}`));
+          await navigationPage
+            .getByRole("link", { name: "Weight Management", exact: true })
+            .click();
+          await navigationPage
+            .getByRole("heading", { name: "Weight Management", exact: true })
+            .waitFor();
+          advanced = true;
+          const readsBeforeReturn = sessionReads;
+          const requestsBeforeReturn = dailyRequests.length;
+          await navigationPage
+            .getByRole("link", { name: "Daily View", exact: true })
+            .click();
+          await navigationPage
+            .getByRole("heading", { name: "Daily nutrition" })
+            .waitFor();
+          assert.equal(sessionReads, readsBeforeReturn + 1);
+          assert.deepEqual(dailyRequests.slice(requestsBeforeReturn), [
+            `/v1/days/${today}`,
+          ]);
+        } finally {
+          await navigationContext.close();
+        }
       },
     );
     await check(
@@ -2681,6 +2750,7 @@ try {
       },
     );
     assert.deepEqual(failures, []);
+    if (selectedCheck) assert.deepEqual(checks, [selectedCheck]);
     const logs = JSON.stringify(requestLogs) + webLog;
     assert(!logs.includes(credentials.password));
     assert(!logs.includes(primary));

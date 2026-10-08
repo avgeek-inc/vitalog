@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   createContext,
   useContext,
@@ -34,8 +35,14 @@ export function DashboardSession({
   children: ReactNode;
   docsUrl: string;
 }) {
-  const [session, setSession] = useState<Session>();
-  const [failed, setFailed] = useState(false);
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const route = `${pathname}?${searchParams}`;
+  const [snapshot, setSnapshot] = useState<{
+    route: string;
+    session: Session;
+  }>();
+  const [failedRoute, setFailedRoute] = useState<string>();
   const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     const controller = new AbortController();
@@ -46,27 +53,36 @@ export function DashboardSession({
           return;
         }
         if (!response.ok) throw new Error("Session is unavailable");
-        if (!controller.signal.aborted) setSession(await response.json());
+        const session: Session = await response.json();
+        if (!controller.signal.aborted) {
+          setSnapshot({ route, session });
+          setFailedRoute(undefined);
+        }
       })
       .catch(() => {
-        if (!controller.signal.aborted) setFailed(true);
+        if (!controller.signal.aborted) setFailedRoute(route);
       });
     return () => controller.abort();
-  }, [attempt]);
-  if (failed)
+  }, [route, attempt]);
+  if (failedRoute === route)
     return (
       <BackendRecovery
         retry={() => {
-          setFailed(false);
+          setFailedRoute(undefined);
           setAttempt((value) => value + 1);
         }}
       />
     );
-  if (!session) return <DashboardSkeleton view="daily" />;
+  if (!snapshot) return <DashboardSkeleton view="daily" />;
+  const { session } = snapshot;
   return (
     <SessionContext.Provider value={session}>
       <DashboardShell account={session.account} docsUrl={docsUrl}>
-        {children}
+        {snapshot.route === route ? (
+          children
+        ) : (
+          <DashboardSkeleton view="daily" />
+        )}
       </DashboardShell>
     </SessionContext.Provider>
   );
