@@ -19,8 +19,8 @@
     "format:check": "prettier --check .",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node --env-file-if-exists=.env --import tsx scripts/migrate.ts",
-    "docs:generate": "tsx scripts/generate.ts && tsx scripts/mintlify.ts",
-    "docs:check": "tsx scripts/generate.ts --check && tsx scripts/mintlify.ts --check",
+    "docs:generate": "tsx scripts/generate.ts && tsx scripts/mintlify.ts && oss-docs sync --config docs/mintlify/site.json --dir docs/mintlify",
+    "docs:check": "tsx scripts/generate.ts --check && tsx scripts/mintlify.ts --check && oss-docs check --config docs/mintlify/site.json --dir docs/mintlify",
     "test": "vitest run",
     "test:integration": "tsx scripts/integration.ts",
     "test:security": "tsx scripts/security-verification.ts",
@@ -63,6 +63,7 @@
   },
   "devDependencies": {
     "@avgeek-oss/design-system": "file:vendor/avgeek-oss-design-system-1.2.9.tgz",
+    "@avgeek-oss/docs": "github:avgeek-oss/oss-docs#8476de02f2895efac1d119f9392893b11b0277a4",
     "@types/node": "24.10.13",
     "@types/pg": "8.16.0",
     "ajv": "8.20.0",

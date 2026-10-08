@@ -80,10 +80,6 @@ for (const [file, route, title, description] of pages) {
         : `](https://github.com/avgeek-oss/vitalog/blob/main/${posix.normalize(target.startsWith("docs/") || target.startsWith("apps/") || target.startsWith("scripts/") ? target : `docs/${normalized}`)}${anchor})`;
     },
   );
-  body = body.replace(
-    "This is the authentication extension requested on 3 October 2026. It supersedes the original specification's prohibition on key generation/management. ",
-    "",
-  );
   await save(
     `docs/mintlify/${route}.mdx`,
     await format(

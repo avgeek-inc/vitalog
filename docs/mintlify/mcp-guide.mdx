@@ -3,7 +3,7 @@ title: "MCP setup and troubleshooting"
 description: "Connect any compatible MCP client to Vitalog's Streamable HTTP endpoint."
 ---
 
-Use your API's MCP URL, such as `https://vitalog-api.praveent.com/mcp`. The UI address is where you sign in and review records; it is not the MCP endpoint.
+Use your API's MCP URL, such as `https://vitalog-api.example.com/mcp`. The UI address is where you sign in and review records; it is not the MCP endpoint.
 
 Open **Account Settings → MCP Guide** in Vitalog to copy configurations for your installation. The examples below use the example API hostname. Replace it when self-hosting.
 
@@ -19,7 +19,7 @@ The client receives its token through the OAuth callback and token exchange. You
 
     ```toml
     [mcp_servers.vitalog]
-    url = "https://vitalog-api.praveent.com/mcp"
+    url = "https://vitalog-api.example.com/mcp"
     ```
 
     Run `codex mcp login vitalog` to sign in.
@@ -27,7 +27,7 @@ The client receives its token through the OAuth callback and token exchange. You
   </Tab>
   <Tab title="Claude Code">
     ```sh
-    claude mcp add --transport http vitalog 'https://vitalog-api.praveent.com/mcp'
+    claude mcp add --transport http vitalog 'https://vitalog-api.example.com/mcp'
     ```
 
     Open `/mcp` in Claude Code and select Vitalog to sign in.
@@ -40,7 +40,7 @@ The client receives its token through the OAuth callback and token exchange. You
     {
       "mcpServers": {
         "vitalog": {
-          "url": "https://vitalog-api.praveent.com/mcp"
+          "url": "https://vitalog-api.example.com/mcp"
         }
       }
     }
@@ -57,7 +57,7 @@ The client receives its token through the OAuth callback and token exchange. You
       "servers": {
         "vitalog": {
           "type": "http",
-          "url": "https://vitalog-api.praveent.com/mcp"
+          "url": "https://vitalog-api.example.com/mcp"
         }
       }
     }
@@ -80,14 +80,14 @@ For example, a client accepting custom headers can use this structure:
 {
   "mcpServers": {
     "vitalog": {
-      "url": "https://vitalog-api.praveent.com/mcp",
+      "url": "https://vitalog-api.example.com/mcp",
       "headers": { "Authorization": "Bearer YOUR_VITALOG_API_KEY" }
     }
   }
 }
 ```
 
-Prefer your client's secret storage or environment-variable support when available. Manually generated API keys have full ledger access. OAuth connections use the requested `health:read` and/or `health:write` scopes. Browser dashboard sessions cannot authenticate MCP.
+Prefer your client's secret storage or environment-variable support when available. Manually generated API keys enforce their selected read-only, edit or administrative permissions and expiry. Read-only keys discover and call read tools; edit and administrative keys also write records and goals. Key management remains outside MCP. OAuth connections use the requested `health:read` and/or `health:write` scopes. Browser dashboard sessions cannot authenticate MCP.
 
 ## Tool discovery and calls
 

@@ -790,10 +790,10 @@ await save(
     values: [
       {
         key: "baseUrl",
-        value: "https://vitalog-api.praveent.com",
+        value: "https://vitalog-api.example.com",
         enabled: true,
       },
-      { key: "uiUrl", value: "https://vitalog.praveent.com", enabled: true },
+      { key: "uiUrl", value: "https://vitalog.example.com", enabled: true },
       { key: "authKey", value: "", type: "secret", enabled: true },
       { key: "rootAuthKey", value: "", type: "secret", enabled: true },
       { key: "rootEmail", value: "", type: "secret", enabled: true },
@@ -812,7 +812,7 @@ await save(
     values: [
       {
         key: "baseUrl",
-        value: "https://vitalog-api.praveent.com",
+        value: "https://vitalog-api.example.com",
         enabled: true,
       },
       { key: "authKey", value: "", type: "secret", enabled: true },
@@ -821,7 +821,7 @@ await save(
       { key: "rootPassword", value: "", type: "secret", enabled: true },
       { key: "browserSessionToken", value: "", type: "secret", enabled: true },
       { key: "keyManagementToken", value: "", type: "secret", enabled: true },
-      { key: "uiUrl", value: "https://vitalog.praveent.com", enabled: true },
+      { key: "uiUrl", value: "https://vitalog.example.com", enabled: true },
       ...oauthVariables,
     ],
     _postman_variable_scope: "environment",

@@ -29,13 +29,9 @@ const app = application(
 afterAll(() => connection.pool.end());
 
 describe("Separate UI and API origins", () => {
-  test("Documentation destinations use the runtime docs origin or repository fallback", () => {
-    expect(documentationUrl({})).toBe(
-      "https://github.com/avgeek-oss/vitalog/tree/main/docs/mintlify",
-    );
-    expect(mcpDocumentationUrl({})).toBe(
-      "https://github.com/avgeek-oss/vitalog/blob/main/docs/mintlify/mcp-guide.mdx",
-    );
+  test("Documentation destinations use the runtime override or public site", () => {
+    expect(documentationUrl({})).toBe("https://www.vitalog.dev");
+    expect(mcpDocumentationUrl({})).toBe("https://www.vitalog.dev/mcp-guide");
     for (const origin of [
       "https://docs.example.com",
       "http://127.0.0.1:4175",

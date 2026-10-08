@@ -1,0 +1,48 @@
+---
+title: "Log an observation"
+description: "Use MCP or REST to write a supplied value and review the result."
+---
+
+Use an Edit or Administrative API key, or an OAuth connection granted `health:write`. A dashboard session and a read-only key cannot log observations.
+
+## Through MCP
+
+Connect your client using [MCP Guide](/mcp-guide). Ask it to record the value, date, units and source you supply. For example:
+
+> Record 250 mL of water for 6 October 2026 in UTC. The source is a manual observation.
+
+The client discovers the hydration schema with `health_get_catalog`, then calls `health_log_hydration` with a fresh `idempotency_key`. It should ask for missing required context rather than inventing it. Every MCP tool's input schema is available through discovery.
+
+## Through REST
+
+Set `VITALOG_API_URL` to your own API origin and load `VITALOG_API_KEY` from your private secret store. Do not put credentials in URLs or commit them in scripts.
+
+```sh
+curl --fail-with-body "$VITALOG_API_URL/v1/catalog?category=record_schemas&key=hydration&include_schema=true" \
+  --header "Authorization: Bearer $VITALOG_API_KEY"
+```
+
+Write a supplied observation. Replace the example date/timezone with the observation's actual context and use a fresh UUID for a new write:
+
+```sh
+curl --fail-with-body --request POST "$VITALOG_API_URL/v1/hydration" \
+  --header "Authorization: Bearer $VITALOG_API_KEY" \
+  --header 'Content-Type: application/json' \
+  --header 'Idempotency-Key: 5e995e3e-5bcd-4f1c-a41d-4f40d11e0118' \
+  --data '{
+    "occurred_on": "2026-10-06",
+    "timezone": "UTC",
+    "provenance": {"source_type": "manual", "value_kind": "measured"},
+    "data": {"entry_kind": "intake", "volume_ml": 250, "drink_type": "water"}
+  }'
+```
+
+The response identifies the new record. Keep that ID and version when making a correction. The **API reference** navigation category and [record contracts](/records) describe complete schemas, validation and response envelopes.
+
+## Review, correct and retry
+
+Open Daily View for the supplied date and expand the water log. If it is absent, check the API response, selected date and timezone before sending another write.
+
+After a lost response, retry the exact body and idempotency key. A different body with the same committed key returns a conflict. For a correction, submit a complete replacement with a new idempotency key and current `expected_version`. Use voiding to remove a mistaken record from effective totals while retaining history.
+
+See [attachments](/attachments) to associate supporting files and [goals](/goals) to add explicit progress targets.

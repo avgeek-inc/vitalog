@@ -1,31 +1,40 @@
 ---
 title: "Get started"
-description: "Open the dashboard, connect your MCP client and log an observation."
+description: "Install Vitalog, connect a client and record your first observation."
 ---
 
+Vitalog is a self-hosted ledger for one person. There is no shared hosted account or team workspace. Each installation has its own PostgreSQL database, dashboard and client credentials.
+
 <Steps>
-  <Step title="Open Vitalog">
-    Open your installation's UI and sign in with its configured root email and password. The example UI is `https://vitalog.praveent.com`; its API is `https://vitalog-api.praveent.com`.
+  <Step title="Install Vitalog">
+    Follow [Installation](/installation) to start the API, web app and PostgreSQL with Docker Compose. Configure a primary API key, database password, root sign-in credentials and timezone before starting.
 
-    For your own installation, follow [Installation](/installation) first.
-
-  </Step>
-  <Step title="Connect a client">
-    Open **Account Settings → MCP Guide**, choose your client and copy its configuration. Clients connect to the API's `/mcp` URL. Approve the OAuth request on Vitalog's consent page.
-
-    For a script or client using a Bearer key, create a key in **Account Settings → API Keys**. It expires after 30 days. See [MCP setup](/mcp-guide) and [API keys](/api-keys).
+    Use your own UI and API origins. Examples such as `https://vitalog.example.com` and `https://vitalog-api.example.com` are placeholders. This documentation site does not host your health records.
 
   </Step>
-  <Step title="Log an observation">
-    Ask your MCP client to record an observation you supply, such as a glass of water or a mood check-in. The client can discover the exact input schema with `health_get_catalog` before using a logging tool.
+  <Step title="Sign in and connect a client">
+    Open your installation's `/login` page and sign in with its configured root email and password. In **Account Settings → MCP Guide**, choose your client and copy its configuration. Approve the OAuth request to connect to the API's `/mcp` endpoint.
 
-    Every write needs an idempotency key. Missing measurements must remain missing rather than being inferred. See [record contracts and examples](/records).
+    For a REST script or Bearer-based MCP client, create a key in **Account Settings → API Keys**. Name, Permissions and Expires after are required. Choose Read-only, Edit or Administrative permissions, and 30 days, 90 days, 1 year or Never. Use Edit for logging observations. Copy the token when it is shown; it cannot be retrieved later.
+
+    See [MCP setup](/mcp-guide) and [API keys](/api-keys).
 
   </Step>
-  <Step title="Review the day">
-    Open **Daily View**. Select a date using the calendar below the title. Expand a log to see its details. **Weight Management** shows current weight, a 30-day graph and weigh-ins.
+  <Step title="Record an observation">
+    Ask your MCP client to record a supplied observation, such as a 250 mL glass of water, with its actual date and timezone. The client can discover input schemas with `health_get_catalog` before logging.
 
-    Set targets through [MCP or REST goals](/goals) to add progress bars. The UI does not create or edit health records.
+    For a complete REST example, see [Log an observation](/logging). Every write needs an idempotency key. Reuse that key and the same arguments when retrying an uncertain response.
+
+  </Step>
+  <Step title="Review the result">
+    Open **Daily View**, select the observation's date and expand its log. **Weight Management** shows weigh-ins and a 30-day graph when weight observations exist.
+
+    Set your own [goals](/goals) through MCP or REST to add progress bars. The dashboard views health records; it does not create or edit them.
 
   </Step>
 </Steps>
+
+<Note>
+  All screenshots and examples use synthetic data. Example goals illustrate the
+  software and are not recommended health targets.
+</Note>

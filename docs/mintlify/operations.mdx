@@ -30,7 +30,7 @@ Operator exports and erasure commands are documented in the [repository README](
 ## Credential boundaries
 
 - The environment `AUTH_KEY` can read/write the ledger and administer all authentication records.
-- Generated `vlk_` API keys have full ledger access for 30 days, but cannot administer keys.
+- Generated `vlk_` API keys enforce the selected permission ceiling and expiry (30 days, 90 days, 1 year or Never). Administrative keys can also inspect readiness and OpenAPI; root/primary authority still protects credential management.
 - OAuth `vlo_` tokens authorize their requested MCP health scopes for 30 days.
 - Dashboard `vls_` sessions can read health records only.
 - Root-verified `vlm_` sessions can manage generated keys and MCP connections for 30 minutes.

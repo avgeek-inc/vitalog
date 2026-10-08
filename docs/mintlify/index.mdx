@@ -1,33 +1,161 @@
 ---
-title: "Vitalog"
-description: "Keep your health observations in one place. Log through REST or MCP, and review them in a simple dashboard."
+title: "An open-source health ledger"
+description: "Record health observations through MCP or REST, review your day, and keep the ledger on infrastructure you control."
+mode: "custom"
 ---
 
-Vitalog is a single-user health ledger backed by PostgreSQL. Record the observations you supply, retain their source and revisions, and review daily totals and weight progress.
+import {
+  Home,
+  Hero,
+  Actions,
+  ActionLink,
+  ProductFrame,
+  Highlights,
+  InlineLink,
+  Process,
+  SectionIntro,
+  Eyebrow,
+  SplitSection,
+  Points,
+} from "/snippets/oss/homepage.jsx";
+import { ThemeImage } from "/snippets/oss/screenshot.jsx";
 
-<CardGroup cols={2}>
-  <Card title="Get started" icon="rocket" href="/quickstart">
-    Sign in, connect a client and record your first observation.
-  </Card>
-  <Card title="Daily View" icon="calendar" href="/dashboard">
-    Review nutrition, mood, water and exercise alongside the day's logs.
-  </Card>
-  <Card title="Connect MCP" icon="plug" href="/mcp-guide">
-    Use OAuth with a Streamable HTTP MCP client, or connect with an API key.
-  </Card>
-  <Card title="Self-host Vitalog" icon="server" href="/installation">
-    Run the API, Next.js UI and PostgreSQL with Docker Compose or Towbar.
-  </Card>
-</CardGroup>
-
-## Set goals, review progress
-
-Set a weight target with an explicit start weight. Nutrition goals are upper limits; water, active calories and exercise minutes are minimum targets. The dashboard shows progress against the goals effective on the selected day.
-
-The dashboard is read-only. Create or correct health records and goals through [MCP](/mcp-guide) or the [REST record contracts](/records). API Keys is a separate credential-management screen.
-
-## Keep the original observation
-
-Records retain their reported dates, timezones, units and provenance. Missing values remain unknown. Corrections and voids preserve previous revisions, and retry keys prevent an identical write from creating a duplicate.
-
-Vitalog stores observations and user-defined goals. It does not diagnose conditions or prescribe health targets.
+<Home>
+  <Hero id="hero-heading">
+    <h1 id="hero-heading">
+      Open-source
+      <br />
+      <span>health ledger</span>
+    </h1>
+    <p className="oss-lead">
+      <span className="oss-lead-primary">
+        Record observations. Review your day. Keep your data.
+      </span>
+      <span>
+        A self-hosted dashboard, REST API and MCP for one person's health
+        records.
+      </span>
+    </p>
+    <Actions>
+      <ActionLink href="/quickstart">
+        Get started <span aria-hidden="true">→</span>
+      </ActionLink>
+      <ActionLink
+        href="https://github.com/avgeek-oss/vitalog"
+        variant="secondary"
+      >
+        Explore on GitHub <span aria-hidden="true">↗</span>
+      </ActionLink>
+    </Actions>
+  </Hero>
+  <ProductFrame>
+    <ThemeImage
+      light="/assets/dashboard-light.png"
+      dark="/assets/dashboard-dark.png"
+      alt="Vitalog Daily View with sample nutrition, mood, water, exercise and expandable logs"
+      width={1280}
+      height={824}
+      sizes="(max-width: 640px) calc(100vw - 42px), (max-width: 1200px) calc(100vw - 66px), 1134px"
+      priority
+    />
+  </ProductFrame>
+  <Highlights aria-label="What you can do with Vitalog">
+    <div>
+      <h2>Log through your client</h2>
+      <p>
+        Record meals, water, activity, measurements and lab results through MCP
+        or REST. Retain dates, units and sources alongside each observation.
+      </p>
+      <InlineLink href="/logging">Log your first observation →</InlineLink>
+    </div>
+    <div>
+      <h2>Review the day</h2>
+      <p>
+        See daily totals, mood and goal progress. Expand a log to inspect its
+        details or follow weigh-ins over time.
+      </p>
+      <InlineLink href="/dashboard">Explore the dashboard →</InlineLink>
+    </div>
+    <div>
+      <h2>Host your own ledger</h2>
+      <p>
+        Run the API, web app and PostgreSQL on your infrastructure. Export
+        records and back up attachments in private object storage.
+      </p>
+      <InlineLink href="/installation">Install Vitalog →</InlineLink>
+    </div>
+  </Highlights>
+  <Process id="start-heading">
+    <SectionIntro>
+      <Eyebrow>How it works</Eyebrow>
+      <h2 id="start-heading">From an observation to a daily view.</h2>
+      <p>Use the dashboard for viewing and a connected client for logging.</p>
+    </SectionIntro>
+    <ol>
+      <li>
+        <span aria-hidden="true">01</span>
+        <h3>Run Vitalog</h3>
+        <p>
+          Start PostgreSQL, the API and the web app with Docker Compose or
+          deploy them with Towbar.
+        </p>
+      </li>
+      <li>
+        <span aria-hidden="true">02</span>
+        <h3>Connect a client</h3>
+        <p>
+          Approve an MCP OAuth connection or create a named API key with
+          explicit permissions and expiry.
+        </p>
+      </li>
+      <li>
+        <span aria-hidden="true">03</span>
+        <h3>Record and review</h3>
+        <p>
+          Log supplied observations, add goals you choose and open Daily View to
+          see the results.
+        </p>
+      </li>
+    </ol>
+    <InlineLink href="/quickstart">Follow the quickstart →</InlineLink>
+  </Process>
+  <SplitSection id="records-heading">
+    <SectionIntro>
+      <Eyebrow>Record integrity</Eyebrow>
+      <h2 id="records-heading">Keep the context behind each value.</h2>
+      <p>
+        A health record is more than a number. Vitalog preserves what was
+        supplied and how it changed.
+      </p>
+    </SectionIntro>
+    <Points>
+      <div>
+        <h3>Sources and corrections</h3>
+        <p>
+          Keep provenance and immutable revisions. Correct or void a record
+          without silently overwriting its history.
+        </p>
+      </div>
+      <div>
+        <h3>Measurements stay explicit</h3>
+        <p>
+          Missing values remain unknown in the API. Goals come from values you
+          set, rather than inferred targets.
+        </p>
+      </div>
+      <div>
+        <h3>Files you can reuse</h3>
+        <p>
+          Upload an image or PDF once and link it to multiple records. Private
+          signed URLs keep files separate from JSON requests.
+        </p>
+      </div>
+    </Points>
+  </SplitSection>
+  <Actions>
+    <ActionLink href="/quickstart">Set up your ledger →</ActionLink>
+    <ActionLink href="/concepts" variant="secondary">
+      Understand the data model →
+    </ActionLink>
+  </Actions>
+</Home>

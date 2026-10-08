@@ -1,10 +1,10 @@
 name: Vitalog
 values:
   - key: baseUrl
-    value: https://vitalog-api.praveent.com
+    value: https://vitalog-api.example.com
     enabled: true
   - key: uiUrl
-    value: https://vitalog.praveent.com
+    value: https://vitalog.example.com
     enabled: true
   - key: authKey
     value: ""

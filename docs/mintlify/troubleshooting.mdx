@@ -11,7 +11,7 @@ Confirm that API and UI `UI_BASE_URL` values match the exact browser origin. Pub
 
 ## A metric is missing
 
-A dash means unknown, not zero. Choose the observation's date in the installation's timezone and expand its log. A reported daily total takes precedence over compatible entry subtotals. Incompatible units/definitions, qualified values, voided records and unresolved overlapping workouts can exclude a value from an aggregate.
+The API distinguishes unknown values from measured zero. Daily numeric dashboard cards display zero when no usable measurement exists; unrecorded mood displays **Not recorded**, and unavailable weight displays a dash. These display defaults do not create observations. Choose the observation's date in the installation's timezone and expand its log. A reported daily total takes precedence over compatible entry subtotals. Incompatible units/definitions, qualified values, voided records and unresolved overlapping workouts can exclude a value from an aggregate.
 
 Water means logged water. Exercise uses active energy and explicitly supplied exercise duration. Mood uses the latest valid enum check-in; numeric mood ratings are separate. Use [record contracts](/records) and [goal progress](/goals) to inspect the returned coverage and exclusions.
 

@@ -1,6 +1,8 @@
 # Vitalog
 
-Vitalog stores one person's supplied health observations in PostgreSQL. Hono serves `/v1` REST routes and one `/mcp` endpoint at `vitalog-api.praveent.com`. A separate Next.js app serves OAuth consent and API-key creation at `vitalog.praveent.com`. Both interfaces call the same domain services, validators and transactions.
+[Documentation and setup guides](https://www.vitalog.dev) · [Quickstart](https://www.vitalog.dev/quickstart)
+
+Vitalog stores one person's supplied health observations in PostgreSQL. Hono serves `/v1` REST routes and one `/mcp` endpoint on your API origin. A separate Next.js app serves OAuth consent and API-key creation on your UI origin. Both interfaces call the same domain services, validators and transactions.
 
 The service has eight record types, nine supported goal metrics and 27 MCP tools. The registry contains 182 nutrient keys, 424 laboratory analyte keys in 30 discovery groups, and 110 measurement/study keys. The database starts empty. All examples and verification fixtures are synthetic.
 
@@ -26,7 +28,7 @@ The default installation ignores forwarded client addresses. To trust one ingres
 
 ## Run with Towbar
 
-For deployment on Praveen Apps with a managed PostgreSQL datastore and `vitalog.praveent.com`, follow [the Towbar deployment guide](docs/towbar-deployment.md). The version-2 manifests declare three workloads, two HTTPS domains and the private database network; runtime credentials are supplied in Towbar.
+For deployment with Towbar and a managed PostgreSQL datastore, follow [the Towbar deployment guide](docs/towbar-deployment.md). The version-2 manifests declare three workloads, two HTTPS domains and the private database network; runtime credentials are supplied in Towbar.
 
 ## Run from source
 
@@ -52,7 +54,7 @@ Generate new database migrations with `npm run db:generate`. Apply them with `np
 
 ## Authentication
 
-Every `/v1/*`, `/mcp`, `/readyz` and `/openapi.json` request requires an HTTP Bearer key. The environment `AUTH_KEY` has full ledger access and exclusive administration through `/v1/api-keys`. Manually generated `vlk_` keys have full ledger access for exactly 30 days unless revoked, and cannot list or revoke keys. Client-specific `vlo_` OAuth tokens authorize only their requested MCP scopes for 30 days. MCP initialization, discovery, calls and transport operations all require the same Bearer header. This remains one person's ledger; a key does not create a separate user or datastore.
+Every `/v1/*`, `/mcp`, `/readyz` and `/openapi.json` request requires an HTTP Bearer key. The environment `AUTH_KEY` has full ledger access and exclusive administration through `/v1/api-keys`. Manually generated `vlk_` keys require a name, explicit permissions (Read-only, Edit or Administrative permissions) and an expiry (30 days, 90 days, 1 year or Never). They enforce those ceilings on REST and MCP and cannot administer credentials. Client-specific `vlo_` OAuth tokens authorize only their requested MCP scopes for 30 days. MCP initialization, discovery, calls and transport operations all require the same Bearer header. This remains one person's ledger; a key does not create a separate user or datastore.
 
 Set `ROOT_EMAIL` and `ROOT_PASSWORD` to enable generation at `/api-keys`, browser sign-in at `/login` and MCP OAuth connections. The password must contain at least 15 non-padding characters and fit within 256 UTF-8 bytes, and must differ from `AUTH_KEY`. Configure both values together; leaving both empty disables issuance and sign-in while existing Bearer clients keep working. Root email matching ignores surrounding whitespace and case; password matching is exact. Root credentials authenticate issuance, browser sign-in and OAuth consent, and cannot authenticate ledger requests directly. The API verifies the password using salted scrypt with bounded concurrency and shared rate limits.
 
@@ -60,7 +62,7 @@ The page submits root credentials to `POST /auth/api-keys` over HTTPS (loopback 
 
 The primary key manages generated keys and OAuth connection records through `GET /v1/api-keys`, `DELETE /v1/api-keys/{id}`, and `DELETE /v1/api-keys`. Listing is paginated and returns short token hints, timestamps and status, never token values or hashes. Revoke-all also cancels pending OAuth authorization codes; it leaves `AUTH_KEY` valid and does not prevent new issuance with the root credentials. Settings → API Keys shows generated-key and MCP-connection metadata immediately; creating or revoking keys requires a separate 30-minute root-credential verification. Profile and Preferences use shared OSS components, with a Gravatar account-menu footer and PostgreSQL persistence. Its management session cannot access health records or MCP, and its revoke-all preserves browser sessions. Root credentials cannot authenticate ledger requests. Key management remains REST-only; the 27 MCP tools cover records, discovery and user goals.
 
-See [API-key setup and contracts](docs/api-keys.md) for request examples and operational behavior. These features extend the original specification's authentication exclusions. The [MCP OAuth implementation](docs/oauth.md) supports Client ID Metadata Documents, configured clients and dynamic registration. It uses discovery and authorization-code exchange with S256 PKCE. Sign in on Vitalog's consent page with your root email and password; your MCP client receives its token automatically. The consent title, button and destination come from the validated client metadata. The token is created only at code exchange and has a revocable management record in the same API-key list.
+See [API-key setup and contracts](docs/api-keys.md) for request examples and operational behavior. The [MCP OAuth implementation](docs/oauth.md) supports Client ID Metadata Documents, configured clients and dynamic registration. It uses discovery and authorization-code exchange with S256 PKCE. Sign in on Vitalog's consent page with your root email and password; your MCP client receives its token automatically. The consent title, button and destination come from the validated client metadata. The token is created only at code exchange and has a revocable management record in the same API-key list.
 
 To rotate `AUTH_KEY`, replace the deployment secret, restart the API, and update each trusted client's private header configuration. Generated keys, database idempotency and history survive rotation. Signed ledger pagination cursors use a digest-derived signing key, so clients restart pagination after key rotation. Changing root credentials affects future issuance and does not revoke generated keys; use the revoke-all API when that is intended.
 
@@ -143,4 +145,4 @@ The embedded inventory was supplied with [specification revision 5](docs/specifi
 
 ## Documentation site
 
-The [Mintlify site](docs/mintlify/README.md) includes dashboard, goals, MCP/OAuth, API-key and self-hosting guides, plus the generated OpenAPI reference. Run `npm run docs:dev` for a local preview on port 4175, or `npm run docs:site:check` to validate the build and internal links. Mintlify uses `docs/mintlify` as its repository content directory. Set the optional web `DOCS_BASE_URL` only after that hostname is serving the published docs.
+The [Mintlify site](docs/mintlify/README.md) includes dashboard, goals, MCP/OAuth, API-key and self-hosting guides, plus the generated OpenAPI reference. Run `npm run docs:dev` for a local preview on port 4175, or `npm run docs:site:check` to validate the build and internal links. Mintlify uses `docs/mintlify` as its repository content directory. The public docs live at `https://www.vitalog.dev`; the web app uses that origin by default. Set `DOCS_BASE_URL` only to override it for your installation.
