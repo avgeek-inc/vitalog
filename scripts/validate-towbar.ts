@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
-import { readFile, stat } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { isIP } from "node:net";
-import { resolve } from "node:path";
 import { Script } from "node:vm";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import type { FormatsPlugin } from "ajv-formats";
@@ -15,7 +14,7 @@ type Config = {
     network?: string;
     networkAlias?: string;
   };
-  deployment?: { type: string; context: string; dockerfile?: string };
+  deployment?: { type: string; image?: string; platform?: string };
   domains?: { primary: string };
   tls?: { mode: string };
   health?: {
@@ -33,7 +32,7 @@ type Entity = Config & {
   environments: Record<string, Config>;
   secrets?: { runtime?: string[] };
 };
-type Root = { environments: Record<string, object> };
+type Root = { buildServer: unknown; environments: Record<string, object> };
 
 const ajv = new Ajv2020({ strict: false });
 const addFormats: FormatsPlugin = createRequire(import.meta.url)("ajv-formats");
@@ -88,6 +87,11 @@ const [root, app, database, web] = await Promise.all([
   validate<Entity>(".towbar/services/vitalog-web.service.yml", "app"),
 ]);
 assert(Object.keys(root.environments).length > 0);
+assert.equal(
+  root.buildServer,
+  null,
+  "Released images do not need a build server",
+);
 assert.notEqual(app.id, database.id);
 assert.equal(database.type, "postgres");
 if (database.image)
@@ -147,13 +151,6 @@ for (const environment of Object.keys(root.environments)) {
       "Singleton service aliases require maintenance mode",
     );
   assert(!datastore.domains, "PostgreSQL must stay private");
-  assert.equal(service.deployment?.type, "dockerfile");
-  const dockerfile = resolve(
-    service.deployment.context,
-    service.deployment.dockerfile!,
-  );
-  assert(dockerfile.startsWith(resolve(".") + "/"));
-  assert((await stat(dockerfile)).isFile(), "Dockerfile does not exist");
   if (service.health?.type === "command") {
     assert.equal(service.rollout?.type, "recreate");
     const command = service.health.command;
@@ -164,7 +161,6 @@ for (const environment of Object.keys(root.environments)) {
   if (service.domains) assert(service.tls, "Public routing requires TLS");
   const ui = configuration(web, environment);
   assert.equal(ui.server, service.server);
-  assert.equal(ui.deployment?.dockerfile, "apps/web/Dockerfile");
   assert.equal(ui.domains?.primary, "vitalog.praveent.com");
   assert.equal(service.domains?.primary, "vitalog-api.praveent.com");
   assert.equal(ui.health?.publicPath ?? ui.health?.path, "/healthz");
@@ -173,10 +169,29 @@ for (const environment of Object.keys(root.environments)) {
     "UI does not require a private API alias",
   );
   assert.deepEqual(web.secrets?.runtime, ["API_BASE_URL", "UI_BASE_URL"]);
-  assert(
-    (
-      await stat(resolve(ui.deployment.context, ui.deployment.dockerfile))
-    ).isFile(),
+  const versions: string[] = [];
+  for (const [config, repository] of [
+    [service, "vitalog-api"],
+    [ui, "vitalog-web"],
+  ] as const) {
+    const deployment = config.deployment;
+    assert(deployment, "A released image deployment is required");
+    assert.equal(deployment.type, "image");
+    assert.equal(deployment.platform, "linux/arm64");
+    const image = deployment.image;
+    assert(image, "A released image is required");
+    const match = image.match(
+      new RegExp(
+        `^ghcr\\.io/avgeek-oss/${repository}:(v[0-9]+\\.[0-9]+\\.[0-9]+)@sha256:[0-9a-f]{64}$`,
+      ),
+    );
+    assert(match, "Images need a release version and immutable digest");
+    versions.push(match[1]!);
+  }
+  assert.equal(
+    versions[0],
+    versions[1],
+    "API and web must use the same release",
   );
   process.stdout.write(
     `PASS Towbar ${environment}: ${app.id} + ${web.id} + ${database.id} on ${service.server}\n`,

@@ -3,13 +3,9 @@ id: vitalog-web
 name: Vitalog UI
 description: HeroUI daily and weight views, API keys and MCP authorization
 deployment:
-  type: dockerfile
-  context: .
-  dockerfile: apps/web/Dockerfile
-  architecture: arm64
-  resources:
-    cpus: 1
-    memory: 1g
+  type: image
+  image: ghcr.io/avgeek-oss/vitalog-web:v1.0.2@sha256:884dc43a11f8f63f8a44726a2b291a239762292d67e79cabaddf3f4f124fba67
+  platform: linux/arm64
 autoDeploy: false
 container:
   port: 3000
