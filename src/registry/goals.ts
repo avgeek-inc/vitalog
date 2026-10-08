@@ -173,7 +173,7 @@ export function goalOperations(idempotencyKey: z.ZodString): Operation[] {
         idempotent_replay: z.boolean(),
       }),
       description:
-        "Set or reactivate a user-supplied goal from today in the server timezone. Use expected_version=0 for a new metric, otherwise its current version. Weight requires an explicit baseline on creation; it is retained on edits unless supplied. No automatic recommendations.",
+        "Set or reactivate a user-supplied goal from today in the account timezone. Use expected_version=0 for a new metric, otherwise its current version. Weight requires an explicit baseline on creation; it is retained on edits unless supplied. No automatic recommendations.",
     },
     {
       name: "health_list_goals",

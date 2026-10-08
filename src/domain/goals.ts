@@ -20,6 +20,7 @@ import { idempotencyKey, type Operation } from "../registry/operations.js";
 import { boundedResponse } from "./catalog.js";
 import { hash } from "./canonical.js";
 import { fromRow, WRITE_LOCK } from "./store.js";
+import { recordCalendarDateSql, recordInTimezone } from "./time-zone.js";
 import { localDate } from "./validation.js";
 import type { Data } from "./types.js";
 import { goalProgress, weightValue } from "./goal-progress.js";
@@ -155,7 +156,7 @@ export class Goals {
       if (existing && existing.snapshot.effective_on > today)
         throw new DomainError(
           "UNAVAILABLE",
-          "Goal history is ahead of the server local date",
+          "Goal history is ahead of the account local date",
         );
       let goal: Goal;
       if (archive)
@@ -271,7 +272,7 @@ export class Goals {
               .from(healthRecords)
               .where(
                 and(
-                  eq(healthRecords.occurredOn, date),
+                  sql`${recordCalendarDateSql(this.timezone)} = ${date}::date`,
                   eq(healthRecords.status, "active"),
                   inArray(healthRecords.recordType, types),
                 ),
@@ -293,12 +294,12 @@ export class Goals {
                 eq(healthRecords.recordType, "measurement"),
                 eq(healthRecords.status, "active"),
                 eq(healthRecords.validity, "valid"),
-                lte(healthRecords.occurredOn, date),
+                sql`${recordCalendarDateSql(this.timezone)} <= ${date}::date`,
                 sql`${healthRecords.payload}->>'metric_key' = 'weight'`,
               ),
             )
             .orderBy(
-              desc(healthRecords.occurredOn),
+              sql`${recordCalendarDateSql(this.timezone)} desc nulls last`,
               sql`${healthRecords.occurredAt} desc nulls last`,
               desc(healthRecords.recordedAt),
               desc(healthRecords.id),
@@ -306,7 +307,7 @@ export class Goals {
             .limit(1001);
           weight = candidates
             .slice(0, 1000)
-            .map(fromRow)
+            .map((row) => recordInTimezone(fromRow(row), this.timezone))
             .find((record) => weightValue(record) !== null);
           if (!weight && candidates.length > 1000)
             throw new DomainError(
@@ -320,7 +321,7 @@ export class Goals {
           timezone: this.timezone,
           progress: goalProgress(
             selected,
-            day.map(fromRow),
+            day.map((row) => recordInTimezone(fromRow(row), this.timezone)),
             weight,
             date,
             this.timezone,

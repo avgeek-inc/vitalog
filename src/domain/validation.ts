@@ -1,3 +1,5 @@
+import { localDate } from "./record-date.js";
+export { localDate } from "./record-date.js";
 import { Decimal } from "decimal.js";
 import {
   CATALOG_VERSION,
@@ -13,13 +15,6 @@ import { fail, parse } from "../errors.js";
 import { at, object, type Data, type RecordInput } from "./types.js";
 
 export const CLOCK_SKEW_MS = 300_000;
-export const localDate = (instant: string | Date, timezone: string) =>
-  new Intl.DateTimeFormat("en-CA", {
-    timeZone: timezone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date(instant));
 export function validTimezone(zone: string): void {
   try {
     new Intl.DateTimeFormat("en", { timeZone: zone }).format();

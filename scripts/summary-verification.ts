@@ -145,11 +145,10 @@ try {
   const url = `postgres://postgres:${password}@127.0.0.1:${port}/vitalog`;
   await migrateDatabase(url);
   connection = database(url);
-  service = new Service(
-    connection.db,
-    "Asia/Kolkata",
-    randomBytes(32).toString("hex"),
+  await connection.pool.query(
+    "insert into account_settings (id, name, time_zone) values (1, 'Fixture', 'Asia/Kolkata') on conflict (id) do update set time_zone = excluded.time_zone",
   );
+  service = new Service(connection.db, randomBytes(32).toString("hex"));
 
   await check(
     "Unrelated historical studies do not consume a narrowed read's bound",

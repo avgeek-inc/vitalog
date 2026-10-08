@@ -64790,7 +64790,7 @@
             }
           }
         },
-        "description": "Set or reactivate a user-supplied goal from today in the server timezone. Use expected_version=0 for a new metric, otherwise its current version. Weight requires an explicit baseline on creation; it is retained on edits unless supplied. No automatic recommendations."
+        "description": "Set or reactivate a user-supplied goal from today in the account timezone. Use expected_version=0 for a new metric, otherwise its current version. Weight requires an explicit baseline on creation; it is retained on edits unless supplied. No automatic recommendations."
       },
       "get": {
         "operationId": "health_list_goals",
@@ -67922,7 +67922,7 @@
                         "timeZone"
                       ],
                       "additionalProperties": false,
-                      "description": "Display preferences default to day-short-month-year, 24-hour and UTC. Saved choices and recorded dates remain unchanged."
+                      "description": "Preferences default to day-short-month-year, 24-hour and UTC. The timezone controls timestamp display, daily activity grouping and goal dates. Date-only records and stored timestamps remain unchanged."
                     }
                   },
                   "required": [
@@ -68045,7 +68045,7 @@
                   "timeZone"
                 ],
                 "additionalProperties": false,
-                "description": "Display preferences default to day-short-month-year, 24-hour and UTC. Saved choices and recorded dates remain unchanged."
+                "description": "Preferences default to day-short-month-year, 24-hour and UTC. The timezone controls timestamp display, daily activity grouping and goal dates. Date-only records and stored timestamps remain unchanged."
               }
             }
           }
@@ -68088,7 +68088,7 @@
                         "timeZone"
                       ],
                       "additionalProperties": false,
-                      "description": "Display preferences default to day-short-month-year, 24-hour and UTC. Saved choices and recorded dates remain unchanged."
+                      "description": "Preferences default to day-short-month-year, 24-hour and UTC. The timezone controls timestamp display, daily activity grouping and goal dates. Date-only records and stored timestamps remain unchanged."
                     }
                   },
                   "required": [
@@ -68342,7 +68342,7 @@
         ],
         "responses": {
           "200": {
-            "description": "Validate a browser session and read its expiry, server timezone and today's local date. Accepts a vls_ Bearer token or the API cookie from UI_BASE_URL.",
+            "description": "Validate a browser session and read its expiry, account timezone and today's local date. Accepts a vls_ Bearer token or the API cookie from UI_BASE_URL.",
             "content": {
               "application/json": {
                 "schema": {
@@ -68394,7 +68394,7 @@
                             "timeZone"
                           ],
                           "additionalProperties": false,
-                          "description": "Display preferences default to day-short-month-year, 24-hour and UTC. Saved choices and recorded dates remain unchanged."
+                          "description": "Preferences default to day-short-month-year, 24-hour and UTC. The timezone controls timestamp display, daily activity grouping and goal dates. Date-only records and stored timestamps remain unchanged."
                         }
                       },
                       "required": [
@@ -68487,7 +68487,7 @@
             }
           }
         },
-        "description": "Validate a browser session and read its expiry, server timezone and today's local date. Accepts a vls_ Bearer token or the API cookie from UI_BASE_URL."
+        "description": "Validate a browser session and read its expiry, account timezone and today's local date. Accepts a vls_ Bearer token or the API cookie from UI_BASE_URL."
       },
       "delete": {
         "operationId": "revoke_browser_session",

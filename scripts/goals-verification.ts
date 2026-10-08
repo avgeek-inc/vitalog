@@ -108,17 +108,16 @@ try {
   await migrateDatabase(url);
   await migrateDatabase(url);
   connection = database(url);
+  await connection.pool.query(
+    "insert into account_settings (id, name, time_zone) values (1, 'Fixture', 'Asia/Kolkata') on conflict (id) do update set time_zone = excluded.time_zone",
+  );
   const config = configuration({
     AUTH_KEY: key,
     DATABASE_URL: url,
-    DEFAULT_TIMEZONE: "Asia/Kolkata",
+
     RATE_LIMIT_PER_MINUTE: "100000",
   });
-  const service = new Service(
-    connection.db,
-    config.timezone,
-    "synthetic-goals-verification",
-  );
+  const service = new Service(connection.db, "synthetic-goals-verification");
   const instance = serve({
     fetch: application(service, config, () => {}).fetch,
     port: 0,
@@ -137,7 +136,7 @@ try {
       requestInit: { headers: { Authorization: `Bearer ${key}` } },
     }),
   );
-  const today = localDate(new Date(), config.timezone);
+  const today = localDate(new Date(), "Asia/Kolkata");
   let weightId = "";
   await check(
     "Fresh migrations, readiness and authenticated REST/MCP goal catalog",
@@ -164,7 +163,7 @@ try {
     "Local-day goal revisions preserve previous targets across edits, archival and reactivation",
     async () => {
       let clock = new Date("2026-09-10T18:00:00Z");
-      const historic = new Goals(connection!.db, config.timezone, () => clock);
+      const historic = new Goals(connection!.db, "Asia/Kolkata", () => clock);
       const input = {
         metric: "measurement:weight",
         target: 70,
@@ -370,7 +369,7 @@ try {
     async () => {
       const envelope = {
         occurred_on: today,
-        timezone: config.timezone,
+        timezone: "Asia/Kolkata",
         provenance: { source_type: "manual", value_kind: "reported" },
       };
       for (const [path, data] of [
@@ -479,7 +478,7 @@ try {
         status: "all",
       });
       assert.deepEqual(
-        await new Service(connection!.db, config.timezone, "restart").execute(
+        await new Service(connection!.db, "restart").execute(
           "health_list_goals",
           { status: "all" },
         ),
@@ -535,11 +534,7 @@ try {
       );
       const restored = database(url.replace(/\/vitalog$/, "/restored"));
       try {
-        const restoredService = new Service(
-          restored.db,
-          config.timezone,
-          "restored",
-        );
+        const restoredService = new Service(restored.db, "restored");
         assert.deepEqual(
           await restoredService.execute("health_list_goals", { status: "all" }),
           before,

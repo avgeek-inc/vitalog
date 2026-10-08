@@ -12,10 +12,8 @@ Set secrets through your deployment's secret manager. For local development, cop
 | `DATABASE_URL`                | PostgreSQL connection string.                                                                                                              |
 | `AUTH_KEY`                    | Primary high-entropy Bearer key with full ledger access and API-key administration.                                                        |
 | `ROOT_EMAIL`, `ROOT_PASSWORD` | Configure both to enable browser sign-in, key issuance and OAuth consent. Leave both empty to disable new issuance and sign-in.            |
-| `DEFAULT_TIMEZONE`            | IANA timezone for local dates and daily summary boundaries; example: `Asia/Kolkata`.                                                       |
 | `PORT`                        | API listening port; default `3000`.                                                                                                        |
 | `NODE_ENV`                    | Use `production` in deployed services.                                                                                                     |
-| `ALLOWED_HOSTS`               | Comma-separated accepted Host values. Include the public API host and the loopback host used by readiness checks.                          |
 | `PUBLIC_BASE_URL`             | Exact public API origin used for OAuth discovery. HTTPS is required except on loopback.                                                    |
 | `UI_BASE_URL`                 | Exact trusted UI origin for sign-in, key creation and OAuth consent requests.                                                              |
 | `ALLOWED_ORIGINS`             | Exact origins of browser MCP clients that need CORS. Keep this list limited to intended clients.                                           |
@@ -25,6 +23,8 @@ Set secrets through your deployment's secret manager. For local development, cop
 Root credentials are used for issuance and consent. They cannot authenticate health requests directly. Changing root credentials affects new sign-ins and issuance after the API restarts; revoke existing keys and sessions separately if needed.
 
 Address-based limits use the IP address connecting directly to the API. Requests through one proxy may share a bucket; supplied client-address headers do not change it.
+
+The API derives accepted hosts from `PUBLIC_BASE_URL` and fixed loopback readiness addresses. The account timezone is saved in **Account Settings → Preferences** and defaults to UTC. It controls timestamp display, daily grouping and goal dates across the UI, REST and MCP. Instants remain stored in UTC; date-only records retain their original calendar dates. Changes apply without restarting the API.
 
 ## Web app
 

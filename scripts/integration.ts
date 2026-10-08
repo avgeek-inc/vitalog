@@ -75,17 +75,16 @@ async function check(name: string, fn: () => Promise<number | void>) {
 }
 async function startApi() {
   connection = database(dbUrl);
+  await connection.pool.query(
+    "insert into account_settings (id, name, time_zone) values (1, 'Fixture', 'Asia/Kolkata') on conflict (id) do update set time_zone = excluded.time_zone",
+  );
   const config = configuration({
     AUTH_KEY: key,
     DATABASE_URL: dbUrl,
-    DEFAULT_TIMEZONE: "Asia/Kolkata",
+
     RATE_LIMIT_PER_MINUTE: "100000",
   });
-  const service = new Service(
-    connection.db,
-    config.timezone,
-    config.authDigest.toString("hex"),
-  );
+  const service = new Service(connection.db, config.authDigest.toString("hex"));
   const api = application(service, config, (entry) => {
     logs.push(entry);
   });
@@ -1406,7 +1405,6 @@ try {
         await migrateDatabase(url);
         const read = await new Service(
           previous.db,
-          "Asia/Kolkata",
           "synthetic-migration-cursor-key",
         ).execute("health_get_record", { id });
         operations
@@ -1684,11 +1682,7 @@ try {
         );
         assert.deepEqual(result.rows[0], before);
         assert.deepEqual(await tableSnapshot(restored.pool), beforeRows);
-        const restoredService = new Service(
-          restored.db,
-          "Asia/Kolkata",
-          hash(key),
-        );
+        const restoredService = new Service(restored.db, hash(key));
         const restoredHistory = await restoredService.execute(
           "health_get_record",
           { id: original.id, include_history: true },
@@ -1808,11 +1802,7 @@ try {
         RATE_LIMIT_PER_MINUTE: "1",
       });
       const limited = application(
-        new Service(
-          connection!.db,
-          config.timezone,
-          config.authDigest.toString("hex"),
-        ),
+        new Service(connection!.db, config.authDigest.toString("hex")),
         config,
         () => {},
       );

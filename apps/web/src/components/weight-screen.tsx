@@ -8,10 +8,11 @@ import { WeightView } from "./weight-view";
 import { useSession } from "./dashboard-session";
 import { readHealth, readRecords } from "../lib/read-health";
 import type { GoalProgress, HealthRecord } from "../lib/health";
+import { recordCalendarDate } from "../../../../src/domain/record-date";
 import { BackendRecovery } from "./backend-recovery";
 
 export function WeightScreen() {
-  const { today } = useSession();
+  const { today, timezone } = useSession();
   const [data, setData] = useState<{
     records: HealthRecord[];
     goals: GoalProgress[];
@@ -37,7 +38,14 @@ export function WeightScreen() {
       ),
     ]).then(
       ([records, goals]) => {
-        if (active) setData({ records, goals: goals.progress });
+        if (active)
+          setData({
+            records: records.map((record) => ({
+              ...record,
+              occurred_on: recordCalendarDate(record, timezone),
+            })),
+            goals: goals.progress,
+          });
       },
       () => {
         if (active) setError(true);
@@ -46,7 +54,7 @@ export function WeightScreen() {
     return () => {
       active = false;
     };
-  }, [today, attempt]);
+  }, [today, timezone, attempt]);
   return (
     <ApplicationPage
       title="Weight Management"

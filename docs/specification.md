@@ -60,7 +60,6 @@ Configure one operator-supplied secret through an environment variable:
 ```dotenv
 AUTH_KEY=<operator-provided-high-entropy-secret>
 DATABASE_URL=<postgresql-connection-string>
-DEFAULT_TIMEZONE=Asia/Kolkata
 PORT=3000
 NODE_ENV=production
 ```
@@ -128,7 +127,7 @@ Common server-controlled properties include UUID `id`, initial `version=1`, crea
 
 ### Dates
 
-Require an explicit calendar date for measurements, nutrition, hydration, workouts, sleep, check-ins, and intake. REST/MCP arguments use ISO calendar dates, not relative-date strings. Return the effective date and timezone. Use `DEFAULT_TIMEZONE` only when no timezone is supplied.
+Require an explicit calendar date for measurements, nutrition, hydration, workouts, sleep, check-ins, and intake. REST/MCP arguments use ISO calendar dates, not relative-date strings. Return the effective date and timezone. Use the saved account timezone, defaulting to UTC, only when no timezone is supplied. Timestamped records are grouped in the currently selected timezone; date-only records retain their calendar date.
 
 When only a date is known, persist a date without inventing midnight or a precise measurement time. When an exact timestamp is known, persist its UTC instant and retain the supplied timezone/offset. Never substitute a record's creation time for its measurement or specimen-collection time.
 
@@ -136,7 +135,7 @@ For ordinary events, derive the local date from a known timestamp and reject con
 
 Lab results use specimen-collection time/date when supplied; otherwise report date with `date_basis=report_date`. Undated labs may have `occurred_on=null`, `date_basis=unknown`, and their original textual date notes; exclude them from chronological trends and disclose them as undated. Date-based searches must offer `include_undated` rather than assigning them an invented date.
 
-For studies and timed collections, additionally preserve `effective_period`, duration and coverage. This can remain a strictly validated payload object with indexed dates as needed; it does not require another storage service. Do not force multi-day data into a single-day sum. Reject future completed events, allowing only a small documented clock-skew tolerance for precise timestamps. Historical records must not move to another day when the deployment's default timezone changes.
+For studies and timed collections, additionally preserve `effective_period`, duration and coverage. This can remain a strictly validated payload object with indexed dates as needed; it does not require another storage service. Do not force multi-day data into a single-day sum. Reject future completed events, allowing only a small documented clock-skew tolerance for precise timestamps. Changing the account timezone must not rewrite stored dates, instants or source time context. Timestamped observations are grouped into days using the current preference; date-only observations remain on their supplied dates.
 
 ### Provenance and uncertainty
 
@@ -551,7 +550,7 @@ Additional technical HTTP routes: `/mcp`, `GET /healthz`, protected/internal `GE
 
 ### Read contracts
 
-`health_get_context`: optional sections and `lookback_days` (default 14, maximum 90). Return server time, default timezone, query window, latest values with observation dates/ages, and bounded recent summaries. Latest measurements may predate the lookback window and must be labelled accordingly. Default to excluding lab details unless `include_labs=true`; disclose omitted/undated result counts. Include source IDs and truncation/cursor pointers rather than unbounded record bodies.
+`health_get_context`: optional sections and `lookback_days` (default 14, maximum 90). Return server time, saved account timezone, query window, latest values with observation dates/ages, and bounded recent summaries. Latest measurements may predate the lookback window and must be labelled accordingly. Default to excluding lab details unless `include_labs=true`; disclose omitted/undated result counts. Include source IDs and truncation/cursor pointers rather than unbounded record bodies.
 
 `health_get_daily_summary`: explicit `date`, optional sections. Return nutrition/fluid basis, known sums versus reported whole-day totals, missing/estimated counts, diary completeness, relevant source IDs, and warnings. Return qualified nutrition totals using the Section 5.2 precedence rule. List overlapping interval studies separately from daily event totals, and expose source-status/quality exclusions. No target, remaining allowance, deficit, surplus, or compliance score fields.
 

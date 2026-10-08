@@ -13,10 +13,8 @@ services:
       DATABASE_URL:
         postgresql://vitalog:${POSTGRES_PASSWORD:?Database password is
         required}@postgres:5432/vitalog
-      DEFAULT_TIMEZONE: ${DEFAULT_TIMEZONE:-Asia/Kolkata}
       PORT: "3000"
       NODE_ENV: production
-      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost:3000,127.0.0.1:3000}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
       RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-600}

@@ -700,11 +700,13 @@ export function application(
     const session = c.get("browserSession");
     if (!session)
       throw new DomainError("UNAUTHORIZED", "Supply a valid browser session");
+    const currentAccount = await account.get();
+    const timezone = currentAccount.preferences.timeZone;
     return c.json({
       expires_at: session.expiresAt.toISOString(),
-      timezone: config.timezone,
-      today: localDate(new Date(), config.timezone),
-      account: await account.get(),
+      timezone,
+      today: localDate(new Date(), timezone),
+      account: currentAccount,
     });
   });
   for (const [path, method, schema] of [

@@ -15,12 +15,12 @@ Reusable [image/PDF attachments](docs/attachments.md) live in private S3-compati
 1. Copy `.env.example` to `.env`.
 2. Set `AUTH_KEY` to an operator-created secret from at least 32 random bytes. Use a secret manager or a local cryptographic random generator outside the application. The accepted encoding is 43–512 characters using letters, digits, `.`, `_`, `~`, `+`, `/`, `=`, or `-`. Length checks cannot prove randomness.
 3. Set `POSTGRES_PASSWORD`. A random hexadecimal password avoids URL escaping in the supplied Compose connection string.
-4. Set `ALLOWED_HOSTS` to the exact HTTP host values your ingress forwards, including a port when present. Set `ALLOWED_ORIGINS` only for trusted browser origins. With the default loopback port, `localhost:3000,127.0.0.1:3000` works.
+4. Set `PUBLIC_BASE_URL` to the exact public API origin. Its host and local readiness hosts are accepted automatically. Set `ALLOWED_ORIGINS` only for trusted browser origins. With the default loopback port, `localhost:3000,127.0.0.1:3000` works.
 5. Run `docker compose up --build -d --wait`.
 
 Compose runs separate API, Next.js UI and PostgreSQL 17.11 containers. It publishes the UI on `127.0.0.1:3001` and the API on `127.0.0.1:3000` and keeps PostgreSQL on the internal network. The API applies the checked-in Drizzle migrations before listening, runs as UID 1000, and has a read-only root filesystem. The API and database each have a 512 MiB memory limit and one CPU; the UI has 256 MiB and 0.5 CPU. The API has a 128-process limit and a 35-second shutdown allowance.
 
-For production, put a TLS ingress in front of the loopback API. Forward its original Host header and configure that host in `ALLOWED_HOSTS`. Prevent direct public access to the container network and PostgreSQL. Keep ingress access logs free of Authorization, query strings containing secrets, request/response bodies and health data. The API rejects its configured key anywhere outside the Authorization header before domain validation, including record text, encoded property names, URLs and idempotency headers. Avoid request-body capture and health payload capture in tracing systems.
+For production, put a TLS ingress in front of the loopback API. Forward its original Host header and set its origin in `PUBLIC_BASE_URL`. Prevent direct public access to the container network and PostgreSQL. Keep ingress access logs free of Authorization, query strings containing secrets, request/response bodies and health data. The API rejects its configured key anywhere outside the Authorization header before domain validation, including record text, encoded property names, URLs and idempotency headers. Avoid request-body capture and health payload capture in tracing systems.
 
 Request rate limits use the immediate socket peer address, including when an ingress connects to the API. Forwarded client-address headers do not change the rate-limit bucket. Forwarded host/protocol values do not expand the host allowlist. CORS is not an authentication mechanism.
 
@@ -40,7 +40,7 @@ npm run db:migrate
 npm run dev
 ```
 
-The development and migration commands load `.env` if present. `DATABASE_URL` must address PostgreSQL. `DEFAULT_TIMEZONE` defaults to `Asia/Kolkata`; `PORT` defaults to `3000`. A production process uses `npm run build` followed by `npm start` with environment variables supplied by the deployment. Apply migrations before starting it. The Docker entrypoint performs both steps.
+The development and migration commands load `.env` if present. `DATABASE_URL` must address PostgreSQL. The saved account timezone defaults to UTC and controls timestamp display, activity grouping and goal dates; `PORT` defaults to `3000`. A production process uses `npm run build` followed by `npm start` with environment variables supplied by the deployment. Apply migrations before starting it. The Docker entrypoint performs both steps.
 
 The UI is an independent Next.js 16 app in [apps/web](apps/web), using React 19, HeroUI v3, Tailwind CSS v4 and locally bundled Inter. Sign in at `/login` to view `/daily` and `/weight`. Daily shows nutrition, mood, water, active calories, exercise minutes and expandable logs; Weight shows the current observation, explicit goal baseline, target, chart and history. These screens only read health data. Create records and manage goals through REST or MCP. API-key creation and MCP consent remain at `/api-keys` and `/oauth/authorize`.
 

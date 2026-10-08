@@ -101,7 +101,7 @@ function restart(
     DATABASE_URL: connection!.pool.options.connectionString,
     PUBLIC_BASE_URL: origin,
     UI_BASE_URL: uiOrigin,
-    ALLOWED_HOSTS: new URL(origin).host,
+
     RATE_LIMIT_PER_MINUTE: "100000",
     ...(rootConfigured
       ? { ROOT_EMAIL: login.email, ROOT_PASSWORD: login.password }
@@ -109,11 +109,7 @@ function restart(
     ...overrides,
   });
   app = application(
-    new Service(
-      connection!.db,
-      config.timezone,
-      config.authDigest.toString("hex"),
-    ),
+    new Service(connection!.db, config.authDigest.toString("hex")),
     config,
     (entry) => logs.push(entry),
     { clientMetadataFetcher },
