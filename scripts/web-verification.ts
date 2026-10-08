@@ -56,7 +56,8 @@ let webLog = "";
 let healthReadGate: Promise<void> | undefined;
 let apiUrl = "",
   uiUrl = "";
-const today = localDate(new Date(), "Asia/Kolkata");
+const fixtureTime = new Date();
+const today = localDate(fixtureTime, "Asia/Kolkata");
 const yesterday = dateOffset(today, -1);
 const logTime = (date: string, time: string) => {
   const supplied = new Date(`${date}T${time}:00+05:30`).getTime();
@@ -916,6 +917,30 @@ try {
     });
     const page = await context.newPage();
     page.setDefaultTimeout(10000);
+    await page.clock.setFixedTime(fixtureTime);
+    await page.route(apiUrl + "/auth/session", async (route) => {
+      if (route.request().method() !== "GET") {
+        await route.continue();
+        return;
+      }
+      const before = localDate(new Date(), "Asia/Kolkata");
+      const response = await route.fetch().catch(() => null);
+      if (!response) {
+        await route.continue();
+        return;
+      }
+      if (!response.ok()) {
+        await route.fulfill({ response });
+        return;
+      }
+      const session = await response.json();
+      const after = localDate(new Date(), "Asia/Kolkata");
+      assert(
+        [before, after].includes(session.today),
+        `Server day ${session.today} is outside ${before}–${after}`,
+      );
+      await route.fulfill({ response, json: { ...session, today } });
+    });
     const failures: string[] = [];
     page.on("pageerror", (error) =>
       failures.push(`${page.url()}: ${error.message}`),
@@ -1496,7 +1521,13 @@ try {
         const token = (await context.cookies()).find(
           (cookie) => cookie.name === "vitalog-session",
         )!.value;
+        const beforeDay = localDate(new Date(), "Asia/Kolkata");
         const before = (await api("/auth/session", token)).data;
+        assert(
+          [beforeDay, localDate(new Date(), "Asia/Kolkata")].includes(
+            sessionInfo.parse(before).today,
+          ),
+        );
         const original = object(object(before.account).preferences);
         assert.deepEqual(original, defaultDateTimePreferences);
         for (const date of dateFormatOptions) {
@@ -1640,9 +1671,14 @@ try {
         );
         assert.equal((await api("/v1/goals", token)).status, 200);
         await startApi();
+        const afterDay = localDate(new Date(), "Asia/Kolkata");
         const after = (await api("/auth/session", token)).data;
+        assert(
+          [afterDay, localDate(new Date(), "Asia/Kolkata")].includes(
+            sessionInfo.parse(after).today,
+          ),
+        );
         assert.deepEqual(object(after.account).preferences, preference);
-        assert.equal(after.today, before.today);
         assert.equal(after.timezone, before.timezone);
         const stored = await connection!.pool.query(
           "select name,date_format,time_format,time_zone from account_settings where id=1",
@@ -1871,7 +1907,11 @@ try {
               };
             }),
           );
-        const elapsed = dayProgressPercent(today, "Asia/Kolkata", Date.now())!;
+        const elapsed = dayProgressPercent(
+          today,
+          "Asia/Kolkata",
+          fixtureTime.getTime(),
+        )!;
         for (const marker of markers) {
           assert(Math.abs(marker.percentage - elapsed) < 0.2);
           assert(marker.description?.includes("% of the day elapsed"));
