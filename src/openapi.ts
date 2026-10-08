@@ -1,3 +1,4 @@
+import { vitalogVersion } from "./version.js";
 import { errorStatuses } from "./errors.js";
 import { operations, restBody } from "./registry/operations.js";
 import { jsonSchema } from "./registry/primitives.js";
@@ -426,7 +427,7 @@ export function openapi(): Data {
     openapi: "3.1.1",
     info: {
       title: "Vitalog",
-      version: "1.0.0",
+      version: vitalogVersion,
       description:
         "Single-user structured observations with equivalent REST and MCP domain services. Environment AUTH_KEY or revocable personal Bearer keys with required name, permissions and explicit expiry (including Never); Primary key management requires AUTH_KEY; the UI uses separate, root-verified 30-minute management sessions. MCP clients use OAuth authorization code with S256 PKCE, issued after root sign-in. Clients are resolved through HTTPS metadata, pre-registration or dynamic registration. OAuth tokens grant MCP access only.",
     },
