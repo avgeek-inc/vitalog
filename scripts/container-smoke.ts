@@ -9,8 +9,18 @@ import { parse, stringify } from "yaml";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { object } from "../src/domain/types.js";
+import { readReleaseImages } from "./release-images.js";
 
 const towbar = process.argv.includes("--towbar");
+const releaseIndex = process.argv.indexOf("--release-images");
+const release =
+  releaseIndex >= 0
+    ? await readReleaseImages(process.argv[releaseIndex + 1]!)
+    : undefined;
+assert(
+  !release || towbar,
+  "Published images must use the Towbar runtime profile",
+);
 type RuntimeManifest = {
   image?: string;
   container: {
@@ -110,13 +120,13 @@ const env = {
   UI_BASE_URL: uiUrl,
   API_BASE_URL: `http://127.0.0.1:${publishedPort}`,
   PUBLIC_BASE_URL: `http://127.0.0.1:${publishedPort}`,
-  VITALOG_WEB_IMAGE: `${project}-web:local`,
+  VITALOG_WEB_IMAGE: release?.images.web ?? `${project}-web:local`,
   ALLOWED_HOSTS: [service?.domains?.primary, `127.0.0.1:${publishedPort}`]
     .filter(Boolean)
     .join(","),
   ALLOWED_ORIGINS: "",
   TRUST_PROXY: "false",
-  VITALOG_IMAGE: `${project}:local`,
+  VITALOG_IMAGE: release?.images.api ?? `${project}:local`,
 };
 const docker = (args: string[]) =>
   execFileSync("docker", args, {
@@ -137,7 +147,42 @@ const compose = (args: string[]) =>
   ]);
 let client: Client | undefined;
 try {
-  compose(["up", "--detach", "--build", "--wait", "--wait-timeout", "90"]);
+  if (release) compose(["pull", "api", "web", "postgres"]);
+  compose([
+    "up",
+    "--detach",
+    release ? "--no-build" : "--build",
+    "--wait",
+    "--wait-timeout",
+    "90",
+  ]);
+  if (release) {
+    for (const [name, image] of [
+      ["api", release.images.api],
+      ["web", release.images.web],
+    ] as const) {
+      const container = compose(["ps", "--quiet", name]);
+      assert.equal(
+        docker(["inspect", "--format", "{{.Config.Image}}", container]),
+        image,
+      );
+    }
+    for (const name of ["api", "web"] as const) {
+      const packagePath =
+        name === "api" ? "./package.json" : "./apps/web/package.json";
+      assert.equal(
+        compose([
+          "exec",
+          "--no-TTY",
+          name,
+          "node",
+          "--print",
+          `require('${packagePath}').version`,
+        ]),
+        release.version.slice(1),
+      );
+    }
+  }
   const port = compose(["port", "api", "3000"]).split(":").at(-1)!;
   const url = `http://127.0.0.1:${port}`;
   const headers = { Authorization: `Bearer ${key}` };
@@ -490,7 +535,14 @@ try {
       (error: unknown) => object(error).status === 1,
     );
     compose(["start", "postgres"]);
-    compose(["up", "--detach", "--wait", "--wait-timeout", "90"]);
+    compose([
+      "up",
+      "--detach",
+      ...(release ? ["--no-build"] : []),
+      "--wait",
+      "--wait-timeout",
+      "90",
+    ]);
     compose(["exec", "--no-TTY", "api", ...service.health!.command]);
     assert.equal(count(), "1");
     profileChecks.push(
@@ -499,10 +551,13 @@ try {
     );
   }
   const report = {
+    ...(release ? { release } : {}),
     tested_at: new Date().toISOString(),
-    mode: towbar
-      ? "local_compose_with_towbar_manifest_runtime_settings"
-      : "docker_compose",
+    mode: release
+      ? "published_images_with_towbar_runtime_settings"
+      : towbar
+        ? "local_compose_with_towbar_manifest_runtime_settings"
+        : "docker_compose",
     image: env.VITALOG_IMAGE,
     postgres_image: datastore?.image ?? "postgres:17.11-bookworm",
     checks: [

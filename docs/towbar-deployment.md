@@ -6,7 +6,21 @@ Run Vitalog as three workloads: PostgreSQL, the Hono API and the Next.js web app
 
 Connect your fork or checkout to Towbar and select a server you control. Replace the server references, service domains and any workspace-specific IDs in the manifests. Keep the API and UI on separate HTTPS origins, such as `https://vitalog-api.example.com` and `https://vitalog.example.com`. Keep PostgreSQL on the private workload network.
 
-The API uses `Dockerfile`; the web app uses `apps/web/Dockerfile`. Build and deploy both from the same reviewed revision. The manifests bound build and runtime resources independently; ensure your server has enough available memory for image builds and PostgreSQL.
+Configure the API and web manifests with `deployment.type: image` and versioned images from `ghcr.io/avgeek-oss/vitalog-api` and `ghcr.io/avgeek-oss/vitalog-web`. Towbar pulls the published images; it does not build the source on your server. Include an immutable SHA-256 digest in both references and use the same release version. Runtime resources remain bounded independently of PostgreSQL.
+
+The release workflow builds and tests `linux/amd64` and `linux/arm64` images. Select the platform matching your server; the production manifests use ARM64. The Dockerfiles remain in the repository for CI publication and local development.
+
+## Publish a release
+
+Update the API and web package versions together, regenerate the documentation, and merge after CI passes. Create an immutable `vX.Y.Z` tag at that exact main commit, then dispatch **Publish release images** from main with the tag as `release_tag`. The workflow validates the tag and versions, reuses the CI verification, builds each architecture natively, assembles multi-platform images, and checks public pulls and OCI source metadata. It attaches `vitalog-images.json` to a draft release, tests those exact images against a disposable PostgreSQL installation on AMD64 and ARM64, and publishes only after both installation checks pass. No production credentials are required.
+
+If a new GHCR package is private, make it public and rerun the failed manifest job. Draft release assembly can be retried; a published version cannot be republished. Download the image references from the release's `vitalog-images.json` asset when promoting it to an installation.
+
+## Choose a release
+
+Publish and verify both images before updating the service manifests. Use the release tag plus its registry digest, for example `ghcr.io/avgeek-oss/vitalog-api:vX.Y.Z@sha256:<published-digest>`, and the corresponding web image from the same release. Do not use `latest` or overwrite a published release tag.
+
+For upgrades, change both image references, sync the repository, then deploy the API before the web app. Runtime secrets and public origins remain installation settings. A new tag or image publication alone does not deploy a running installation.
 
 ## Configure the API
 

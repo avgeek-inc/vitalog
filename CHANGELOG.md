@@ -2,12 +2,17 @@
 
 ## Unreleased
 
+## 1.0.2 (release candidate)
+
+- Publish `vitalog-api` and `vitalog-web` through separate preparation, CI verification, native image builds, manifest assembly, installation checks and publication stages.
+- Build and test AMD64 and ARM64 images, attach immutable image references to each release, and prevent republication of published versions.
+
 - Add a shared three-section documentation footer with links to the OSS philosophy and other applications, and space below the final homepage actions.
 - Capture fresh lossless 4× dashboard screenshots with new asset URLs for Retina displays and cached clients.
 - Publish the Vitalog homepage and public usage, API, MCP and self-hosting guides at vitalog.dev, with synthetic dashboard screenshots and shared documentation styling.
 - Adopt design system 1.2.10 and shared docs kit 0.1.5.
 
-## 1.0.1 (release candidate)
+## 1.0.1
 
 - Show the shared backend-unavailable screen and reconnect automatically when the API is unavailable. Preserve the existing error page for application errors when the backend is reachable.
 - Use design system 1.2.9 for backend recovery.
