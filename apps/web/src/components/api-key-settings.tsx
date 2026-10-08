@@ -21,6 +21,7 @@ import { CredentialsForm, type Credentials } from "./credentials-form";
 import { Button } from "./ui/button";
 import { useAccount } from "./account-context";
 import { formatDateTime } from "../lib/date-time";
+import { apiFetch } from "../lib/browser-api";
 
 type ApiKey = {
   id: string;
@@ -55,7 +56,7 @@ function VerifyIdentity({
   async function verify(credentials: Credentials) {
     setPending(true);
     try {
-      const response = await fetch("/auth/key-management/login", {
+      const response = await apiFetch("/auth/key-management/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(credentials),
@@ -123,7 +124,7 @@ export function ApiKeySettings({
       setPending(true);
       setError(false);
       try {
-        const response = await fetch(
+        const response = await apiFetch(
           endpoint + `?limit=50&offset=${offset}&kind=${kind}`,
           {
             cache: "no-store",
@@ -215,7 +216,7 @@ export function ApiKeySettings({
       };
     const attempt = creationAttempt.current;
     try {
-      const response = await fetch(endpoint, {
+      const response = await apiFetch(endpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -245,7 +246,7 @@ export function ApiKeySettings({
     setBusy(true);
     const target = revoking;
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         endpoint + (target === "all" ? `?kind=${kind}` : "/" + target.id),
         { method: "DELETE", cache: "no-store", redirect: "error" },
       ).catch(() => {
@@ -322,7 +323,7 @@ export function ApiKeySettings({
               }))}
               formatDate={date}
               onRevoke={async (id) => {
-                const response = await fetch(`${endpoint}/${id}`, {
+                const response = await apiFetch(`${endpoint}/${id}`, {
                   method: "DELETE",
                   cache: "no-store",
                   redirect: "error",

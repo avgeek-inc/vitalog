@@ -1,5 +1,6 @@
 import type { HttpBindings } from "@hono/node-server";
 import { Hono, type Context } from "hono";
+import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 import { bodyLimit } from "hono/body-limit";
 import { secureHeaders } from "hono/secure-headers";
 import { timeout } from "hono/timeout";
@@ -37,6 +38,16 @@ import {
 
 const deadlineMessage =
   "Request exceeded its deadline; mutations may be retried with the same idempotency key";
+const browserCookie = (secure: boolean) =>
+  secure ? "__Host-vitalog-session" : "vitalog-session";
+const managementCookie = (secure: boolean) =>
+  secure ? "__Host-vitalog-key-management" : "vitalog-key-management";
+const cookieOptions = (secure: boolean) => ({
+  httpOnly: true,
+  secure,
+  sameSite: "Lax" as const,
+  path: "/",
+});
 type AppEnvironment = {
   Bindings: HttpBindings;
   Variables: {
@@ -70,6 +81,7 @@ export function application(
   const sessions = new BrowserSessions(service.db);
   const account = new RootAccount(service.db, config.rootCredentials?.email);
   const keyManagement = new KeyManagementSessions(service.db);
+  const secureCookies = config.publicBaseUrl?.startsWith("https:") ?? false;
   const oauth = config.publicBaseUrl
     ? new OAuthStore(service.db, config.publicBaseUrl + "/mcp")
     : undefined;
@@ -107,6 +119,82 @@ export function application(
     "*",
     timeout(25_000, new HTTPException(408, { message: deadlineMessage })),
   );
+  app.use("*", async (c, next) => {
+    const origin = c.req.header("origin");
+    const path = c.req.path;
+    if (
+      path !== "/healthz" &&
+      !config.allowedHosts.includes(
+        c.req.header("host") ?? new URL(c.req.url).host,
+      )
+    )
+      throw new DomainError("FORBIDDEN", "Host is not permitted");
+    const browserRoute =
+      path === "/healthz" ||
+      path === "/auth/session" ||
+      path === "/auth/logout" ||
+      path === "/auth/profile" ||
+      path === "/auth/preferences" ||
+      path.startsWith("/auth/key-management/") ||
+      path.startsWith("/v1/");
+    if (
+      config.uiBaseUrl &&
+      origin &&
+      origin !== config.uiBaseUrl &&
+      (path === "/auth/session" ||
+        path === "/auth/logout" ||
+        path === "/auth/profile" ||
+        path === "/auth/preferences" ||
+        path.startsWith("/auth/key-management/"))
+    )
+      throw new DomainError("FORBIDDEN", "Origin is not permitted");
+    if (origin === config.uiBaseUrl && browserRoute) {
+      if (c.req.method === "OPTIONS") {
+        const allowedMethods =
+          path === "/auth/session"
+            ? ["GET", "POST", "DELETE"]
+            : path === "/auth/logout"
+              ? ["POST"]
+              : path === "/auth/profile"
+                ? ["PATCH"]
+                : path === "/auth/preferences"
+                  ? ["PUT"]
+                  : path === "/healthz" || path.startsWith("/v1/")
+                    ? ["GET"]
+                    : path.endsWith("/session")
+                      ? ["GET", "POST", "DELETE"]
+                      : path.endsWith("/api-keys")
+                        ? ["GET", "POST", "DELETE"]
+                        : ["DELETE"];
+        const requested = (c.req.header("access-control-request-headers") ?? "")
+          .split(",")
+          .map((value) => value.trim().toLowerCase())
+          .filter(Boolean);
+        if (
+          !allowedMethods.includes(
+            c.req.header("access-control-request-method") ?? "",
+          ) ||
+          requested.some(
+            (value) => !["content-type", "idempotency-key"].includes(value),
+          )
+        )
+          throw new DomainError("FORBIDDEN", "Preflight is not permitted");
+        c.header("Access-Control-Allow-Origin", origin);
+        c.header("Access-Control-Allow-Credentials", "true");
+        c.header("Vary", "Origin");
+        c.header("Access-Control-Allow-Methods", allowedMethods.join(", "));
+        c.header(
+          "Access-Control-Allow-Headers",
+          "Content-Type, Idempotency-Key",
+        );
+        return c.body(null, 204);
+      }
+      c.header("Access-Control-Allow-Origin", origin);
+      c.header("Access-Control-Allow-Credentials", "true");
+      c.header("Vary", "Origin");
+    }
+    await next();
+  });
   app.use("*", async (c, next) => {
     const path = c.req.path;
     const protocolOrigin = c.req.header("origin");
@@ -172,7 +260,9 @@ export function application(
       !(
         path === "/auth/key-management/api-keys" &&
         c.req.method === "GET" &&
-        /^Bearer vls_/.test(c.req.header("authorization") ?? "")
+        (/^Bearer vls_/.test(c.req.header("authorization") ?? "") ||
+          (c.req.header("origin") === config.uiBaseUrl &&
+            !!getCookie(c, browserCookie(secureCookies))))
       )
     ) {
       const raw = c.env?.incoming?.rawHeaders ?? [];
@@ -181,13 +271,25 @@ export function application(
           index % 2 === 0 && value.toLowerCase() === "authorization",
       ).length;
       const management = await keyManagement.authenticate(
-        c.req.header("authorization"),
+        c.req.header("authorization") ??
+          (c.req.header("origin") === config.uiBaseUrl &&
+          getCookie(c, managementCookie(secureCookies))
+            ? `Bearer ${getCookie(c, managementCookie(secureCookies))}`
+            : undefined),
       );
       if (authCount > 1 || !management)
         throw new DomainError(
           "UNAUTHORIZED",
           "Supply a valid key management session",
         );
+      if (c.req.header("origin") === config.uiBaseUrl) {
+        const browser = getCookie(c, browserCookie(secureCookies));
+        if (!browser || !(await sessions.authenticate(`Bearer ${browser}`)))
+          throw new DomainError(
+            "UNAUTHORIZED",
+            "Supply a valid browser session",
+          );
+      }
       c.set("keyManagementSession", management);
     }
     const mcpPreflight =
@@ -205,7 +307,9 @@ export function application(
         path === "/auth/preferences" ||
         (path === "/auth/key-management/api-keys" &&
           c.req.method === "GET" &&
-          /^Bearer vls_/.test(c.req.header("authorization") ?? "")) ||
+          (/^Bearer vls_/.test(c.req.header("authorization") ?? "") ||
+            (c.req.header("origin") === config.uiBaseUrl &&
+              !!getCookie(c, browserCookie(secureCookies))))) ||
         path === "/openapi.json" ||
         path === "/readyz")
     ) {
@@ -214,7 +318,12 @@ export function application(
         (value, index) =>
           index % 2 === 0 && value.toLowerCase() === "authorization",
       ).length;
-      const authorization = c.req.header("authorization");
+      const cookieSession =
+        c.req.header("origin") === config.uiBaseUrl &&
+        getCookie(c, browserCookie(secureCookies));
+      const authorization =
+        c.req.header("authorization") ??
+        (cookieSession ? `Bearer ${cookieSession}` : undefined);
       const primary = authorized(authorization, config);
       const session =
         !primary && (path.startsWith("/v1/") || path.startsWith("/auth/"))
@@ -292,11 +401,16 @@ export function application(
             "/auth/session",
             "/auth/profile",
             "/auth/preferences",
+            "/auth/logout",
             "/oauth/request",
             "/oauth/approve",
           ].includes(path) || path.startsWith("/auth/key-management/");
         const permitted =
-          uiRequest && config.uiBaseUrl
+          (uiRequest ||
+            (path.startsWith("/v1/") &&
+              c.req.method === "GET" &&
+              !!getCookie(c, browserCookie(secureCookies)))) &&
+          config.uiBaseUrl
             ? origin === config.uiBaseUrl
             : path === "/oauth/token" || path === "/oauth/register"
               ? sameOrigin || config.allowedOrigins.includes(origin)
@@ -442,7 +556,19 @@ export function application(
     }
     for (const [key, value] of c.req.raw.headers) {
       guard(key);
-      if (key.toLowerCase() !== "authorization") guard(value);
+      if (key.toLowerCase() === "cookie") {
+        for (const part of value.split(";")) {
+          const [name, token] = part.trim().split("=", 2);
+          if (
+            (name === browserCookie(secureCookies) &&
+              /^vls_[A-Za-z0-9_-]{43}$/.test(token ?? "")) ||
+            (name === managementCookie(secureCookies) &&
+              /^vlm_[A-Za-z0-9_-]{43}$/.test(token ?? ""))
+          )
+            continue;
+          guard(part);
+        }
+      } else if (key.toLowerCase() !== "authorization") guard(value);
     }
     await inspectBody(
       c.req.raw,
@@ -555,7 +681,15 @@ export function application(
       );
     config.assertCredentialAbsent(parsed.data.email);
     await root.verify(parsed.data.email, parsed.data.password);
-    return c.json(await sessions.create(), 201);
+    const created = await sessions.create();
+    if (c.req.header("origin") === config.uiBaseUrl) {
+      setCookie(c, browserCookie(secureCookies), created.session_token, {
+        ...cookieOptions(secureCookies),
+        expires: new Date(created.expires_at),
+      });
+      return c.json({ signed_in: true }, 201);
+    }
+    return c.json(created, 201);
   });
   app.get("/auth/session", async (c) => {
     if ([...new URL(c.req.url).searchParams].length)
@@ -618,7 +752,33 @@ export function application(
     if (!session)
       throw new DomainError("UNAUTHORIZED", "Supply a valid browser session");
     await sessions.revoke(session.id);
+    deleteCookie(c, browserCookie(secureCookies), cookieOptions(secureCookies));
     return c.json({ signed_out: true });
+  });
+  app.post("/auth/logout", async (c) => {
+    if (
+      c.req.header("origin") !== config.uiBaseUrl ||
+      new URL(c.req.url).search ||
+      (await c.req.text()).length
+    )
+      throw new DomainError("FORBIDDEN", "Origin is not permitted");
+    const browser = getCookie(c, browserCookie(secureCookies));
+    const management = getCookie(c, managementCookie(secureCookies));
+    const session = browser
+      ? await sessions.authenticate(`Bearer ${browser}`)
+      : undefined;
+    const keySession = management
+      ? await keyManagement.authenticate(`Bearer ${management}`)
+      : undefined;
+    if (session) await sessions.revoke(session.id);
+    if (keySession) await keyManagement.revoke(keySession.id);
+    deleteCookie(c, browserCookie(secureCookies), cookieOptions(secureCookies));
+    deleteCookie(
+      c,
+      managementCookie(secureCookies),
+      cookieOptions(secureCookies),
+    );
+    return c.json({ signed_out: true, revoked: !!session });
   });
   app.get("/v1/api-keys", async (c) => {
     const query = new URL(c.req.url).searchParams;
@@ -693,7 +853,20 @@ export function application(
       );
     config.assertCredentialAbsent(parsed.data.email);
     await root.verify(parsed.data.email, parsed.data.password);
-    return c.json(await keyManagement.create(), 201);
+    if (c.req.header("origin") === config.uiBaseUrl) {
+      const browser = getCookie(c, browserCookie(secureCookies));
+      if (!browser || !(await sessions.authenticate(`Bearer ${browser}`)))
+        throw new DomainError("UNAUTHORIZED", "Supply a valid browser session");
+    }
+    const created = await keyManagement.create();
+    if (c.req.header("origin") === config.uiBaseUrl) {
+      setCookie(c, managementCookie(secureCookies), created.session_token, {
+        ...cookieOptions(secureCookies),
+        expires: new Date(created.expires_at),
+      });
+      return c.json({ signed_in: true }, 201);
+    }
+    return c.json(created, 201);
   });
   app.get("/auth/key-management/session", (c) => {
     if (new URL(c.req.url).search)
@@ -708,6 +881,11 @@ export function application(
   app.delete("/auth/key-management/session", async (c) => {
     await noRevocationArguments(c);
     await keyManagement.revoke(c.get("keyManagementSession")!.id);
+    deleteCookie(
+      c,
+      managementCookie(secureCookies),
+      cookieOptions(secureCookies),
+    );
     return c.json({ signed_out: true });
   });
   app.get("/auth/key-management/api-keys", async (c) => {

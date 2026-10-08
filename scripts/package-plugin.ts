@@ -30,7 +30,7 @@ const servers = JSON.parse(
 assert.deepEqual(Object.keys(servers), ["vitalog"]);
 assert.deepEqual(servers.vitalog, {
   type: "streamable-http",
-  url: "https://vitalog-api.praveent.com/mcp",
+  url: "https://vitalog-api.avgeek.ltd/mcp",
 });
 for (const name of ["composerIcon", "logo"]) {
   const path = manifest.extensions["com.openai"].interface[name];

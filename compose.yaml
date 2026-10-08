@@ -16,7 +16,7 @@ services:
       DEFAULT_TIMEZONE: ${DEFAULT_TIMEZONE:-Asia/Kolkata}
       PORT: "3000"
       NODE_ENV: production
-      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost:3000,127.0.0.1:3000},api:3000
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost:3000,127.0.0.1:3000}
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
       RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-600}
@@ -83,7 +83,6 @@ services:
       NODE_ENV: production
       API_BASE_URL: ${API_BASE_URL:-http://127.0.0.1:3000}
       DOCS_BASE_URL: ${DOCS_BASE_URL:-}
-      API_INTERNAL_BASE_URL: http://api:3000
       UI_BASE_URL: ${UI_BASE_URL:-http://127.0.0.1:3001}
     ports:
       - 127.0.0.1:${UI_PORT:-3001}:3000

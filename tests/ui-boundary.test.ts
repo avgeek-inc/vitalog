@@ -7,12 +7,11 @@ import { Service } from "../src/service.js";
 import {
   documentationUrl,
   mcpDocumentationUrl,
-  serverApiBaseUrl,
   webConfiguration,
 } from "../apps/web/src/lib/config.js";
 
-const issuer = "https://vitalog-api.praveent.com";
-const ui = "https://vitalog.praveent.com";
+const issuer = "https://vitalog-api.avgeek.ltd";
+const ui = "https://vitalog.avgeek.ltd";
 const connection = database("postgresql://unused.invalid/ui-boundary-test");
 const config = configuration({
   AUTH_KEY: randomBytes(32).toString("base64url"),
@@ -172,26 +171,26 @@ describe("Separate UI and API origins", () => {
       ).toThrow();
     }
   });
-  test("The private API origin is server-only and rejects credentials, paths and non-HTTP protocols", () => {
-    const env = {
-      API_BASE_URL: issuer,
-      UI_BASE_URL: ui,
-      API_INTERNAL_BASE_URL: "http://api:3000",
-    };
-    expect(serverApiBaseUrl(env)).toBe("http://api:3000");
-    expect(webConfiguration(env)).toEqual({
-      apiBaseUrl: issuer,
-      uiBaseUrl: ui,
+  test("The UI reads one public API origin and read-only browser CORS is credentialed", async () => {
+    expect(webConfiguration({ API_BASE_URL: issuer, UI_BASE_URL: ui })).toEqual(
+      {
+        apiBaseUrl: issuer,
+        uiBaseUrl: ui,
+      },
+    );
+    const accepted = await app.request(issuer + "/v1/catalog", {
+      method: "OPTIONS",
+      headers: { Origin: ui, "Access-Control-Request-Method": "GET" },
     });
-    expect(serverApiBaseUrl({ API_BASE_URL: issuer })).toBe(issuer);
-    for (const invalid of [
-      "http://user:password@api:3000",
-      "http://api:3000/path",
-      "http://api:3000?token=value",
-      "file:///tmp/api",
-    ])
-      expect(() =>
-        serverApiBaseUrl({ ...env, API_INTERNAL_BASE_URL: invalid }),
-      ).toThrow();
+    expect(accepted.status).toBe(204);
+    expect(accepted.headers.get("access-control-allow-origin")).toBe(ui);
+    expect(accepted.headers.get("access-control-allow-credentials")).toBe(
+      "true",
+    );
+    const blocked = await app.request(issuer + "/v1/catalog", {
+      method: "OPTIONS",
+      headers: { Origin: ui, "Access-Control-Request-Method": "POST" },
+    });
+    expect(blocked.status).toBe(403);
   });
 });

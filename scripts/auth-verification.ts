@@ -95,7 +95,7 @@ async function start(root = true) {
   const address = instance.address();
   assert(address && typeof address === "object");
   baseUrl = `http://127.0.0.1:${address.port}`;
-  config.allowedHosts = [new URL(baseUrl).host, "vitalog.praveent.com"];
+  config.allowedHosts = [new URL(baseUrl).host, "vitalog.avgeek.ltd"];
 }
 async function request(
   path: string,
@@ -850,8 +850,8 @@ try {
             {
               method: "POST",
               headers: {
-                Origin: "https://vitalog.praveent.com",
-                Host: "vitalog.praveent.com",
+                Origin: "https://vitalog.avgeek.ltd",
+                Host: "vitalog.avgeek.ltd",
                 "Content-Type": "application/json",
               },
             },

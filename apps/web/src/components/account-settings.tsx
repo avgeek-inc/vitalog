@@ -3,12 +3,13 @@ import { ProfileSettings } from "@avgeek-oss/design-system/patterns/account-sett
 import { PreferencesSettings } from "@avgeek-oss/design-system/patterns/account-settings/preferences-settings";
 import { ApplicationPage } from "@avgeek-oss/design-system/patterns/pages/page";
 import { SettingsPageTitle } from "@avgeek-oss/design-system/patterns/settings/page-title";
-import { useRouter } from "next/navigation";
-import { useAccount } from "./account-context";
+import { useAccount, useUpdateAccount } from "./account-context";
+import type { Account } from "../../../../src/auth/account-contracts";
 import type { DateTimePreferenceOptions } from "@avgeek-oss/design-system/patterns/settings/date-time-preference-fields";
+import { apiFetch } from "../lib/browser-api";
 
 async function save(path: string, method: string, value: unknown) {
-  const response = await fetch(path, {
+  const response = await apiFetch(path, {
     method,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(value),
@@ -21,10 +22,11 @@ async function save(path: string, method: string, value: unknown) {
         ? "Your session expired. Sign in again."
         : "Unable to save changes. Try again.",
     );
+  return (await response.json()) as Account;
 }
 export function ProfilePage() {
   const account = useAccount();
-  const router = useRouter();
+  const updateAccount = useUpdateAccount();
   return (
     <ApplicationPage
       title="Profile"
@@ -35,12 +37,10 @@ export function ProfilePage() {
     >
       <div className="content-grid min-w-0 lg:grid-cols-2 lg:items-start">
         <ProfileSettings
-          key={account.name}
           value={account.name}
           label="Your Name"
           onSave={async (name) => {
-            await save("/auth/profile", "PATCH", { name });
-            router.refresh();
+            updateAccount(await save("/auth/profile", "PATCH", { name }));
           }}
         />
       </div>
@@ -53,7 +53,7 @@ export function PreferencesPage({
   options: DateTimePreferenceOptions;
 }) {
   const account = useAccount();
-  const router = useRouter();
+  const updateAccount = useUpdateAccount();
   return (
     <ApplicationPage
       title="Preferences"
@@ -64,12 +64,10 @@ export function PreferencesPage({
     >
       <div className="content-grid min-w-0 lg:grid-cols-2 lg:items-start">
         <PreferencesSettings
-          key={JSON.stringify(account.preferences)}
           value={account.preferences}
           options={options}
           onSave={async (preferences) => {
-            await save("/auth/preferences", "PUT", preferences);
-            router.refresh();
+            updateAccount(await save("/auth/preferences", "PUT", preferences));
           }}
         />
       </div>

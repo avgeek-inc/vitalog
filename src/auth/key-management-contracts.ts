@@ -13,6 +13,10 @@ export const keyManagementCreated = z.strictObject({
   session_token: z.string().regex(/^vlm_[A-Za-z0-9_-]{43}$/),
   expires_at: z.iso.datetime(),
 });
+const browserManagementCreated = z.union([
+  keyManagementCreated,
+  z.strictObject({ signed_in: z.literal(true) }),
+]);
 export const keyManagementOperations = [
   {
     name: "create_key_management_session",
@@ -21,9 +25,9 @@ export const keyManagementOperations = [
     status: "201",
     credentials: true,
     input: credentialsSchema,
-    output: keyManagementCreated,
+    output: browserManagementCreated,
     description:
-      "Verify root credentials and issue a revocable, 30-minute session for API-key management only. This token cannot read or write health data, access MCP, or use the primary AUTH_KEY administration routes.",
+      "Verify root credentials and issue a revocable, 30-minute session for API-key management only. Requests from UI_BASE_URL receive a host-only HttpOnly API cookie; non-browser clients receive a Bearer token. This credential cannot read or write health data, access MCP, or use the primary AUTH_KEY administration routes.",
   },
   {
     name: "get_key_management_session",

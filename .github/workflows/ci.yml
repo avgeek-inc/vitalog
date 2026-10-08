@@ -40,6 +40,7 @@ jobs:
       - run: npm run test:goals
       - run: npm run test:attachments
       - run: npm run test:auth
+      - run: npm run test:public-api
       - run: npm run test:oauth
       - run: npx playwright install --with-deps chromium
       - run: npm run test:web

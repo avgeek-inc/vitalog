@@ -24,7 +24,8 @@ import WeightScaleIcon from "@hugeicons/core-free-icons/WeightScaleIcon";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { AccountSettingsNavigation } from "./account-settings-navigation";
-import { version } from "../../../../package.json";
+import manifest from "../../../../package.json";
+import { apiFetch } from "../lib/browser-api";
 
 const brand = {
   id: "vitalog",
@@ -83,12 +84,13 @@ export function DashboardShell({
   const pathname = usePathname();
   const router = useRouter();
   const [pending, setPending] = useState(false);
+  const [currentAccount, setCurrentAccount] = useState(account);
   const sidebarState = usePersistentAppSidebar("vitalog:sidebar-open");
   async function signOut() {
     if (pending) return;
     setPending(true);
     try {
-      const response = await fetch("/auth/logout", {
+      const response = await apiFetch("/auth/logout", {
         method: "POST",
         cache: "no-store",
         redirect: "error",
@@ -108,7 +110,7 @@ export function DashboardShell({
     }
   }
   return (
-    <AccountProvider account={account}>
+    <AccountProvider account={currentAccount} onChange={setCurrentAccount}>
       <RouteProvider pathname={pathname} navigate={router.push}>
         <a href="#main-content" className="skip-link">
           Skip to content
@@ -138,13 +140,13 @@ export function DashboardShell({
                   accessibleLabel: "Primary navigation",
                   homeHref: "/daily",
                   brand,
-                  brandVersion: version,
+                  brandVersion: manifest.version,
                   groups: sections,
                   footerContent: (
                     <SidebarAccountMenu
-                      name={account.name}
-                      email={account.email}
-                      teamName={account.email}
+                      name={currentAccount.name}
+                      email={currentAccount.email}
+                      teamName={currentAccount.email}
                       groups={[
                         {
                           id: "account",

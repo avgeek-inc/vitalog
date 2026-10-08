@@ -1,12 +1,13 @@
-import "server-only";
-import { notFound, redirect } from "next/navigation";
-import { apiRequest, requireSession } from "./session";
+import { apiFetch } from "./browser-api";
+import { notFound } from "next/navigation";
 import type { Data, GoalProgress, HealthRecord } from "./health";
 
 export async function readHealth<T>(path: string): Promise<T> {
-  const { token } = await requireSession();
-  const response = await apiRequest(path, token);
-  if (response.status === 401) redirect("/login");
+  const response = await apiFetch(path);
+  if (response.status === 401) {
+    window.location.replace("/login");
+    throw new Error("Session expired");
+  }
   if (!response.ok) throw new Error("Health data is unavailable");
   return response.json();
 }

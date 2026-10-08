@@ -17,7 +17,7 @@ import { authorizationCallback } from "../apps/web/src/lib/oauth.js";
 
 const identifier = "https://client.example.com/oauth/client.json";
 const callback = "https://client.example.com/callback?tenant=one";
-const issuer = "https://vitalog-api.praveent.com";
+const issuer = "https://vitalog-api.avgeek.ltd";
 function network(
   addresses = [{ address: "93.184.216.34", family: 4 }],
   status = 200,

@@ -4,17 +4,17 @@ name: Vitalog API
 description: Personal health ledger REST API and MCP service
 deployment:
   type: image
-  image: ghcr.io/avgeek-oss/vitalog-api:v1.0.2@sha256:f9396767230941f73cb68e7c433aa8dabcde519885cc9e48147f5d76ae1aef3e
+  # Candidate tag: replace with the verified v1.0.3 digest before rollout.
+  image: ghcr.io/avgeek-oss/vitalog-api:v1.0.3
   platform: linux/arm64
 autoDeploy: false
 rollout:
   type: recreate
   maintenanceMode: true
-  reason: Stable private network alias and authenticated database readiness
+  reason: Authenticated database readiness during API replacement
 container:
   port: 3000
   network: vitalog
-  networkAlias: vitalog
   resources:
     cpus: 0.5
     memory: 512m
@@ -40,7 +40,7 @@ health:
 ingress:
   type: proxy
 domains:
-  primary: vitalog-api.praveent.com
+  primary: vitalog-api.avgeek.ltd
 tls:
   mode: cloudflare-dns
 secrets:

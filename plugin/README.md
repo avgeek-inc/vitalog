@@ -1,6 +1,6 @@
 # Vitalog plugin
 
-This package connects ChatGPT to `https://vitalog-api.praveent.com/mcp` and includes the Vitalog logo and a workflow for using the health ledger. It contains no credentials.
+This package connects ChatGPT to `https://vitalog-api.avgeek.ltd/mcp` and includes the Vitalog logo and a workflow for using the health ledger. It contains no credentials.
 
 Deploy the follow-up server changes before connecting and configure `ROOT_EMAIL` and `ROOT_PASSWORD` for sign-in.
 

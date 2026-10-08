@@ -1,12 +1,12 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "vitalog",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "description": "Log and retrieve your personal health observations through Vitalog.",
   "author": {
     "name": "Avgeek, Inc."
   },
-  "homepage": "https://vitalog.praveent.com/api-keys",
+  "homepage": "https://vitalog.avgeek.ltd/api-keys",
   "repository": "https://github.com/avgeek-oss/vitalog",
   "keywords": ["health", "ledger", "observations"],
   "extensions": {
@@ -18,7 +18,7 @@
         "developerName": "Avgeek, Inc.",
         "category": "Productivity",
         "capabilities": ["Read", "Write"],
-        "websiteURL": "https://vitalog.praveent.com/api-keys",
+        "websiteURL": "https://vitalog.avgeek.ltd/api-keys",
         "defaultPrompt": [
           "Log the health observations I provide in Vitalog.",
           "Show my Vitalog summary for today."

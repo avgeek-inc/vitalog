@@ -409,7 +409,6 @@ try {
           undefined,
           "POST",
           credentials,
-          { Origin: uiUrl },
         );
         assert.equal(created.status, 201);
         const session = sessionCreated.parse(created.data);
@@ -1167,12 +1166,22 @@ try {
                 requestSeen = resolve;
               });
               let requests = 0;
-              await signInPage.route(uiUrl + "/auth/login", async (route) => {
-                requests++;
-                requestSeen();
-                await responseGate;
-                await route.fulfill({ status: 401, json: {} });
-              });
+              await signInPage.route(
+                apiUrl + "/auth/session",
+                async (route) => {
+                  requests++;
+                  requestSeen();
+                  await responseGate;
+                  await route.fulfill({
+                    status: 401,
+                    json: {},
+                    headers: {
+                      "Access-Control-Allow-Origin": uiUrl,
+                      "Access-Control-Allow-Credentials": "true",
+                    },
+                  });
+                },
+              );
               await signInPage.goto(uiUrl + "/login");
               await signInPage
                 .getByRole("heading", { name: "Sign in", exact: true })
@@ -1257,7 +1266,7 @@ try {
               );
               await password.fill("retry-password");
               const retry = signInPage.waitForResponse(
-                (response) => response.url() === uiUrl + "/auth/login",
+                (response) => response.url() === apiUrl + "/auth/session",
               );
               await signInPage
                 .getByRole("button", { name: "Sign in", exact: true })
@@ -1368,7 +1377,7 @@ try {
           .fill(credentials.password);
         const signedIn = page.waitForResponse(
           (response) =>
-            response.url() === uiUrl + "/auth/login" &&
+            response.url() === apiUrl + "/auth/session" &&
             response.request().method() === "POST",
         );
         await page
@@ -1376,7 +1385,7 @@ try {
           .click();
         assert.equal(
           (await signedIn).status(),
-          200,
+          201,
           "Successful root sign-in should create the browser cookie",
         );
         await page.waitForURL("**/daily");
@@ -1397,14 +1406,14 @@ try {
           })),
           { local: 0, session: 0 },
         );
-        const login = await context.request.post(uiUrl + "/auth/login", {
+        const login = await context.request.post(apiUrl + "/auth/session", {
           data: credentials,
           headers: { Origin: "https://foreign.example" },
         });
         assert.equal(login.status(), 403);
         assert.equal(
           (
-            await context.request.post(uiUrl + "/auth/logout", {
+            await context.request.post(apiUrl + "/auth/logout", {
               headers: { Origin: "https://foreign.example" },
             })
           ).status(),
@@ -1462,7 +1471,7 @@ try {
           );
           assert.equal(
             (
-              await context.request.fetch(uiUrl + path, {
+              await context.request.fetch(apiUrl + path, {
                 method,
                 data: body,
                 headers: { Origin: "https://foreign.example" },
@@ -1539,7 +1548,15 @@ try {
           .getByRole("searchbox", { name: "Search time zones" })
           .fill("America/New_York");
         await page.getByRole("option", { name: /America\/New_York/ }).click();
+        const preferenceSave = page.waitForResponse(
+          (response) =>
+            response.url() === apiUrl + "/auth/preferences" &&
+            response.request().method() === "PUT",
+          { timeout: 5000 },
+        );
         await page.getByRole("button", { name: "Save", exact: true }).click();
+        const savedPreference = await preferenceSave;
+        assert.equal(savedPreference.status(), 200);
         await page.getByText("Preferences updated", { exact: true }).waitFor();
         await page.reload();
         await startApi(false);
@@ -1602,10 +1619,10 @@ try {
         const profilePage = await profileContext.newPage();
         const signIn = async () => {
           const response = await profileContext.request.post(
-            uiUrl + "/auth/login",
+            apiUrl + "/auth/session",
             { data: credentials, headers: { Origin: uiUrl } },
           );
-          assert.equal(response.status(), 200);
+          assert.equal(response.status(), 201);
         };
         try {
           await signIn();
@@ -1614,7 +1631,7 @@ try {
           await name.fill("Retry Reader");
           assert.equal(
             (
-              await profileContext.request.post(uiUrl + "/auth/logout", {
+              await profileContext.request.post(apiUrl + "/auth/logout", {
                 headers: { Origin: uiUrl },
               })
             ).status(),
@@ -1660,7 +1677,7 @@ try {
             const requested = new Promise<void>((resolve) => {
               captured = resolve;
             });
-            const endpoint = uiUrl + "/auth/profile";
+            const endpoint = apiUrl + "/auth/profile";
             await profilePage.route(endpoint, async (route) => {
               captured();
               await held;
@@ -1668,6 +1685,10 @@ try {
                 status,
                 contentType: "application/json",
                 body: JSON.stringify({ name: "Delayed Reader" }),
+                headers: {
+                  "Access-Control-Allow-Origin": uiUrl,
+                  "Access-Control-Allow-Credentials": "true",
+                },
               });
             });
             try {
@@ -2072,13 +2093,14 @@ try {
           .getByLabel("Password", { exact: true })
           .fill(credentials.password);
         const unlock = page.waitForResponse(
-          (response) => response.url() === uiUrl + "/auth/key-management/login",
+          (response) =>
+            response.url() === apiUrl + "/auth/key-management/session",
         );
         await verification
           .getByRole("button", { name: "Continue", exact: true })
           .click();
         const unlocked = await unlock;
-        assert.equal(unlocked.status(), 200);
+        assert.equal(unlocked.status(), 201);
         assert.deepEqual(await unlocked.json(), { signed_in: true });
         await verification.waitFor({ state: "hidden" });
         await page.getByText("No API keys yet", { exact: true }).waitFor();
@@ -2095,7 +2117,7 @@ try {
         for (const method of ["POST", "DELETE"]) {
           assert.equal(
             (
-              await context.request.fetch(uiUrl + endpointForKeys, {
+              await context.request.fetch(apiUrl + endpointForKeys, {
                 method,
                 headers: { Origin: "https://foreign.example" },
               })
@@ -2105,7 +2127,7 @@ try {
         }
         assert.equal(
           (
-            await context.request.post(uiUrl + endpointForKeys, {
+            await context.request.post(apiUrl + endpointForKeys, {
               data: "unexpected body",
               headers: { Origin: uiUrl },
             })
@@ -2128,12 +2150,16 @@ try {
           );
           await chooseKeySettings(page, `Settings verification ${index}`);
           if (index === 0) {
-            await page.route(uiUrl + endpointForKeys, async (route) => {
+            await page.route(apiUrl + endpointForKeys, async (route) => {
               if (route.request().method() === "POST")
                 await route.fulfill({
                   status: 503,
                   contentType: "application/json",
                   body: "{}",
+                  headers: {
+                    "Access-Control-Allow-Origin": uiUrl,
+                    "Access-Control-Allow-Credentials": "true",
+                  },
                 });
               else await route.continue();
             });
@@ -2149,7 +2175,7 @@ try {
               await dialog.isVisible(),
               "A failed create must leave the shared confirmation open for retry",
             );
-            await page.unroute(uiUrl + endpointForKeys);
+            await page.unroute(apiUrl + endpointForKeys);
           }
           await dialog
             .getByRole("button", { name: "Create key", exact: true })
@@ -2199,10 +2225,18 @@ try {
         await page
           .getByRole("button", { name: "Revoke all API keys", exact: true })
           .click();
+        const revokeAll = page.waitForResponse(
+          (response) =>
+            response.url() === apiUrl + endpointForKeys + "?kind=api-key" &&
+            response.request().method() === "DELETE",
+          { timeout: 10000 },
+        );
         await page
           .getByRole("dialog", { name: "Revoke all API keys?", exact: true })
           .getByRole("button", { name: "Revoke all API keys", exact: true })
           .click();
+        const revokeAllResponse = await revokeAll;
+        assert.equal(revokeAllResponse.status(), 200);
         await page.getByText("No API keys yet", { exact: true }).waitFor();
         assert.equal((await api("/v1/goals", generated[1])).status, 401);
         const browserSession = (await context.cookies()).find(

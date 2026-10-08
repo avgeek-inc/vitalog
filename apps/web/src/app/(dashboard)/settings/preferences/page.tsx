@@ -4,13 +4,9 @@ import {
   timeFormatOptions,
 } from "@avgeek-oss/design-system/utilities/date-time-preferences";
 import { availableTimeZones } from "../../../../../../../src/auth/account-contracts";
-import { requireSession } from "../../../../lib/session";
 export const metadata = { title: "Preferences" };
-export default async function Preferences() {
-  const { account } = await requireSession();
-  const timeZones = [
-    ...new Set([...availableTimeZones(), account.preferences.timeZone]),
-  ].sort((left, right) =>
+export default function Preferences() {
+  const timeZones = availableTimeZones().sort((left, right) =>
     left === "UTC" ? -1 : right === "UTC" ? 1 : left.localeCompare(right),
   );
   return (

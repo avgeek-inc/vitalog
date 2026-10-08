@@ -17,9 +17,9 @@ describe("OAuth configuration and discovery", () => {
     expect(
       configuration({
         ...env,
-        ALLOWED_HOSTS: "vitalog-api.praveent.com,localhost:3000",
+        ALLOWED_HOSTS: "vitalog-api.avgeek.ltd,localhost:3000",
       }).publicBaseUrl,
-    ).toBe("https://vitalog-api.praveent.com");
+    ).toBe("https://vitalog-api.avgeek.ltd");
     expect(configuration(env).publicBaseUrl).toBeUndefined();
     expect(
       configuration({
@@ -38,39 +38,39 @@ describe("OAuth configuration and discovery", () => {
       for (const explicit of [false, true]) {
         const config = configuration({
           ...env,
-          ALLOWED_HOSTS: "vitalog-api.praveent.com:443,127.0.0.1:3000",
-          UI_BASE_URL: "https://vitalog.praveent.com",
+          ALLOWED_HOSTS: "vitalog-api.avgeek.ltd:443,127.0.0.1:3000",
+          UI_BASE_URL: "https://vitalog.avgeek.ltd",
           ...(explicit
-            ? { PUBLIC_BASE_URL: "https://vitalog-api.praveent.com" }
+            ? { PUBLIC_BASE_URL: "https://vitalog-api.avgeek.ltd" }
             : {}),
         });
-        expect(config.publicBaseUrl).toBe("https://vitalog-api.praveent.com");
-        expect(config.allowedHosts).toContain("vitalog-api.praveent.com:443");
-        expect(config.allowedHosts).not.toContain("vitalog-api.praveent.com");
+        expect(config.publicBaseUrl).toBe("https://vitalog-api.avgeek.ltd");
+        expect(config.allowedHosts).toContain("vitalog-api.avgeek.ltd:443");
+        expect(config.allowedHosts).not.toContain("vitalog-api.avgeek.ltd");
         const app = application(
           new Service(connection.db, config.timezone, "synthetic-cursor"),
           config,
           () => {},
         );
         const page = await app.request(
-          "https://vitalog-api.praveent.com/api-keys",
+          "https://vitalog-api.avgeek.ltd/api-keys",
           {
             headers: {
-              Host: "vitalog-api.praveent.com:443",
-              Origin: "https://vitalog-api.praveent.com",
+              Host: "vitalog-api.avgeek.ltd:443",
+              Origin: "https://vitalog-api.avgeek.ltd",
             },
           },
         );
         expect(page.status).toBe(302);
         expect(page.headers.get("location")).toBe(
-          "https://vitalog.praveent.com/api-keys",
+          "https://vitalog.avgeek.ltd/api-keys",
         );
         const discovery = await app.request(
-          "https://vitalog-api.praveent.com/mcp",
+          "https://vitalog-api.avgeek.ltd/mcp",
           {
             method: "POST",
             headers: {
-              Host: "vitalog-api.praveent.com:443",
+              Host: "vitalog-api.avgeek.ltd:443",
               Authorization: "Bearer " + env.AUTH_KEY,
               Accept: "application/json, text/event-stream",
               "Content-Type": "application/json",
@@ -91,21 +91,20 @@ describe("OAuth configuration and discovery", () => {
       expect(
         configuration({
           ...env,
-          ALLOWED_HOSTS:
-            "vitalog-api.praveent.com,vitalog-api.praveent.com:443",
+          ALLOWED_HOSTS: "vitalog-api.avgeek.ltd,vitalog-api.avgeek.ltd:443",
         }).publicBaseUrl,
-      ).toBe("https://vitalog-api.praveent.com");
+      ).toBe("https://vitalog-api.avgeek.ltd");
       expect(
         configuration({
           ...env,
-          ALLOWED_HOSTS: "vitalog-api.praveent.com:8443",
+          ALLOWED_HOSTS: "vitalog-api.avgeek.ltd:8443",
         }).publicBaseUrl,
-      ).toBe("https://vitalog-api.praveent.com:8443");
+      ).toBe("https://vitalog-api.avgeek.ltd:8443");
       expect(() =>
         configuration({
           ...env,
-          ALLOWED_HOSTS: "vitalog-api.praveent.com:8443",
-          PUBLIC_BASE_URL: "https://vitalog-api.praveent.com",
+          ALLOWED_HOSTS: "vitalog-api.avgeek.ltd:8443",
+          PUBLIC_BASE_URL: "https://vitalog-api.avgeek.ltd",
         }),
       ).toThrow();
       expect(
@@ -120,17 +119,17 @@ describe("OAuth configuration and discovery", () => {
     }
   });
   test.each([
-    "http://vitalog-api.praveent.com",
+    "http://vitalog-api.avgeek.ltd",
     "https://untrusted.example",
-    "https://vitalog-api.praveent.com/path",
-    "https://vitalog-api.praveent.com/",
-    "https://user:password@vitalog-api.praveent.com",
-    "https://vitalog-api.praveent.com?token=unused",
+    "https://vitalog-api.avgeek.ltd/path",
+    "https://vitalog-api.avgeek.ltd/",
+    "https://user:password@vitalog-api.avgeek.ltd",
+    "https://vitalog-api.avgeek.ltd?token=unused",
   ])("Rejects an insecure or noncanonical issuer: %s", (PUBLIC_BASE_URL) => {
     expect(() =>
       configuration({
         ...env,
-        ALLOWED_HOSTS: "vitalog-api.praveent.com",
+        ALLOWED_HOSTS: "vitalog-api.avgeek.ltd",
         PUBLIC_BASE_URL,
       }),
     ).toThrow();
@@ -140,7 +139,7 @@ describe("OAuth configuration and discovery", () => {
     try {
       const config = configuration({
         ...env,
-        ALLOWED_HOSTS: "vitalog-api.praveent.com",
+        ALLOWED_HOSTS: "vitalog-api.avgeek.ltd",
       });
       const app = application(
         new Service(connection.db, config.timezone, "synthetic-cursor"),
@@ -148,14 +147,14 @@ describe("OAuth configuration and discovery", () => {
         () => {},
       );
       const request = (path: string) =>
-        app.request("https://vitalog-api.praveent.com" + path);
+        app.request("https://vitalog-api.avgeek.ltd" + path);
       const metadata = await (
         await request("/.well-known/oauth-protected-resource/mcp")
       ).json();
       const issuer = await (
         await request("/.well-known/oauth-authorization-server")
       ).json();
-      expect(metadata.resource).toBe("https://vitalog-api.praveent.com/mcp");
+      expect(metadata.resource).toBe("https://vitalog-api.avgeek.ltd/mcp");
       expect(metadata.authorization_servers).toEqual([issuer.issuer]);
       expect(issuer.code_challenge_methods_supported).toEqual(["S256"]);
       expect(issuer.token_endpoint_auth_methods_supported).toEqual([
@@ -165,7 +164,7 @@ describe("OAuth configuration and discovery", () => {
         "private_key_jwt",
       ]);
       expect(issuer.registration_endpoint).toBe(
-        "https://vitalog-api.praveent.com/oauth/register",
+        "https://vitalog-api.avgeek.ltd/oauth/register",
       );
       expect(issuer.client_id_metadata_document_supported).toBe(true);
       expect(issuer.authorization_response_iss_parameter_supported).toBe(true);
@@ -173,7 +172,7 @@ describe("OAuth configuration and discovery", () => {
       const denied = await request("/mcp");
       expect(denied.status).toBe(401);
       expect(denied.headers.get("www-authenticate")).toContain(
-        'resource_metadata="https://vitalog-api.praveent.com/.well-known/oauth-protected-resource/mcp"',
+        'resource_metadata="https://vitalog-api.avgeek.ltd/.well-known/oauth-protected-resource/mcp"',
       );
       expect(
         await (await request("/.well-known/oauth-protected-resource")).json(),

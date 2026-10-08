@@ -7,20 +7,14 @@ import {
 } from "@avgeek-oss/design-system/patterns/feedback/backend-unavailable";
 import { ErrorPage } from "@avgeek-oss/design-system/patterns/feedback/error-page";
 import { QueryLoading } from "@avgeek-oss/design-system/patterns/feedback/query-state";
+import { apiFetch } from "../lib/browser-api";
 
 async function backendAvailable(signal: AbortSignal) {
-  const response = await fetch("/auth/backend-status", {
+  const response = await apiFetch("/healthz", {
     cache: "no-store",
     signal,
   });
-  if (!response.ok) return false;
-  const data: unknown = await response.json();
-  return (
-    typeof data === "object" &&
-    data !== null &&
-    "available" in data &&
-    data.available === true
-  );
+  return response.ok;
 }
 
 export function BackendRecovery({ retry }: { retry: () => void }) {

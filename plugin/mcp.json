@@ -3,7 +3,7 @@
   "mcpServers": {
     "vitalog": {
       "type": "streamable-http",
-      "url": "https://vitalog-api.praveent.com/mcp"
+      "url": "https://vitalog-api.avgeek.ltd/mcp"
     }
   }
 }
