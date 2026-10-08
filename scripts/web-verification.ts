@@ -2445,11 +2445,10 @@ try {
         });
         await page.keyboard.press("Escape");
         await drawer.waitFor({ state: "hidden" });
-        assert.equal(
-          await page
-            .locator(".navigation-toggle")
-            .evaluate((element) => element === document.activeElement),
-          true,
+        await page.waitForFunction(
+          () =>
+            document.querySelector(".navigation-toggle") ===
+            document.activeElement,
         );
         await page
           .getByRole("button", { name: "Toggle navigation", exact: true })
