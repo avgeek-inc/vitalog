@@ -3,13 +3,9 @@ id: vitalog
 name: Vitalog API
 description: Personal health ledger REST API and MCP service
 deployment:
-  type: dockerfile
-  context: .
-  dockerfile: Dockerfile
-  architecture: arm64
-  resources:
-    cpus: 1
-    memory: 512m
+  type: image
+  image: ghcr.io/avgeek-oss/vitalog:v1.0.1@sha256:7490f1938db7a59f60cfa42b2707615da805ef71899bd5ed191be3a95081645b
+  platform: linux/arm64
 autoDeploy: false
 rollout:
   type: recreate

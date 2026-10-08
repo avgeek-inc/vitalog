@@ -28,7 +28,7 @@ The default installation ignores forwarded client addresses. To trust one ingres
 
 ## Run with Towbar
 
-For deployment with Towbar and a managed PostgreSQL datastore, follow [the Towbar deployment guide](docs/towbar-deployment.md). The version-2 manifests declare three workloads, two HTTPS domains and the private database network; runtime credentials are supplied in Towbar.
+For deployment with Towbar and a managed PostgreSQL datastore, follow [the Towbar deployment guide](docs/towbar-deployment.md). The version-2 manifests deploy the API and web app from versioned, digest-pinned ARM64 images, alongside a managed PostgreSQL datastore. They declare two HTTPS domains and the private database network; runtime credentials are supplied in Towbar.
 
 ## Run from source
 

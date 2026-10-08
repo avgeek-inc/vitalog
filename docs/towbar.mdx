@@ -9,7 +9,15 @@ Run Vitalog as three workloads: PostgreSQL, the Hono API and the Next.js web app
 
 Connect your fork or checkout to Towbar and select a server you control. Replace the server references, service domains and any workspace-specific IDs in the manifests. Keep the API and UI on separate HTTPS origins, such as `https://vitalog-api.example.com` and `https://vitalog.example.com`. Keep PostgreSQL on the private workload network.
 
-The API uses `Dockerfile`; the web app uses `apps/web/Dockerfile`. Build and deploy both from the same reviewed revision. The manifests bound build and runtime resources independently; ensure your server has enough available memory for image builds and PostgreSQL.
+The API and web manifests use `deployment.type: image` with versioned images from `ghcr.io/avgeek-oss/vitalog` and `ghcr.io/avgeek-oss/vitalog-web`. Towbar pulls the published images; it does not build the source on your server. Both references include an immutable SHA-256 digest and use the same release version. Runtime resources remain bounded independently of PostgreSQL.
+
+The current release images target `linux/arm64`. Select an ARM64 server and retain the manifest's platform setting. The Dockerfiles remain in the repository for CI publication and local development.
+
+## Choose a release
+
+Publish and verify both images before updating the service manifests. Use the release tag plus its registry digest, for example `ghcr.io/avgeek-oss/vitalog:vX.Y.Z@sha256:<published-digest>`, and the corresponding web image from the same release. Do not use `latest` or overwrite a published release tag.
+
+For upgrades, change both image references, sync the repository, then deploy the API before the web app. Runtime secrets and public origins remain installation settings. A new tag or image publication alone does not deploy a running installation.
 
 ## Configure the API
 
