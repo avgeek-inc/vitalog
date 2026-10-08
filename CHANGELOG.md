@@ -2,7 +2,9 @@
 
 ## Unreleased
 
-## 1.0.2 (release candidate)
+- Deploy the API and web app through Towbar using published release images pinned by digest, without source builds on the production server.
+
+## 1.0.2
 
 - Publish `vitalog-api` and `vitalog-web` through separate preparation, CI verification, native image builds, manifest assembly, installation checks and publication stages.
 - Build and test AMD64 and ARM64 images, attach immutable image references to each release, and prevent republication of published versions.
