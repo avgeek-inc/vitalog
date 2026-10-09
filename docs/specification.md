@@ -84,7 +84,7 @@ Rotate the secret by changing deployment configuration and restarting/redeployin
 
 ### Transport requirements
 
-Both REST clients and MCP harnesses authenticate through the same `Authorization: Bearer <AUTH_KEY>` header. Do not introduce vendor-specific authentication paths, an authentication proxy, separate client accounts, or an unauthenticated fallback.
+REST clients authenticate with `Authorization: Bearer <AUTH_KEY or active generated API key>`. MCP clients must use OAuth sign-in and consent, then send their MCP-resource OAuth access token as a bearer credential. API keys and the operator AUTH_KEY are rejected by MCP. Both transports use the same ledger and domain services; neither has an unauthenticated fallback.
 
 Test authenticated initialization, tool discovery, tool calls, REST reads/writes, and session operations where supported. Test that missing or invalid authorization fails before protected metadata or records are returned.
 
@@ -570,7 +570,7 @@ Make the service self-describing. A client must be able to discover what it can 
 
 Expose ONE read-only MCP tool, `health_get_catalog`, and ONE equivalent REST route, `GET /v1/catalog`. They use the same registry lookup service and return the same domain response. They replace `health_get_metric_catalog` and `/v1/catalog/metrics`; the MCP surface remains 16 tools. There is no need for separate tools per panel or nutrient, additional application services, a registry-management UI, runtime schema mutation, or database-backed definitions.
 
-Authenticate discovery with the ordinary `Authorization: Bearer <AUTH_KEY>` header. Catalog calls do not require an idempotency key, do not mutate records, and must not expose patient values, observed-result counts, actual report labels, caller metadata, or the deployment secret. The same catalog must be returned when the health database is empty or populated.
+Authenticate MCP discovery with an OAuth access token approved for `health:read`; REST catalog discovery uses an API key. Catalog calls do not require an idempotency key, do not mutate records, and must not expose patient values, observed-result counts, actual report labels, caller metadata, or the deployment secret. The same catalog must be returned when the health database is empty or populated.
 
 #### How clients discover contracts
 
@@ -835,7 +835,7 @@ Provide client-independent integration documentation and MCP server instructions
 
 - Supported record types, discoverable nutrient keys, panel/analyte membership, complete schemas, units, date precision, provenance, and validity rules.
 - Standard MCP `tools/list` and `health_get_catalog` discovery, equivalent `/v1/catalog` queries, versioning, pagination, exact lookups, and error-driven rediscovery.
-- The shared `Authorization: Bearer <AUTH_KEY>` header requirement for all protected routes and MCP transport operations. The key is configured privately by the client, never included in tool arguments.
+- The REST API-key and MCP-only OAuth access-token requirements for all protected routes and MCP transport operations. The key is configured privately by the client, never included in tool arguments.
 - Equivalent REST and MCP request/response examples, with no dependency on a particular harness.
 - Bounded context snapshots, daily summaries, trends, record retrieval, filters, pagination, and truncation indicators.
 - Logging contracts for observed events and supplied values, including estimates and unknown fields.

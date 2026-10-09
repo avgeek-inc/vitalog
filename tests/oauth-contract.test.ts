@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { describe, expect, test } from "vitest";
 import { configuration } from "../src/config.js";
 import { application } from "../src/app.js";
+import { handleMcp } from "../src/mcp.js";
 import { database } from "../src/db/client.js";
 import { Service } from "../src/service.js";
 import { pkceChallenge } from "../src/auth/oauth-store.js";
@@ -74,9 +75,8 @@ describe("OAuth configuration and discovery", () => {
         expect(page.headers.get("location")).toBe(
           "https://vitalog.praveent.com/api-keys",
         );
-        const discovery = await app.request(
-          "https://vitalog-api.praveent.com/mcp",
-          {
+        const discovery = await handleMcp(
+          new Request("https://vitalog-api.praveent.com/mcp", {
             method: "POST",
             headers: {
               Host: host,
@@ -90,7 +90,10 @@ describe("OAuth configuration and discovery", () => {
               method: "tools/list",
               params: {},
             }),
-          },
+          }),
+          new Service(connection.db, "synthetic-cursor"),
+          config,
+          ["health:read", "health:write"],
         );
         expect(discovery.status).toBe(200);
         expect((await discovery.json()).result.tools).toHaveLength(

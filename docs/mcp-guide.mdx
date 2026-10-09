@@ -70,24 +70,11 @@ The client receives its token through the OAuth callback and token exchange. You
 
 Other clients can use the same URL and OAuth discovery. Vitalog follows the MCP authorization specification independently of the client's brand. See [the OAuth contract](/oauth) for registration, PKCE, scopes and callback requirements.
 
-## Connect with an API key
+## OAuth authorization only
 
-Create a 30-day key in **Account Settings → API Keys** or at `/api-keys` on the UI. Store it privately in your client and send `Authorization: Bearer <your-key>` with every MCP request, including initialization and discovery. Do not put the key in the URL.
+MCP accepts only OAuth access tokens granted through sign-in and consent. Personal API keys, the operator `AUTH_KEY`, and dashboard sessions cannot authenticate MCP. Read tools require `health:read`; record and goal changes require `health:write`.
 
-For example, a client accepting custom headers can use this structure:
-
-```json
-{
-  "mcpServers": {
-    "vitalog": {
-      "url": "https://vitalog-api.example.com/mcp",
-      "headers": { "Authorization": "Bearer YOUR_VITALOG_API_KEY" }
-    }
-  }
-}
-```
-
-Prefer your client's secret storage or environment-variable support when available. Manually generated API keys enforce their selected read-only, edit or administrative permissions and expiry. Read-only keys discover and call read tools; edit and administrative keys also write records and goals. Key management remains outside MCP. OAuth connections use the requested `health:read` and/or `health:write` scopes. Browser dashboard sessions cannot authenticate MCP.
+If you previously used an API key, remove its custom authorization header or bearer-token environment setting and reconnect through OAuth. REST integrations can keep using their API keys.
 
 ## Tool discovery and calls
 
@@ -98,7 +85,7 @@ Vitalog uses stateless Streamable HTTP with JSON responses. For raw MCP POST req
 | Symptom                                | Check                                                                                                                            |
 | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | Sign-in works, but tools do not appear | Use the API's `/mcp` endpoint. Reconnect to refresh discovery, then inspect the client's initialization and `tools/list` errors. |
-| HTTP 401                               | The token is missing, expired or revoked. Sign in again or create a replacement key.                                             |
+| HTTP 401                               | The token is missing, expired or revoked. Reconnect through OAuth and approve access again.                                      |
 | HTTP 403 on a write                    | The OAuth connection needs `health:write`; review the scopes before reconnecting.                                                |
 | The callback is rejected               | The callback must match registered client metadata and the resource must be the exact MCP URL.                                   |
 | A browser client is blocked by CORS    | Ask the operator to allow that exact origin in `ALLOWED_ORIGINS`; UI consent requests use `UI_BASE_URL`.                         |

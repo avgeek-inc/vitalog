@@ -1,9 +1,13 @@
 $kind: http-request
 id: fbd7e131-5b74-532a-8511-b82323b4a94c
-description: Stateless MCP with the same private Bearer header. Initialize
-  before discovery and calls.
+description: Stateless MCP requires the OAuth access token obtained by sign-in,
+  consent and PKCE exchange. Initialize before discovery and calls.
 method: POST
 url: "{{baseUrl}}/mcp"
+auth:
+  - type: bearer
+    credentials:
+      token: "{{oauthAccessToken}}"
 headers:
   Accept: application/json, text/event-stream
   Content-Type: application/json

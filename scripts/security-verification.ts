@@ -1,3 +1,4 @@
+import { issueMcpFixtureToken, mcpFixtureIssuer } from "./mcp-fixture.js";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
@@ -21,6 +22,7 @@ const checks: string[] = [];
 const logs: Data[] = [];
 let connection: ReturnType<typeof database> | undefined;
 let server: ReturnType<typeof serve> | undefined;
+let mcpToken = "";
 let client: Client | undefined;
 let baseUrl = "";
 let requestNumber = 0;
@@ -59,6 +61,7 @@ const post = (
     method: "POST",
     headers: {
       ...headers,
+      ...(path === "/mcp" ? { Authorization: `Bearer ${mcpToken}` } : {}),
       "Content-Type": "application/json",
       "Idempotency-Key": `security-request-${++requestNumber}`,
       ...extraHeaders,
@@ -117,8 +120,16 @@ async function verify() {
   const url = `postgresql://vitalog:${password}@127.0.0.1:${port}/vitalog`;
   await migrateDatabase(url);
   connection = database(url);
-  const config = configuration({ AUTH_KEY: key, DATABASE_URL: url });
+  const config = configuration({
+    AUTH_KEY: key,
+    PUBLIC_BASE_URL: mcpFixtureIssuer,
+    DATABASE_URL: url,
+  });
   const service = new Service(connection.db, config.authDigest.toString("hex"));
+  mcpToken = await issueMcpFixtureToken(
+    connection.db,
+    mcpFixtureIssuer + "/mcp",
+  );
   const app = application(service, config, (entry) => logs.push(entry));
   const apiPort = await new Promise<number>((resolve) => {
     server = serve(
@@ -236,7 +247,7 @@ async function verify() {
   });
   await client.connect(
     new StreamableHTTPClientTransport(new URL(baseUrl + "/mcp"), {
-      requestInit: { headers },
+      requestInit: { headers: { Authorization: `Bearer ${mcpToken}` } },
     }),
   );
   const read = await client.callTool({

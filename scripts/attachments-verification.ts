@@ -1,3 +1,4 @@
+import { issueMcpFixtureToken } from "./mcp-fixture.js";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { randomBytes, randomUUID } from "node:crypto";
@@ -298,7 +299,9 @@ try {
     storage,
   );
   app = application(service, config, (entry) => logs.push(entry));
-  client = await connect(key);
+  client = await connect(
+    await issueMcpFixtureToken(connection.db, baseUrl + "/mcp"),
+  );
   let imageIntent: Data;
   let imageId = "";
   let reportId = "";

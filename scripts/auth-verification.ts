@@ -27,7 +27,6 @@ import { object, type Data } from "../src/domain/types.js";
 import { examples, record } from "../tests/fixtures.js";
 import { hash } from "../src/domain/canonical.js";
 import { migrateDatabase } from "./migrate.js";
-import { operations } from "../src/registry/operations.js";
 
 const container = `vitalog-auth-${process.pid}`;
 const databasePassword = randomBytes(32).toString("hex");
@@ -372,7 +371,7 @@ try {
     },
   );
   await check(
-    "Generated keys support REST reads, writes and the official MCP client",
+    "Generated keys support REST reads and writes but cannot connect to MCP",
     async () => {
       const token = String(key.api_key);
       assert.equal(
@@ -401,30 +400,13 @@ try {
         version: "1.0.0",
       });
       try {
-        await client.connect(
-          new StreamableHTTPClientTransport(new URL(baseUrl + "/mcp"), {
-            requestInit: { headers: { Authorization: `Bearer ${token}` } },
-          }),
-        );
-        assert.equal(
-          (await client.listTools()).tools.length,
-          operations.length,
-        );
-        const called = await client.callTool({
-          name: "health_log_measurements",
-          arguments: {
-            records: [examples.measurement],
-            idempotency_key: "generated-mcp",
-          },
-        });
-        assert(!called.isError);
-        const id = object(
-          (object(called.structuredContent).records as unknown[])[0],
-        ).id;
-        assert.equal(
-          (await request(`/v1/records/${id}`, "GET", undefined, primary))
-            .response.status,
-          200,
+        await assert.rejects(
+          client.connect(
+            new StreamableHTTPClientTransport(new URL(baseUrl + "/mcp"), {
+              requestInit: { headers: { Authorization: `Bearer ${token}` } },
+            }),
+          ),
+          (error: unknown) => object(error).code === 401,
         );
       } finally {
         await client.close();
@@ -473,7 +455,7 @@ try {
     },
   );
   await check(
-    "Restart, environment key rotation and a fresh MCP client preserve generated-key access",
+    "Restart and environment key rotation preserve REST access while MCP rejects generated keys",
     async () => {
       const previous = primary;
       primary = randomBytes(32).toString("base64url");
@@ -489,16 +471,15 @@ try {
         version: "1.0.0",
       });
       try {
-        await client.connect(
-          new StreamableHTTPClientTransport(new URL(baseUrl + "/mcp"), {
-            requestInit: {
-              headers: { Authorization: `Bearer ${key.api_key}` },
-            },
-          }),
-        );
-        assert.equal(
-          (await client.listTools()).tools.length,
-          operations.length,
+        await assert.rejects(
+          client.connect(
+            new StreamableHTTPClientTransport(new URL(baseUrl + "/mcp"), {
+              requestInit: {
+                headers: { Authorization: `Bearer ${key.api_key}` },
+              },
+            }),
+          ),
+          (error: unknown) => object(error).code === 401,
         );
       } finally {
         await client.close();
@@ -562,7 +543,7 @@ try {
   );
   await start();
   await check(
-    "Read, Edit and Administrative ceilings apply to REST and MCP, including Never expiry",
+    "Read, Edit and Administrative ceilings apply to REST; every manual key is denied MCP",
     async () => {
       const instances: Client[] = [];
       try {
@@ -624,45 +605,14 @@ try {
             );
           const client = new Client({ name: "key-policy", version: "1" });
           instances.push(client);
-          await client.connect(
-            new StreamableHTTPClientTransport(new URL(baseUrl + "/mcp"), {
-              requestInit: { headers: { Authorization: `Bearer ${token}` } },
-            }),
-          );
-          const visible = (await client.listTools()).tools;
-          assert.deepEqual(
-            visible.map((tool) => tool.name).sort(),
-            operations
-              .filter(
-                (operation) => policy.access === "edit" || !operation.mutation,
-              )
-              .map((operation) => operation.name)
-              .sort(),
-          );
-          const read = await client.callTool({
-            name: "health_get_catalog",
-            arguments: {},
-          });
-          assert(!read.isError);
-          if (policy.access === "read")
-            await assert.rejects(
-              client.callTool({
-                name: "health_log_hydration",
-                arguments: examples.hydration,
+          await assert.rejects(
+            client.connect(
+              new StreamableHTTPClientTransport(new URL(baseUrl + "/mcp"), {
+                requestInit: { headers: { Authorization: `Bearer ${token}` } },
               }),
-            );
-          else {
-            const write = await client.callTool({
-              name: "health_log_hydration",
-              arguments: {
-                ...examples.hydration,
-                data: { ...examples.hydration.data, entry_kind: "intake" },
-                idempotency_key: randomUUID(),
-              },
-            });
-            assert(!write.isError);
-          }
-          // Stored policy is read anew on every request, including an existing MCP connection.
+            ),
+            (error: unknown) => object(error).code === 401,
+          );
           await connection!.pool.query(
             "update api_keys set access='read', include_admin=false where id=$1",
             [created.body.id],
@@ -672,12 +622,6 @@ try {
               .response.status,
             403,
           );
-          assert.equal(
-            (await client.listTools()).tools.some(
-              (tool) => tool.name === "health_log_hydration",
-            ),
-            false,
-          );
           await request(
             `/v1/api-keys/${created.body.id}`,
             "DELETE",
@@ -685,7 +629,7 @@ try {
             primary,
           );
           await denied(token);
-          await assert.rejects(client.listTools());
+          await denied(token, "/mcp");
         }
         await start();
         for (const missing of ["name", "access", "includeAdmin", "expiresAt"]) {
@@ -712,19 +656,22 @@ try {
     },
   );
   await check(
-    "Individual revocation rejects REST and an already connected MCP client immediately",
+    "Individual revocation rejects REST while MCP never accepts a manual key",
     async () => {
       const client = new Client({
         name: "vitalog-auth-revoke",
         version: "1.0.0",
       });
       try {
-        await client.connect(
-          new StreamableHTTPClientTransport(new URL(baseUrl + "/mcp"), {
-            requestInit: {
-              headers: { Authorization: `Bearer ${key.api_key}` },
-            },
-          }),
+        await assert.rejects(
+          client.connect(
+            new StreamableHTTPClientTransport(new URL(baseUrl + "/mcp"), {
+              requestInit: {
+                headers: { Authorization: `Bearer ${key.api_key}` },
+              },
+            }),
+          ),
+          (error: unknown) => object(error).code === 401,
         );
         const revoked = await request(
           `/v1/api-keys/${key.id}`,
@@ -736,7 +683,7 @@ try {
         keyMetadata.parse(revoked.body);
         assert.equal(revoked.body.status, "revoked");
         await denied(String(key.api_key));
-        await assert.rejects(client.listTools());
+        await denied(String(key.api_key), "/mcp");
         const again = await request(
           `/v1/api-keys/${key.id}`,
           "DELETE",

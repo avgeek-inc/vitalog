@@ -558,6 +558,7 @@ const oauthVariables = [
     value: "http://127.0.0.1:3002/callback",
     enabled: true,
   },
+  { key: "oauthAccessToken", value: "", type: "secret", enabled: true },
   { key: "oauthCode", value: "", type: "secret", enabled: true },
   { key: "oauthVerifier", value: "", type: "secret", enabled: true },
   { key: "oauthCsrf", value: "", type: "secret", enabled: true },
@@ -729,6 +730,12 @@ for (const { name, payload } of requests) {
     request: {
       method: "POST",
       url: "{{baseUrl}}/mcp",
+      auth: {
+        type: "bearer",
+        bearer: [
+          { key: "token", value: "{{oauthAccessToken}}", type: "string" },
+        ],
+      },
       header: Object.entries(headers).map(([key, value]) => ({ key, value })),
       body: {
         mode: "raw",
@@ -743,9 +750,12 @@ for (const { name, payload } of requests) {
       $kind: "http-request",
       id: stableId(`MCP:${name}`),
       description:
-        "Stateless MCP with the same private Bearer header. Initialize before discovery and calls.",
+        "Stateless MCP requires the OAuth access token obtained by sign-in, consent and PKCE exchange. Initialize before discovery and calls.",
       method: "POST",
       url: "{{baseUrl}}/mcp",
+      auth: [
+        { type: "bearer", credentials: { token: "{{oauthAccessToken}}" } },
+      ],
       headers,
       body: { type: "json", content: requestJson(payload).trimEnd() },
     }),

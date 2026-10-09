@@ -342,6 +342,64 @@ try {
     },
   );
   await check(
+    "MCP rejects operator and every manual key permission while REST remains available",
+    async () => {
+      const manualKeys = [];
+      for (const permission of ["read-only", "edit", "administrative"] as const)
+        manualKeys.push(
+          await keys.create({
+            name: "MCP rejection " + permission,
+            access: permission === "read-only" ? "read" : "edit",
+            includeAdmin: permission === "administrative",
+            expiresAt: new Date(Date.now() + 30 * 86400000).toISOString(),
+          }),
+        );
+      for (const credential of [
+        primary,
+        ...manualKeys.map((item) => item.api_key!),
+      ]) {
+        for (const method of ["GET", "POST", "DELETE"]) {
+          const denied = await request("/mcp", {
+            method,
+            headers: {
+              Authorization: "Bearer " + credential,
+              "Content-Type": "application/json",
+              Accept: "application/json, text/event-stream",
+            },
+            ...(method === "POST"
+              ? {
+                  body: JSON.stringify({
+                    jsonrpc: "2.0",
+                    id: 1,
+                    method: "tools/list",
+                    params: {},
+                  }),
+                }
+              : {}),
+          });
+          assert.equal(denied.status, 401);
+          assert.match(
+            denied.headers.get("www-authenticate")!,
+            /invalid_token/,
+          );
+          assert.match(
+            denied.headers.get("www-authenticate")!,
+            /oauth-protected-resource\/mcp/,
+          );
+        }
+        assert.equal(
+          (
+            await request("/v1/catalog", {
+              headers: { Authorization: "Bearer " + credential },
+            })
+          ).status,
+          200,
+        );
+      }
+      for (const item of manualKeys) await keys.revoke(item.id);
+    },
+  );
+  await check(
     "The approval page validates ChatGPT metadata and binds a private cookie to explicit consent",
     async () => {
       const before = clientFetches;

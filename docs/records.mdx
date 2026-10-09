@@ -3,7 +3,7 @@ title: "Record contracts"
 description: "Log observations, discover schemas, read summaries and correct records."
 ---
 
-Configure `Authorization: Bearer <AUTH_KEY or active generated API key>` privately in the REST or MCP client's HTTP headers. The key is required for all protected requests, including discovery. No catalog handshake is required before a valid write. Generated keys enforce their selected read-only, edit or administrative permission ceiling and expiry; see [API-key setup and contracts](/api-keys).
+Configure `Authorization: Bearer <AUTH_KEY or active generated API key>` privately in a REST client's HTTP headers. MCP requires [OAuth sign-in](/oauth); its client obtains and sends an OAuth access token after approval. No catalog handshake is required before a valid write. Generated keys enforce their selected read-only, edit or administrative permission ceiling and expiry; see [API-key setup and contracts](/api-keys).
 
 ## Operations
 

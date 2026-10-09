@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { afterAll, beforeEach, describe, expect, test, vi } from "vitest";
 import { application } from "../src/app.js";
+import { OAuthStore } from "../src/auth/oauth-store.js";
 import { configuration } from "../src/config.js";
 import { database } from "../src/db/client.js";
 import { DomainError, parse } from "../src/errors.js";
@@ -11,8 +12,16 @@ import { Service } from "../src/service.js";
 import { examples, record } from "./fixtures.js";
 
 const key = randomBytes(48).toString("base64url");
+const oauthToken = "vlo_" + randomBytes(32).toString("base64url");
+vi.spyOn(OAuthStore.prototype, "authenticate").mockImplementation(
+  async (header) =>
+    header === `Bearer ${oauthToken}`
+      ? { scopes: ["health:read", "health:write"] }
+      : undefined,
+);
 const config = configuration({
   AUTH_KEY: key,
+  PUBLIC_BASE_URL: "http://localhost:3000",
   DATABASE_URL: "postgresql://unused.invalid/security-unit-test",
 });
 const connection = database(config.databaseUrl);
@@ -55,6 +64,7 @@ function post(
     method: "POST",
     headers: {
       ...headers,
+      ...(path === "/mcp" ? { Authorization: `Bearer ${oauthToken}` } : {}),
       "Content-Type": "application/json",
       "Idempotency-Key": "unit-security-write",
       ...extraHeaders,

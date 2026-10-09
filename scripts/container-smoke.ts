@@ -10,6 +10,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { object } from "../src/domain/types.js";
 import { readReleaseImages } from "./release-images.js";
+import { authorizeMcpFixture } from "./mcp-fixture.js";
 
 const towbar = process.argv.includes("--towbar");
 const releaseIndex = process.argv.indexOf("--release-images");
@@ -495,10 +496,14 @@ try {
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
   assert(ready);
+  const mcpToken = await authorizeMcpFixture(url, uiUrl, {
+    email: env.ROOT_EMAIL,
+    password: env.ROOT_PASSWORD,
+  });
   client = new Client({ name: "vitalog-container-smoke", version: "1.0.0" });
   await client.connect(
     new StreamableHTTPClientTransport(new URL(url + "/mcp"), {
-      requestInit: { headers },
+      requestInit: { headers: { Authorization: `Bearer ${mcpToken}` } },
     }),
   );
   const read = await client.callTool({
@@ -516,6 +521,7 @@ try {
   assert.equal(count(), "1");
   const logs = compose(["logs", "--no-color", "api"]);
   assert(!logs.includes(key));
+  assert(!logs.includes(mcpToken));
   assert(!logs.includes("energy_kcal"));
   if (service) {
     compose(["stop", "postgres"]);

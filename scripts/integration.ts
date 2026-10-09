@@ -1,3 +1,4 @@
+import { issueMcpFixtureToken, mcpFixtureIssuer } from "./mcp-fixture.js";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { randomBytes, randomUUID } from "node:crypto";
@@ -65,6 +66,7 @@ const command = (
 let dbUrl = "";
 let connection: ReturnType<typeof database> | undefined;
 let server: Server | undefined;
+let mcpToken = "";
 let client: Client | undefined;
 let baseUrl = "";
 async function check(name: string, fn: () => Promise<number | void>) {
@@ -80,6 +82,7 @@ async function startApi() {
   );
   const config = configuration({
     AUTH_KEY: key,
+    PUBLIC_BASE_URL: mcpFixtureIssuer,
     DATABASE_URL: dbUrl,
 
     RATE_LIMIT_PER_MINUTE: "100000",
@@ -99,13 +102,17 @@ async function startApi() {
   await newClient();
 }
 async function newClient() {
+  mcpToken = await issueMcpFixtureToken(
+    connection!.db,
+    mcpFixtureIssuer + "/mcp",
+  );
   client = new Client({
     name: "vitalog-interoperability-test",
     version: "1.0.0",
   });
   await client.connect(
     new StreamableHTTPClientTransport(new URL(baseUrl + "/mcp"), {
-      requestInit: { headers: { Authorization: `Bearer ${key}` } },
+      requestInit: { headers: { Authorization: `Bearer ${mcpToken}` } },
     }),
   );
 }
@@ -129,7 +136,7 @@ async function rest(
   const response = await fetch(baseUrl + path, {
     method: data ? "POST" : "GET",
     headers: {
-      Authorization: `Bearer ${key}`,
+      Authorization: `Bearer ${path === "/mcp" ? mcpToken : key}`,
       ...(data
         ? { "Content-Type": "application/json", "Idempotency-Key": idem }
         : {}),
@@ -356,7 +363,7 @@ try {
       const origin = await fetch(baseUrl + "/mcp", {
         method: "DELETE",
         headers: {
-          Authorization: `Bearer ${key}`,
+          Authorization: `Bearer ${mcpToken}`,
           Origin: "https://untrusted.example",
         },
       });
@@ -365,7 +372,7 @@ try {
         const r = await fetch(baseUrl + "/mcp", {
           method,
           headers: {
-            Authorization: `Bearer ${key}`,
+            Authorization: `Bearer ${mcpToken}`,
             Accept: "text/event-stream",
           },
         });
@@ -373,7 +380,10 @@ try {
         await r.text();
       }
       const missingAccept = await fetch(baseUrl + "/mcp", {
-        headers: { Authorization: `Bearer ${key}`, Accept: "application/json" },
+        headers: {
+          Authorization: `Bearer ${mcpToken}`,
+          Accept: "application/json",
+        },
       });
       assert.equal(missingAccept.status, 406);
     },
