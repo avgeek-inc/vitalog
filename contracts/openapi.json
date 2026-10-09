@@ -238585,6 +238585,6 @@
     "endpoint": "/mcp",
     "transport": "Streamable HTTP",
     "sdk": "@modelcontextprotocol/sdk@1.31.0",
-    "authentication": "Same Authorization Bearer header on every request"
+    "authentication": "OAuth access token for this MCP resource on every request; API keys and AUTH_KEY are not accepted"
   }
 }
