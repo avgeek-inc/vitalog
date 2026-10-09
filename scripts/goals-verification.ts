@@ -1,3 +1,4 @@
+import { issueMcpFixtureToken, mcpFixtureIssuer } from "./mcp-fixture.js";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { randomBytes, randomUUID } from "node:crypto";
@@ -33,6 +34,7 @@ const command = (
   }).trim();
 let connection: ReturnType<typeof database> | undefined;
 let server: Server | undefined;
+let mcpToken = "";
 let client: Client | undefined;
 let baseUrl = "";
 const checks: string[] = [];
@@ -113,6 +115,7 @@ try {
   );
   const config = configuration({
     AUTH_KEY: key,
+    PUBLIC_BASE_URL: mcpFixtureIssuer,
     DATABASE_URL: url,
 
     RATE_LIMIT_PER_MINUTE: "100000",
@@ -131,9 +134,13 @@ try {
   config.allowedHosts = [`127.0.0.1:${address.port}`];
   baseUrl = `http://127.0.0.1:${address.port}`;
   client = new Client({ name: "generic-goal-client", version: "1" });
+  mcpToken = await issueMcpFixtureToken(
+    connection!.db,
+    mcpFixtureIssuer + "/mcp",
+  );
   await client.connect(
     new StreamableHTTPClientTransport(new URL(baseUrl + "/mcp"), {
-      requestInit: { headers: { Authorization: `Bearer ${key}` } },
+      requestInit: { headers: { Authorization: `Bearer ${mcpToken}` } },
     }),
   );
   const today = localDate(new Date(), "Asia/Kolkata");

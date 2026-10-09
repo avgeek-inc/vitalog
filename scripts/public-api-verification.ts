@@ -13,6 +13,7 @@ import { Goals } from "../src/domain/goals.js";
 import { operations, operationByName } from "../src/registry/operations.js";
 import { base } from "../tests/fixtures.js";
 import { migrateDatabase } from "./migrate.js";
+import { issueMcpFixtureToken } from "./mcp-fixture.js";
 
 const container = `vitalog-public-api-${process.pid}`;
 const password = randomBytes(32).toString("hex");
@@ -254,10 +255,11 @@ try {
     )
   ).json();
   assert.equal(progress.progress[0].actual, 750);
+  const mcpToken = await issueMcpFixtureToken(connection.db, apiUrl + "/mcp");
   const mcp = await fetch(apiUrl + "/mcp", {
     method: "POST",
     headers: {
-      Authorization: "Bearer " + primary,
+      Authorization: "Bearer " + mcpToken,
       "Content-Type": "application/json",
       Accept: "application/json, text/event-stream",
     },

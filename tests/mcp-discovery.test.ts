@@ -5,7 +5,7 @@ import type { FormatsPlugin } from "ajv-formats";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { afterAll, describe, expect, test } from "vitest";
-import { application } from "../src/app.js";
+import { handleMcp } from "../src/mcp.js";
 import { configuration } from "../src/config.js";
 import { database } from "../src/db/client.js";
 import { object } from "../src/domain/types.js";
@@ -20,12 +20,30 @@ addFormats(ajv);
 const credential = randomBytes(48).toString("base64url");
 const config = configuration({
   AUTH_KEY: credential,
+  PUBLIC_BASE_URL: "http://localhost:3000",
   DATABASE_URL: "postgresql://unused.invalid/mcp-discovery-test",
 });
 const connection = database(config.databaseUrl);
 const service = new Service(connection.db, "discovery-test");
 const logs: unknown[] = [];
-const app = application(service, config, (entry) => logs.push(entry));
+const app = {
+  request: (url: string, init?: RequestInit) =>
+    handleMcp(
+      new Request(url, init),
+      service,
+      config,
+      ["health:read", "health:write"],
+      (entry) => logs.push(entry),
+    ),
+  fetch: (request: Request) =>
+    handleMcp(
+      request,
+      service,
+      config,
+      ["health:read", "health:write"],
+      (entry) => logs.push(entry),
+    ),
+};
 afterAll(() => connection.pool.end());
 
 describe("Portable MCP discovery", () => {

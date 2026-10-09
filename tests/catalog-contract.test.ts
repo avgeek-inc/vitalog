@@ -22,6 +22,7 @@ import {
 } from "../src/registry/definitions.js";
 import { catalogOutputSchema } from "../src/registry/catalog-output.js";
 import { measurementFixture } from "./fixtures.js";
+import { handleMcp } from "../src/mcp.js";
 import { application } from "../src/app.js";
 import { configuration } from "../src/config.js";
 import { database } from "../src/db/client.js";
@@ -34,6 +35,7 @@ const cursors = new Cursors("catalog-contract-test-only-cursor-key");
 const credential = randomBytes(48).toString("base64url");
 const config = configuration({
   AUTH_KEY: credential,
+  PUBLIC_BASE_URL: "http://localhost:3000",
   DATABASE_URL: "postgresql://unused.invalid/catalog-contract-unit-test",
 });
 const connection = database(config.databaseUrl);
@@ -60,21 +62,26 @@ async function restCatalog(input: Data): Promise<Data> {
   return JSON.parse(text) as Data;
 }
 async function mcpCatalog(input: Data, id: number | string = 1): Promise<Data> {
-  const response = await app.request("http://localhost:3000/mcp", {
-    method: "POST",
-    headers: {
-      ...headers,
-      "Content-Type": "application/json",
-      Accept: "application/json, text/event-stream",
-      "MCP-Protocol-Version": "2025-11-25",
-    },
-    body: JSON.stringify({
-      jsonrpc: "2.0",
-      id,
-      method: "tools/call",
-      params: { name: "health_get_catalog", arguments: input },
+  const response = await handleMcp(
+    new Request("http://localhost:3000/mcp", {
+      method: "POST",
+      headers: {
+        ...headers,
+        "Content-Type": "application/json",
+        Accept: "application/json, text/event-stream",
+        "MCP-Protocol-Version": "2025-11-25",
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id,
+        method: "tools/call",
+        params: { name: "health_get_catalog", arguments: input },
+      }),
     }),
-  });
+    service,
+    config,
+    ["health:read"],
+  );
   expect(response.status).toBe(200);
   const text = await response.text();
   expect(Buffer.byteLength(text)).toBeLessThan(MAX_RESPONSE_BYTES);

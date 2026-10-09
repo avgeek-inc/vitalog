@@ -39,6 +39,10 @@ values:
   - key: oauthRedirectUri
     value: http://127.0.0.1:3002/callback
     enabled: true
+  - key: oauthAccessToken
+    value: ""
+    type: secret
+    enabled: true
   - key: oauthCode
     value: ""
     type: secret

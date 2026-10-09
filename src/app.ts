@@ -330,22 +330,29 @@ export function application(
           ? await sessions.authenticate(authorization)
           : undefined;
       const grant =
-        !primary && path === "/mcp"
-          ? await oauth?.authenticate(authorization)
-          : undefined;
+        path === "/mcp" ? await oauth?.authenticate(authorization) : undefined;
+      if (path === "/mcp") {
+        if (authCount > 1 || !grant) {
+          if (config.publicBaseUrl)
+            c.header(
+              "WWW-Authenticate",
+              oauthChallenge(
+                config.publicBaseUrl,
+                authorization ? "invalid_token" : undefined,
+              ),
+            );
+          throw new DomainError(
+            "UNAUTHORIZED",
+            "Sign in to Vitalog to authorize this MCP connection",
+          );
+        }
+        c.set("oauthScopes", grant.scopes);
+      }
       const manualKey =
-        !primary && !grant && !session
+        path !== "/mcp" && !primary && !session
           ? await keys.findActive(authorization)
           : undefined;
       if (authCount > 1 || (!primary && !grant && !session && !manualKey)) {
-        if (path === "/mcp" && config.publicBaseUrl)
-          c.header(
-            "WWW-Authenticate",
-            oauthChallenge(
-              config.publicBaseUrl,
-              authorization ? "invalid_token" : undefined,
-            ),
-          );
         throw new DomainError("UNAUTHORIZED", "Supply a valid HTTP Bearer key");
       }
       if (manualKey) {
@@ -358,15 +365,7 @@ export function application(
             "FORBIDDEN",
             "Administrative permissions are required",
           );
-        if (path === "/mcp")
-          c.set(
-            "oauthScopes",
-            manualKey.access === "edit"
-              ? ["health:read", "health:write"]
-              : ["health:read"],
-          );
       }
-      if (grant) c.set("oauthScopes", grant.scopes);
       if (session) c.set("browserSession", session);
       if (
         (path === "/v1/api-keys" || path.startsWith("/v1/api-keys/")) &&
@@ -971,7 +970,7 @@ export function application(
   const document = openapi();
   app.get("/openapi.json", (c) => c.json(document));
   app.all("/mcp", (c) =>
-    handleMcp(c.req.raw, service, config, c.get("oauthScopes"), log),
+    handleMcp(c.req.raw, service, config, c.get("oauthScopes")!, log),
   );
   for (const operation of operations) {
     const path = operation.path.replace(/\{([^}]+)\}/g, ":$1");
