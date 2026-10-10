@@ -170,7 +170,10 @@
   },
   "seo": {
     "metatags": {
-      "canonical": "https://www.vitalog.dev"
+      "canonical": "https://www.vitalog.dev",
+      "og:image": "https://www.vitalog.dev/assets/vitalog-og.png",
+      "twitter:image": "https://www.vitalog.dev/assets/vitalog-og.png",
+      "twitter:card": "summary_large_image"
     }
   }
 }
